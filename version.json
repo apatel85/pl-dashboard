@@ -1,22 +1,50 @@
 {
-  "latest_version": "1.0.0",
+  "latest_version": "5.0.0",
   "minimum_version": "1.0.0",
-  "download_url": "https://gumroad.com/YOUR-PRODUCT-LINK",
+  "download_url": "https://apatel85.github.io/pl-dashboard/pl-dashboard-v5.html",
   "release_notes": [
+    {
+      "version": "5.0.0",
+      "date": "2025-05-12",
+      "title": "3-Layer Backup + Google Sheets Cloud Sync",
+      "summary": "Full data protection with browser snapshots, auto-file backup, and Google Sheets live sync.",
+      "changes": [
+        { "type": "new", "text": "Layer 1: Auto browser snapshots — last 5 states stored, one-click restore" },
+        { "type": "new", "text": "Layer 2: Auto file backup every 30 min to your computer (Chrome/Edge/Brave)" },
+        { "type": "new", "text": "Layer 3: Google Sheets live sync — push/pull cloud backup accessible from any device" },
+        { "type": "new", "text": "Protection score banner showing which backup layers are active" },
+        { "type": "new", "text": "In-app step-by-step Google sign-in guide — no technical knowledge needed" },
+        { "type": "new", "text": "Persistent storage request — protects IndexedDB from browser eviction" },
+        { "type": "new", "text": "Storage health dashboard with size estimates" },
+        { "type": "imp", "text": "All data changes trigger automatic snapshot scheduling" }
+      ]
+    },
+    {
+      "version": "4.0.0",
+      "date": "2025-04-01",
+      "title": "IndexedDB Engine + File Sync",
+      "summary": "Complete data entry, IndexedDB storage for 100K+ rows, and local file sync.",
+      "changes": [
+        { "type": "new", "text": "IndexedDB storage — handles 100,000+ transactions with proper indexing" },
+        { "type": "new", "text": "Quick-Add form with Enter-key rapid entry" },
+        { "type": "new", "text": "Inline editing of all transaction fields in the table" },
+        { "type": "new", "text": "Paginated transactions table with sort, search, and multi-filter" },
+        { "type": "new", "text": "File System Access API — sync directly to a CSV or XLSX on disk" },
+        { "type": "new", "text": "Export to Excel (.xlsx) with Transactions + Monthly Summary sheets" },
+        { "type": "imp", "text": "Charts and dashboard fully async — no lag on large datasets" }
+      ]
+    },
     {
       "version": "1.0.0",
       "date": "2025-01-01",
       "title": "Initial Release",
       "summary": "Full-featured P&L dashboard with CSV import, charts, and auto-save.",
       "changes": [
-        { "type": "new", "text": "CSV upload with intelligent field mapping — works with any column names" },
+        { "type": "new", "text": "CSV upload with intelligent field mapping" },
         { "type": "new", "text": "Revenue & expense tracking with category breakdown" },
         { "type": "new", "text": "4 interactive charts: bar, line, and donut visualizations" },
-        { "type": "new", "text": "Auto-save to localStorage — data persists between sessions" },
-        { "type": "new", "text": "Export to CSV and JSON backup/restore" },
-        { "type": "new", "text": "Manual transaction entry with autocomplete categories" },
-        { "type": "new", "text": "Month filter for drilling into specific time periods" },
-        { "type": "new", "text": "Version check system with automatic update notifications" }
+        { "type": "new", "text": "Auto-save — data persists between sessions" },
+        { "type": "new", "text": "Export to CSV and JSON backup/restore" }
       ]
     }
   ]
