@@ -887,7 +887,7 @@ tbody tr:hover { background: var(--surface2); }
       </div>
     </div>
 
-    <!-- License info (shown after successful auth) -->
+    <!-- License verified — checking cloud (shown briefly after auth) -->
     <div id="auth-success-panel" style="display:none">
       <div style="font-size:36px;margin-bottom:12px">✅</div>
       <div style="font-size:15px;font-weight:600;color:#27ae60;margin-bottom:6px">Access verified</div>
@@ -895,7 +895,53 @@ tbody tr:hover { background: var(--surface2); }
       <div style="width:100%;height:4px;background:#2a3045;border-radius:2px;overflow:hidden">
         <div style="width:0%;height:100%;background:#0ecfbe;border-radius:2px;transition:width 1.2s ease" id="auth-progress-bar"></div>
       </div>
-      <div style="font-size:12px;color:#6b7394;margin-top:8px">Loading your dashboard…</div>
+      <div style="font-size:12px;color:#6b7394;margin-top:8px" id="auth-progress-label">Loading your dashboard…</div>
+    </div>
+
+    <!-- Cloud restore prompt — shown when backup found on new device -->
+    <div id="auth-restore-panel" style="display:none">
+      <div style="font-size:32px;margin-bottom:12px">☁️</div>
+      <div style="font-size:15px;font-weight:600;color:#e8eaf0;margin-bottom:8px">Cloud backup found</div>
+      <div id="auth-restore-msg" style="font-size:13px;color:#6b7394;margin-bottom:20px;line-height:1.7"></div>
+
+      <!-- Restore details card -->
+      <div id="auth-restore-details" style="
+        background:#0f1117;border:1px solid #2a3045;border-radius:8px;
+        padding:14px 16px;margin-bottom:20px;text-align:left;
+      "></div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="confirmCloudRestore()" style="
+          width:100%;padding:12px;border-radius:8px;border:none;
+          background:#0ecfbe;color:#0f1117;font-family:'DM Sans',sans-serif;
+          font-size:14px;font-weight:700;cursor:pointer;
+          transition:filter .15s;
+        " onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
+          ☁️ Restore My Data
+        </button>
+        <button onclick="skipCloudRestore()" style="
+          width:100%;padding:10px;border-radius:8px;
+          background:transparent;border:1px solid #2a3045;
+          color:#6b7394;font-family:'DM Sans',sans-serif;
+          font-size:13px;cursor:pointer;transition:all .15s;
+        " onmouseover="this.style.borderColor='#6b7394'" onmouseout="this.style.borderColor='#2a3045'">
+          Start fresh on this device
+        </button>
+      </div>
+      <div style="font-size:11px;color:#3d4460;margin-top:14px;line-height:1.6">
+        Restoring will import your cloud backup into this browser.<br>
+        Your existing local data (if any) will be replaced.
+      </div>
+    </div>
+
+    <!-- Restore progress -->
+    <div id="auth-restoring-panel" style="display:none">
+      <div style="font-size:32px;margin-bottom:12px;animation:spin .8s linear infinite;display:inline-block">↻</div>
+      <div style="font-size:15px;font-weight:600;color:#e8eaf0;margin-bottom:8px">Restoring your data…</div>
+      <div style="width:100%;height:4px;background:#2a3045;border-radius:2px;overflow:hidden;margin-top:16px">
+        <div style="width:0%;height:100%;background:#0ecfbe;border-radius:2px;transition:width .4s ease" id="restore-progress-bar"></div>
+      </div>
+      <div id="restore-progress-label" style="font-size:12px;color:#6b7394;margin-top:8px">Importing transactions…</div>
     </div>
 
     <div style="margin-top:28px;padding-top:20px;border-top:1px solid #2a3045;font-size:11px;color:#3d4460;line-height:1.7">
@@ -1692,6 +1738,8 @@ const SESSION_TTL_MS   = 24 * 60 * 60 * 1000;   // re-verify every 24 hours
 // Instructions included in SETUP-GUIDE.md
 const GOOGLE_CLIENT_ID  = '319401977574-ldicfj8e93m040t42vnjboq7mmmo00ro.apps.googleusercontent.com';
 const GSHEETS_SCOPES    = 'https://www.googleapis.com/auth/spreadsheets';
+const GDRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.readonly';
+const GSHEETS_ALL_SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly';
 const GSHEETS_SHEET_TITLE = 'PL_Transactions';
 
 // ── Global state ──────────────────────────────────────────────────
@@ -2069,9 +2117,9 @@ function renderGSheetsPanel() {
         </div>
 
         <div style="font-size:11px;color:var(--muted);padding:8px 12px;background:var(--surface2);border-radius:6px;line-height:1.6;margin-top:2px">
-          🔒 <strong style="color:var(--text)">Privacy:</strong> This app only requests permission to create and edit
-          Google Sheets. It cannot read your emails, access other files, or see anything outside of the
-          sheets it creates for your P&amp;L data.
+          🔒 <strong style="color:var(--text)">Privacy:</strong> This app requests permission to create/edit Google Sheets
+          and to search your Drive for existing P&amp;L backups (read-only).
+          It cannot read your emails, access other files, or modify anything it didn't create.
         </div>
       </div>`;
     return;
@@ -2187,7 +2235,7 @@ function gsheetsSignIn() {
   if (!window.google) { toast('Google API not loaded — check internet connection', 'error'); return; }
   const client = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
-    scope:     GSHEETS_SCOPES,
+    scope:     GSHEETS_ALL_SCOPES,
     callback:  (resp) => {
       if (resp.error) { toast('Sign-in failed: ' + resp.error, 'error'); return; }
       gsheetsToken = resp.access_token;
@@ -3161,11 +3209,260 @@ function showAuthSuccess(user) {
     `Welcome back, <strong>${user.name.split(' ')[0]}</strong>! &nbsp;·&nbsp; ` +
     `<span style="color:#0ecfbe">${user.plan.charAt(0).toUpperCase()+user.plan.slice(1)} license</span>`;
 
-  // Animate progress bar then dismiss gate
-  setTimeout(() => {
+  // Animate progress bar
+  setTimeout(() => { document.getElementById('auth-progress-bar').style.width = '70%'; }, 100);
+
+  // After license verified, check if this is a new device needing cloud restore
+  setTimeout(() => checkCloudRestoreNeeded(user), 800);
+}
+
+// ── Cross-device cloud restore engine ────────────────────────
+
+let pendingRestoreSheetId  = null;   // spreadsheet ID found in Drive
+let pendingRestoreRowCount = 0;      // how many rows found
+let pendingRestoreDate     = null;   // last modified date of the sheet
+
+async function checkCloudRestoreNeeded(user) {
+  const localCount = await dbCount();
+  const meta       = loadGSheetsMeta();
+
+  // Case 1: This device already has data AND a linked sheet — no restore needed
+  if (localCount > 0 && meta.spreadsheetId) {
+    document.getElementById('auth-progress-label').textContent = 'Loading your dashboard…';
     document.getElementById('auth-progress-bar').style.width = '100%';
-  }, 100);
-  setTimeout(() => unlockApp(user, true), 1500);
+    setTimeout(() => unlockApp(user, true), 600);
+    return;
+  }
+
+  // Case 2: Device has local data but no sheet linked — just boot normally
+  if (localCount > 0 && !meta.spreadsheetId) {
+    document.getElementById('auth-progress-label').textContent = 'Loading your dashboard…';
+    document.getElementById('auth-progress-bar').style.width = '100%';
+    setTimeout(() => unlockApp(user, true), 600);
+    return;
+  }
+
+  // Case 3: No local data — search Google Drive for an existing P&L backup
+  // This is the cross-device scenario: new device, data lives in the cloud
+  document.getElementById('auth-progress-label').textContent = 'Checking for cloud backup…';
+
+  // We need Sheets+Drive token to search Drive
+  // Request it silently — user already consented on another device
+  if (!gsheetsToken) {
+    try {
+      await requestSheetsTokenSilent(user);
+    } catch(e) {
+      // Can't get token silently (first time with Sheets) — skip restore check
+      document.getElementById('auth-progress-bar').style.width = '100%';
+      document.getElementById('auth-progress-label').textContent = 'Loading your dashboard…';
+      setTimeout(() => unlockApp(user, true), 500);
+      return;
+    }
+  }
+
+  // Search Drive for sheets named like our backup
+  try {
+    const found = await findPLSheetInDrive();
+    if (found) {
+      document.getElementById('auth-progress-bar').style.width = '85%';
+      await showRestorePrompt(user, found);
+    } else {
+      // No backup found — fresh start
+      document.getElementById('auth-progress-bar').style.width = '100%';
+      document.getElementById('auth-progress-label').textContent = 'Loading your dashboard…';
+      setTimeout(() => unlockApp(user, true), 500);
+    }
+  } catch(e) {
+    // Drive search failed — proceed normally, don't block the user
+    console.info('[restore check]', e.message);
+    document.getElementById('auth-progress-bar').style.width = '100%';
+    setTimeout(() => unlockApp(user, true), 500);
+  }
+}
+
+// Request Sheets+Drive token silently (prompt=none)
+function requestSheetsTokenSilent(user) {
+  return new Promise((resolve, reject) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope:     GSHEETS_ALL_SCOPES,
+      prompt:    '',            // empty = silent if previously consented
+      hint:      user.email,   // pre-select the correct account
+      callback:  (resp) => {
+        if (resp.error) reject(new Error(resp.error));
+        else { gsheetsToken = resp.access_token; resolve(resp.access_token); }
+      }
+    });
+    client.requestAccessToken();
+  });
+}
+
+// Search Google Drive for P&L backup spreadsheets
+async function findPLSheetInDrive() {
+  // Search for spreadsheets with "P&L" in the title created by this app
+  const query = encodeURIComponent("mimeType='application/vnd.google-apps.spreadsheet' and name contains 'P&L' and trashed=false");
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=10`,
+    { headers: { Authorization: 'Bearer ' + gsheetsToken } }
+  );
+  if (!res.ok) throw new Error('Drive search failed: ' + res.status);
+  const data = await res.json();
+  const files = data.files || [];
+  if (!files.length) return null;
+
+  // Check the most recently modified one for PL_Transactions sheet
+  for (const file of files) {
+    try {
+      const sheetRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${file.id}?fields=sheets.properties.title`,
+        { headers: { Authorization: 'Bearer ' + gsheetsToken } }
+      );
+      if (!sheetRes.ok) continue;
+      const sheetData = await sheetRes.json();
+      const sheets = sheetData.sheets || [];
+      const hasPLSheet = sheets.some(s => s.properties.title === GSHEETS_SHEET_TITLE);
+      if (!hasPLSheet) continue;
+
+      // Count rows in the transactions sheet
+      const rowRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${file.id}/values/${encodeURIComponent(GSHEETS_SHEET_TITLE+'!A:A')}`,
+        { headers: { Authorization: 'Bearer ' + gsheetsToken } }
+      );
+      if (!rowRes.ok) continue;
+      const rowData = await rowRes.json();
+      const rowCount = Math.max(0, (rowData.values || []).length - 1); // minus header
+
+      if (rowCount > 0) {
+        return { id: file.id, name: file.name, modifiedTime: file.modifiedTime, rowCount };
+      }
+    } catch(e) { continue; }
+  }
+  return null;
+}
+
+// Show the restore prompt inside the auth gate
+async function showRestorePrompt(user, sheetInfo) {
+  pendingRestoreSheetId  = sheetInfo.id;
+  pendingRestoreRowCount = sheetInfo.rowCount;
+  pendingRestoreDate     = new Date(sheetInfo.modifiedTime);
+
+  const dateStr = pendingRestoreDate.toLocaleDateString('en-US', {
+    year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'
+  });
+
+  // Switch panels
+  document.getElementById('auth-success-panel').style.display  = 'none';
+  document.getElementById('auth-restore-panel').style.display  = 'block';
+
+  document.getElementById('auth-restore-msg').innerHTML =
+    `We found your P&amp;L data backed up in your Google Drive.<br>
+     Would you like to restore it on this device?`;
+
+  document.getElementById('auth-restore-details').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <div style="font-size:10px;font-weight:600;color:#6b7394;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">Transactions</div>
+        <div style="font-size:20px;font-weight:700;color:#0ecfbe">${sheetInfo.rowCount.toLocaleString()}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:600;color:#6b7394;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">Last Backed Up</div>
+        <div style="font-size:12px;font-weight:600;color:#e8eaf0;margin-top:4px">${dateStr}</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #2a3045;font-size:11px;color:#6b7394">
+      📄 ${sheetInfo.name}
+    </div>
+  `;
+
+  // Save the sheet ID so future pushes know where to go
+  const meta = loadGSheetsMeta();
+  meta.spreadsheetId   = sheetInfo.id;
+  meta.spreadsheetName = sheetInfo.name;
+  saveGSheetsMeta(meta);
+  authUser = user;  // ensure authUser is set before restore
+}
+
+// User clicked "Restore My Data"
+async function confirmCloudRestore() {
+  document.getElementById('auth-restore-panel').style.display   = 'none';
+  document.getElementById('auth-restoring-panel').style.display = 'block';
+
+  try {
+    const bar   = document.getElementById('restore-progress-bar');
+    const label = document.getElementById('restore-progress-label');
+
+    label.textContent = 'Connecting to Google Sheets…';
+    bar.style.width   = '15%';
+
+    // Fetch all rows from the sheet
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${pendingRestoreSheetId}/values/${encodeURIComponent(GSHEETS_SHEET_TITLE+'!A1:H')}`,
+      { headers: { Authorization: 'Bearer ' + gsheetsToken } }
+    );
+    if (!res.ok) throw new Error('Could not read sheet: ' + res.status);
+    const data  = await res.json();
+    const rows  = data.values || [];
+    if (rows.length < 2) throw new Error('Sheet appears empty');
+
+    bar.style.width   = '40%';
+    label.textContent = `Parsing ${(rows.length - 1).toLocaleString()} transactions…`;
+
+    const [header, ...dataRows] = rows;
+    const idx = Object.fromEntries(header.map((h, i) => [h.toLowerCase(), i]));
+
+    const txns = dataRows.map(r => ({
+      id:          parseFloat(r[idx['id']]) || Date.now() + Math.random(),
+      date:        r[idx['date']]         || '',
+      type:        r[idx['type']]         || 'revenue',
+      category:    r[idx['category']]     || 'Uncategorized',
+      description: r[idx['description']]  || '',
+      amount:      parseFloat(r[idx['amount']]) || 0,
+      month:       r[idx['month']]        || '',
+      year:        parseInt(r[idx['year']]) || ''
+    })).filter(t => t.amount > 0);
+
+    bar.style.width   = '65%';
+    label.textContent = `Importing ${txns.length.toLocaleString()} transactions…`;
+
+    // Clear any existing local data and bulk-insert
+    await dbClear();
+    await dbBulkPut(txns, (pct) => {
+      bar.style.width = (65 + pct * 30) + '%';
+    });
+
+    bar.style.width   = '95%';
+    label.textContent = 'Saving snapshot…';
+
+    // Update Google Sheets meta with restored sheet
+    const meta = loadGSheetsMeta();
+    meta.lastSync = new Date().toLocaleString();
+    saveGSheetsMeta(meta);
+
+    await takeSnapshot(true);
+
+    bar.style.width   = '100%';
+    label.textContent = `✓ Restored ${txns.length.toLocaleString()} transactions`;
+
+    toast(`✓ Restored ${txns.length.toLocaleString()} transactions from Google Sheets`, 'success');
+
+    setTimeout(() => unlockApp(authUser, true), 900);
+
+  } catch(e) {
+    document.getElementById('auth-restoring-panel').style.display = 'none';
+    document.getElementById('auth-restore-panel').style.display   = 'block';
+    document.getElementById('auth-restore-msg').innerHTML =
+      `<span style="color:#e74c3c">Restore failed: ${e.message}</span><br><br>
+       You can try again or start fresh on this device.`;
+  }
+}
+
+// User clicked "Start fresh"
+function skipCloudRestore() {
+  document.getElementById('auth-restore-panel').style.display = 'none';
+  document.getElementById('auth-success-panel').style.display = 'block';
+  document.getElementById('auth-progress-bar').style.width    = '100%';
+  document.getElementById('auth-progress-label').textContent  = 'Loading your dashboard…';
+  setTimeout(() => unlockApp(authUser, true), 700);
 }
 
 function authResetAndRetry() {
