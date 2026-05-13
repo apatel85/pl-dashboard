@@ -1,145 +1,151 @@
-# AI Review Prompt — P&L Dashboard v8
+# AI Review Prompt — P&L Dashboard v8 (v2: full AI-driven testing)
 
-Use this prompt when working with **ChatGPT**, **Gemini**, **Claude**, or any other AI tool.
-Paste the prompt below (between the triple-dashes) into the AI chat AFTER uploading both files.
+Use this prompt with **ChatGPT (Code Interpreter)**, **Gemini (AI Studio)**, or **Claude (Code or claude.ai)**.
+It instructs the AI to perform the entire review, simulation, stress testing, and fix-generation **autonomously** — no human-in-browser required.
 
 ---
 
-## Files to upload before pasting this prompt
+## Files to upload before pasting the prompt
 1. `pl-dashboard-v8.html` — the application under review (4,190 lines)
-2. `REVIEW_PLAN.md` — the review and testing plan you will follow
+2. `REVIEW_PLAN.md` — the full plan (the AI follows this end-to-end)
+
+That's it. The AI will generate every other artifact (mock data, issue log, fixes, scorecard).
 
 ---
 
 ## Prompt to paste
 
 ```
-I have uploaded two files:
-- `pl-dashboard-v8.html`: a single-file, zero-backend P&L (Profit & Loss) financial dashboard built with vanilla JavaScript, Chart.js, XLSX.js, IndexedDB, localStorage, File System Access API, and Google Sheets API.
-- `REVIEW_PLAN.md`: a structured review and testing plan that tells you exactly what to check, how to log issues, and how to fix them.
+You are a senior software engineer + QA automation engineer.
 
-Your job is to act as a senior software engineer and perform the **Part A — Static Code Review** from REVIEW_PLAN.md against the uploaded `pl-dashboard-v8.html` file.
+I have uploaded:
+- `pl-dashboard-v8.html`: a 4,190-line single-file P&L dashboard (vanilla JS, Chart.js, XLSX.js, IndexedDB, localStorage, File System Access API, Google Sheets API).
+- `REVIEW_PLAN.md`: the complete plan you will execute.
 
----
-
-### INSTRUCTIONS
-
-**Step 1 — Read REVIEW_PLAN.md first.**
-Understand the structure:
-- Part A = Static code review (you do this entirely from the file — no browser needed)
-- Part B = Manual UI testing (a human must run this in Chrome — skip for now unless I tell you otherwise)
-- Part C = Issue logging format (use this exact format for every finding)
-- Part D = Resolution Playbook (recipes for fixing each issue type)
-- Part E = AI-specific notes for your tool
-- Part F = Verification and sign-off checklist
-
-**Step 2 — Run Section A1: Inventory Pass.**
-From `pl-dashboard-v8.html`:
-1. Report the total line count, and where `<style>` and `<script>` blocks begin/end.
-2. List every JavaScript function: name, approximate line number, approximate LOC. Flag any function exceeding 80 lines.
-3. List all global variables and state objects (look for `let`/`var` at top scope).
-4. List all storage keys (strings assigned to `const` like `CATEGORIES_KEY`, `GSHEETS_KEY`, IndexedDB store names).
-
-**Step 3 — Run Section A2: Security Review.**
-Search the file for each of these patterns and report findings:
-- A2.1: Every `innerHTML =` or template-literal HTML string that interpolates user-supplied data (category names, descriptions, filenames). Flag any that are NOT HTML-escaped.
-- A2.2: Count inline `onclick="..."` handlers. Flag any where the handler string is dynamically built from user data.
-- A2.3: Search for `eval(`, `new Function(`, `setTimeout("`. Report every hit — there should be zero.
-- A2.4: Find the Google OAuth `client_id`. Confirm it looks like a public web client ID (ends in `.apps.googleusercontent.com`). Note the OAuth scopes requested.
-- A2.5: Search for where tokens or credentials are written to `localStorage`. Note the key names and whether TTL/expiry is enforced.
-- A2.6: Find the CSV/XLSX export function(s). Check whether cell values that begin with `=`, `+`, `-`, or `@` are sanitized (prefixed with a `'` or tab) before being written to the output.
-
-**Step 4 — Run Section A3: Data Integrity Review.**
-Check:
-- A3.1: Find `onupgradeneeded`. Does it use `oldVersion` branching to avoid dropping the existing store on upgrades from prior versions?
-- A3.2: Find `dbBulkPut` (or the equivalent bulk-insert function). Is it wrapped in a single IndexedDB transaction with error rollback?
-- A3.3: Find all `parseFloat` / `Number(` calls on user amount inputs. Do they strip `$`, `,`, and handle `(99.00)` accounting-negative format?
-- A3.4: Find the date-parsing logic for CSV import. Does it handle `YYYY-MM-DD`, `MM/DD/YYYY`, and `DD/MM/YYYY` without ambiguity, or does it silently pick one?
-- A3.5: Are monetary amounts stored as floats or integers (cents)? If floats, flag floating-point precision risk.
-- A3.6: Find the Layer 1 snapshot logic. Confirm the rolling buffer is capped at 5 and evicts the oldest without corrupting the array.
-- A3.7: Find the Google Sheets pull function. Does it show a confirmation prompt before overwriting local data?
-
-**Step 5 — Run Section A4: Code Quality.**
-- A4.1: List all functions over 80 LOC (from your Step 2 inventory) and note what they do.
-- A4.2: Identify duplicate rendering logic (e.g., multiple functions that rebuild the same dropdown or table).
-- A4.3: List all magic strings (hardcoded repeated string literals that should be named constants).
-- A4.4: Find every `fetch(`, `FileReader`, and IndexedDB request. Does each have a `.catch()` or `try/catch` that calls a toast/alert on failure?
-- A4.5: Check for ARIA labels on icon-only buttons, `role="status"` on the toast container, and `:focus-visible` CSS rules.
-- A4.6: Find the transaction table render function. Does it paginate or virtualize before rendering? What is the max rows rendered at once?
-
-**Step 6 — Run Section A5: Browser Compatibility.**
-- A5.1: Is `window.showOpenFilePicker` (File System Access API) guarded by a feature-detection check? What happens on Firefox/Safari where it's unsupported?
-- A5.2: Is there a fallback or error message when IndexedDB is unavailable (e.g., private browsing mode)?
-- A5.3: List any ES2020+ syntax used (`?.`, `??`, `Promise.allSettled`, etc.) and confirm the app doesn't claim support for IE or old browsers.
+Follow REVIEW_PLAN.md end-to-end. You are responsible for ALL testing — including stress testing — using your code-execution sandbox (Python in Code Interpreter / Gemini code execution / Node via Bash for Claude). Do not ask a human to run a browser; instead, extract pure-logic JS functions from the file and re-execute them on mock datasets you generate.
 
 ---
 
-### OUTPUT FORMAT
+### EXECUTE IN THIS ORDER
 
-For every finding, output a structured issue entry using this exact format (from REVIEW_PLAN.md Part C):
+**Step 1 — Read REVIEW_PLAN.md fully.** Confirm you understand Parts A through H.
 
-```
-## ISSUE-<NNN>: <Short title>
-- **Section:** A2.1
-- **Severity:** Critical | High | Medium | Low | Info
-- **Type:** Security | Data-loss | Functional | UX | Performance | Accessibility | Code-quality
-- **Location:** pl-dashboard-v8.html:<line> (function `<name>`)
-- **Steps to reproduce:** (for static issues, describe what to search for)
-- **Expected:** …
-- **Actual:** …
-- **Evidence:** paste the relevant code snippet (≤10 lines)
-- **Suggested fix:** see Resolution R-<id> from REVIEW_PLAN.md
-```
+**Step 2 — Generate mock datasets (Part C).**
+Write Python code that emits these CSV files (use the C7 generator pseudocode as a starting point):
+- `mock-10-rev2500-exp1000.csv` (smoke)
+- `mock-1000-rev500000-exp300000.csv` (standard)
+- `mock-10000-rev1000000-exp500000.csv` (stress)
+- `mock-100000-rev10000000-exp5000000.csv` (heavy stress)
+- `mock-edge-cases.csv` (all 20 edge cases listed in C4)
+- `mock-10000-pennies.csv` (10,000 × $0.01 — float-drift torture)
+- `mock-100k-mixed.csv` (24 months × 20 categories)
 
-Number issues sequentially starting at ISSUE-001.
+Each filename's totals must match the actual CSV totals exactly.
 
-After all issues, output:
-1. A **summary table** with columns: Issue #, Section, Severity, Type, Short title.
-2. A count of Critical / High / Medium / Low / Info issues found.
+**Step 3 — Part A: Static Review.**
+Run every check in Sections A1 through A5 against `pl-dashboard-v8.html`. Use regex / `re.findall` on the file's text. Log every finding as an `ISSUE-NNN` entry per Part E's format.
+
+**Step 4 — Part B: Logic Simulation.**
+- Extract each pure-logic JS function from the HTML (parseDate, parseAmount, csv parser/sanitizer, KPI calculator, monthly aggregator, htmlEscape, etc.).
+- Transliterate each to Python (or run via PyMiniRacer / Node if available). Preserve semantics exactly.
+- Run the unit-test matrix in B2 against every extracted function. Log every failure as `ISSUE-NNN`.
+- Run the end-to-end integration simulation (B3) on all 7 mock datasets. Log any deviation between computed totals and filename-encoded totals.
+- For browser-only features (B4), produce a Playwright stub `tests/e2e.spec.js` covering UI rendering, IndexedDB transactions, File System Access, and Google OAuth flows. Note these as "Confidence: Low" in the scorecard.
+
+**Step 5 — Part D: Stress & Performance.**
+For each of D1–D7:
+- Time operations with `time.perf_counter()`.
+- Record actual values vs budget.
+- Flag every breach as an `ISSUE-NNN` (Severity = High if budget missed by ≥ 2×, Medium otherwise).
+- Compute Layer 1 snapshot size (D7); if a full 100k dataset stringifies > 1 MB, flag with recommendation for LZ-string compression.
+
+**Step 6 — Produce ISSUES_LOG.md** (Part E format).
+Number every finding sequentially (ISSUE-001, ISSUE-002, …) across static + simulation + stress. Every entry must include: section, severity, type, location with line numbers, evidence snippet, and linked FIX-NNN.
+
+**Step 7 — Produce FIXES.md** (Part F format — STRICT).
+For every ISSUE-NNN, produce a corresponding FIX-NNN block with:
+- `OLD_STRING`: the exact code currently in the file (with enough surrounding lines that it appears exactly once).
+- `NEW_STRING`: the exact replacement (preserving indentation byte-for-byte).
+- Rationale and verification steps.
+
+This format is designed so a downstream AI tool (ChatGPT, Gemini, or Claude Code) can be given `pl-dashboard-v8.html` + `FIXES.md` and instructed:
+> "Apply every FIX-NNN: find OLD_STRING in the file and replace with NEW_STRING. Report any not found."
+
+Constraints:
+- Each patch ≤ 50 lines.
+- Order patches top-to-bottom by file location so earlier patches don't invalidate later OLD_STRINGs.
+- Group new helper functions (e.g., `escapeHtml`) at a stable anchor (after the last top-level `const`).
+- Every FIX-NNN links back to its ISSUE-NNN.
+
+**Step 8 — Produce SCORECARD.md** (Part G format).
+Include: overall grade (A/B/C/D/F per formula), 7 category scores, issue counts by severity, performance numbers vs budgets, top-5 risks, remediation order, confidence table, recommended next steps.
+
+**Step 9 — Cover note (≤ 200 words).**
+Summarize the single most-impactful finding and the one fix to apply first.
 
 ---
 
-### SCOPE FOR THIS SESSION
+### DELIVERABLES (output as separate code blocks or downloadable files)
 
-- Do **Part A only** (static analysis from the uploaded file).
-- Do **not** attempt to run or simulate the HTML.
-- Do **not** modify the file.
-- Do **not** attempt Part B (that requires a human with a browser).
-- If you cannot access a section of the file due to length limits, say so explicitly and I will paste the relevant section.
+1. `mock-data/*.csv` — all 7 datasets
+2. `ISSUES_LOG.md`
+3. `FIXES.md` (strict format from Part F — must be auto-applyable)
+4. `SCORECARD.md`
+5. `tests/e2e.spec.js` — Playwright stub
+6. Cover note
+
+If any deliverable would exceed your output limit, split it into Part 1 / Part 2 / … and tell me how many parts to expect.
 
 ---
 
-### AFTER PART A IS COMPLETE
+### CONSTRAINTS
 
-Tell me when you are done with Part A. I will then:
-1. Manually run Part B (browser testing) and paste my findings back to you.
-2. Ask you to log those findings as additional ISSUE-NNN entries.
-3. Ask you to produce resolution patches (from Part D of REVIEW_PLAN.md) for any Critical or High severity issues.
+- Do NOT ask the human to run anything in a browser. All testing is yours.
+- Do NOT modify `pl-dashboard-v8.html` — only describe fixes in `FIXES.md`.
+- Do NOT skip stress tests because they're slow — run on 100k rows. If your sandbox runs out of memory, stream the data row-by-row and report the throughput you achieved.
+- Be honest about confidence: any browser-only feature gets "Confidence: Low" with reasoning.
+- Cite line numbers from `pl-dashboard-v8.html` in every issue.
+
+Begin now with Step 1, then proceed in order. Output Step 2's generator code first so I can see the mock data being created.
 ```
 
 ---
 
-## Notes for specific AI tools
+## Tool-Specific Setup
 
-### ChatGPT (GPT-4o / o1)
-- Upload both files using the paperclip/attachment button before pasting the prompt.
-- If the file is too long for one context window, paste it in chunks of ~200KB and say "This is chunk 1 of N — do not start analysis until I say GO."
-- Use **Code Interpreter** (Advanced Data Analysis) for reliable `grep`-style searching.
-- For fixes: ask for **unified diffs** (`--- before / +++ after`) rather than full file rewrites.
+### ChatGPT (4o / o1 with Code Interpreter)
+- Click the paperclip → attach both files.
+- Paste the prompt above.
+- ChatGPT will use Python in its sandbox to generate mocks, run extracted-function simulations, and time stress tests.
+- If output is truncated, ask: "Continue from where you stopped, in the same format."
 
-### Gemini (2.x in AI Studio or Gemini app)
-- Use Google AI Studio (aistudio.google.com) for the 1M token context window — paste the full file content.
-- Alternatively, use the Files API if using the Gemini API directly.
-- Gemini handles long files well in one pass; you can ask it to complete all of Part A in a single response.
-- For fixes: ask for inline diffs with line numbers.
+### Gemini (2.x in Google AI Studio)
+- Open https://aistudio.google.com → new chat → enable "Code execution".
+- Upload both files (paperclip icon).
+- Paste the prompt.
+- Gemini 2.0+ can execute Python natively; for older versions, ask it to print code blocks you'll run locally.
 
 ### Claude (claude.ai or Claude Code)
-- In Claude Code: files are already on disk. Use `Read` with `offset`/`limit` for windowed reading.
-- In claude.ai: upload both files via the attachment button.
-- Claude handles structured output reliably — the ISSUE-NNN format will be followed consistently.
-- After Part A, Claude Code can apply fixes directly to the file using the `Edit` tool.
+- claude.ai: attach both files via paperclip.
+- Claude Code: files already on disk — say "Execute REVIEW_PLAN.md end-to-end" and Claude will use Read, Bash (`python3` / `node`), and Write tools to produce all artifacts directly into the repo.
+- The `FIXES.md` format is designed to feed Claude Code's `Edit` tool one-to-one — after producing it, Claude Code can apply every patch with no human intervention.
 
-### Any tool — common guardrails
-- Always **snapshot your data** (open the app → Backup tab → Snapshot Now) before applying any code fix.
-- Apply fixes **one issue at a time** and re-test the relevant Part B section before moving on.
-- Never let the AI commit or push changes without your explicit approval.
+---
+
+## Applying the fixes (downstream step)
+
+Once you have `FIXES.md`:
+
+**With Claude Code:** "Apply every FIX-NNN in FIXES.md to pl-dashboard-v8.html using the Edit tool. Report any OLD_STRING not found."
+
+**With ChatGPT / Gemini:** Upload `pl-dashboard-v8.html` + `FIXES.md` to a fresh chat and paste:
+> "For every FIX-NNN block in FIXES.md: find OLD_STRING in pl-dashboard-v8.html and replace it with NEW_STRING. Each OLD_STRING is unique in the file. After all fixes are applied, output the patched HTML as a downloadable file. List any FIX-NNN that could not be applied and why."
+
+---
+
+## Guardrails
+
+- Snapshot live data first: open the running app → Backup tab → "Snapshot Now" → confirm at least one Layer-1 snapshot exists before applying fixes.
+- Apply fixes in severity order: Critical → High → Medium → Low → Info.
+- Re-run Part B simulation after each tier to confirm no regression.
+- Never commit / push without explicit approval.
