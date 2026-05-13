@@ -1,0 +1,23 @@
+{
+  "latest_version": "1.0.0",
+  "minimum_version": "1.0.0",
+  "download_url": "https://gumroad.com/YOUR-PRODUCT-LINK",
+  "release_notes": [
+    {
+      "version": "1.0.0",
+      "date": "2025-01-01",
+      "title": "Initial Release",
+      "summary": "Full-featured P&L dashboard with CSV import, charts, and auto-save.",
+      "changes": [
+        { "type": "new", "text": "CSV upload with intelligent field mapping — works with any column names" },
+        { "type": "new", "text": "Revenue & expense tracking with category breakdown" },
+        { "type": "new", "text": "4 interactive charts: bar, line, and donut visualizations" },
+        { "type": "new", "text": "Auto-save to localStorage — data persists between sessions" },
+        { "type": "new", "text": "Export to CSV and JSON backup/restore" },
+        { "type": "new", "text": "Manual transaction entry with autocomplete categories" },
+        { "type": "new", "text": "Month filter for drilling into specific time periods" },
+        { "type": "new", "text": "Version check system with automatic update notifications" }
+      ]
+    }
+  ]
+}
