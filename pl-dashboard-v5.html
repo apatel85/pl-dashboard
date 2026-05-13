@@ -813,6 +813,98 @@ tbody tr:hover { background: var(--surface2); }
 </head>
 <body>
 
+<!-- ═══════════════ AUTH GATE ═══════════════ -->
+<div id="auth-gate" style="
+  display:flex; position:fixed; inset:0; z-index:9999;
+  background:#0a0d14;
+  align-items:center; justify-content:center;
+  font-family:'DM Sans',system-ui,sans-serif;
+">
+  <div style="
+    width:min(440px,92vw);
+    background:#181c27; border:1px solid #2a3045;
+    border-radius:16px; padding:36px 40px;
+    box-shadow:0 24px 80px rgba(0,0,0,.6);
+    text-align:center;
+  ">
+    <!-- Logo / title -->
+    <div style="font-family:'Instrument Serif',Georgia,serif;font-size:28px;font-weight:400;color:#e8eaf0;margin-bottom:6px">
+      P&amp;L <span style="color:#0ecfbe;font-style:italic">Dashboard</span>
+    </div>
+    <div style="font-size:13px;color:#6b7394;margin-bottom:32px">Business Finance Tracker</div>
+
+    <!-- Sign-in panel (default) -->
+    <div id="auth-signin-panel">
+      <div style="font-size:15px;font-weight:600;color:#e8eaf0;margin-bottom:8px">Sign in to access your dashboard</div>
+      <div style="font-size:13px;color:#6b7394;margin-bottom:28px;line-height:1.6">
+        Use the Google account associated with your purchase.<br>
+        New customer? <a href="https://gumroad.com" target="_blank" style="color:#0ecfbe">Purchase a license →</a>
+      </div>
+
+      <button id="auth-google-btn" onclick="authSignIn()" style="
+        display:inline-flex;align-items:center;justify-content:center;gap:10px;
+        width:100%;padding:12px 20px;border-radius:8px;
+        background:#fff;color:#3c4043;border:1px solid #dadce0;
+        font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;
+        cursor:pointer;transition:all .15s;
+      " onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,.3)'"
+         onmouseout="this.style.boxShadow='none'">
+        <svg width="18" height="18" viewBox="0 0 48 48">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <div id="auth-loading" style="display:none;margin-top:18px;font-size:13px;color:#6b7394">
+        <span style="display:inline-block;animation:spin .8s linear infinite">↻</span>
+        Verifying your license…
+      </div>
+
+      <div id="auth-error" style="
+        display:none;margin-top:16px;padding:12px 16px;
+        background:#2a1515;border:1px solid #e74c3c;border-radius:8px;
+        font-size:13px;color:#f1948a;line-height:1.6;text-align:left;
+      "></div>
+    </div>
+
+    <!-- Access denied panel -->
+    <div id="auth-denied-panel" style="display:none">
+      <div style="font-size:36px;margin-bottom:12px">🔒</div>
+      <div style="font-size:15px;font-weight:600;color:#e74c3c;margin-bottom:10px">Access not found</div>
+      <div id="auth-denied-msg" style="font-size:13px;color:#6b7394;margin-bottom:24px;line-height:1.7"></div>
+      <a href="https://gumroad.com" target="_blank" style="
+        display:inline-block;padding:10px 22px;background:#0ecfbe;color:#0f1117;
+        border-radius:7px;font-weight:600;font-size:13px;text-decoration:none;margin-bottom:12px;
+      ">Purchase a License →</a>
+      <div style="margin-top:8px">
+        <button onclick="authResetAndRetry()" style="
+          background:none;border:none;color:#6b7394;font-size:12px;
+          cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:underline;
+        ">Try a different Google account</button>
+      </div>
+    </div>
+
+    <!-- License info (shown after successful auth) -->
+    <div id="auth-success-panel" style="display:none">
+      <div style="font-size:36px;margin-bottom:12px">✅</div>
+      <div style="font-size:15px;font-weight:600;color:#27ae60;margin-bottom:6px">Access verified</div>
+      <div id="auth-success-msg" style="font-size:13px;color:#6b7394;margin-bottom:20px"></div>
+      <div style="width:100%;height:4px;background:#2a3045;border-radius:2px;overflow:hidden">
+        <div style="width:0%;height:100%;background:#0ecfbe;border-radius:2px;transition:width 1.2s ease" id="auth-progress-bar"></div>
+      </div>
+      <div style="font-size:12px;color:#6b7394;margin-top:8px">Loading your dashboard…</div>
+    </div>
+
+    <div style="margin-top:28px;padding-top:20px;border-top:1px solid #2a3045;font-size:11px;color:#3d4460;line-height:1.7">
+      Your data stays in your browser — we never store your financial data on any server.<br>
+      Powered by Google OAuth · Protected by Supabase
+    </div>
+  </div>
+</div>
+
 <!-- Update Banner -->
 <div id="update-banner">
   <span class="update-badge">🔔 Update Available</span>
@@ -1574,20 +1666,26 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '4.0.0';
+const APP_VERSION       = '5.0.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
 const LAST_CHECK_KEY    = 'pl_last_version_check';
 const SETTINGS_KEY      = 'pl_settings_v4';
-const SNAPSHOTS_KEY     = 'pl_snapshots_v4';     // Layer 1
-const L2_META_KEY       = 'pl_l2_meta';          // Layer 2 metadata
-const GSHEETS_KEY       = 'pl_gsheets_v4';       // Layer 3 metadata
+const SNAPSHOTS_KEY     = 'pl_snapshots_v4';
+const L2_META_KEY       = 'pl_l2_meta';
+const GSHEETS_KEY       = 'pl_gsheets_v4';
 const DB_NAME           = 'PLDashboard';
 const DB_VERSION        = 1;
 const STORE_NAME        = 'transactions';
 const MAX_SNAPSHOTS     = 5;
-const AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000;  // 30 minutes
+const AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000;
+
+// ── Supabase config (P&L auth) ─────────────────────────────────
+const SUPA_URL  = 'https://iknfvddnevudpjtyxkbh.supabase.co';
+const SUPA_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrbmZ2ZGRuZXZ1ZHBqdHl4a2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzMwNzQsImV4cCI6MjA5MjkwOTA3NH0.Ry5ggZ5kH9lfGFpv5zfkJoZeITvneukMRV7H0yUMtwE';
+const AUTH_SESSION_KEY = 'pl_auth_session_v1';   // localStorage key for cached session
+const SESSION_TTL_MS   = 24 * 60 * 60 * 1000;   // re-verify every 24 hours
 
 // ── IMPORTANT: Replace with your Google Cloud OAuth Client ID ─────
 // Get one free at: https://console.cloud.google.com
@@ -2848,6 +2946,268 @@ function startVersionCheckScheduler(){checkForUpdates(true);setInterval(()=>chec
 const LOCAL_CHANGELOG=[{version:'4.0.0',date:'2025-01-01',title:'3-Layer Backup + Google Sheets Sync',summary:'Full data protection with browser snapshots, auto-file backup, and Google Sheets live sync.',changes:[{type:'new',text:'Layer 1: Auto browser snapshots — last 5 states stored, one-click restore'},{type:'new',text:'Layer 2: Auto file backup every 30 min to your computer (Chrome/Edge)'},{type:'new',text:'Layer 3: Google Sheets live sync — push/pull with cloud backup on any device'},{type:'new',text:'Persistent storage request — protects IndexedDB from browser eviction'},{type:'new',text:'Storage health dashboard with size estimates'},{type:'imp',text:'All operations trigger snapshot scheduling for continuous protection'}]}];
 
 // ═══════════════════════════════════════════════════════════════════
+//  SUPABASE AUTH ENGINE
+//  Flow: Google OAuth → verify email in pl_licensed_users → unlock app
+//  Session cached in localStorage for 24h to avoid re-checking every load
+// ═══════════════════════════════════════════════════════════════════
+
+let authUser = null;   // { email, name, googleSub, plan, licenseKey }
+
+// ── Supabase REST helper (no SDK needed) ──────────────────────
+async function supaFetch(path, opts = {}) {
+  const res = await fetch(SUPA_URL + path, {
+    ...opts,
+    headers: {
+      'apikey':        SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type':  'application/json',
+      'Prefer':        opts.prefer || '',
+      ...(opts.headers || {})
+    }
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Supabase ${res.status}: ${err}`);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+// ── Check if cached session is still valid ────────────────────
+function loadCachedSession() {
+  try {
+    const raw = localStorage.getItem(AUTH_SESSION_KEY);
+    if (!raw) return null;
+    const sess = JSON.parse(raw);
+    if (!sess || !sess.email || !sess.cachedAt) return null;
+    // Expired?
+    if (Date.now() - sess.cachedAt > SESSION_TTL_MS) {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      return null;
+    }
+    return sess;
+  } catch(e) { return null; }
+}
+
+function saveCachedSession(userData) {
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
+    ...userData,
+    cachedAt: Date.now()
+  }));
+}
+
+function clearCachedSession() {
+  localStorage.removeItem(AUTH_SESSION_KEY);
+}
+
+// ── Main sign-in flow ─────────────────────────────────────────
+function authSignIn() {
+  if (!window.google) {
+    showAuthError('Google sign-in is not loaded yet. Please check your internet connection and refresh.');
+    return;
+  }
+  setAuthLoading(true);
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope:     'openid email profile',
+    callback:  async (resp) => {
+      if (resp.error) {
+        setAuthLoading(false);
+        if (resp.error === 'access_denied') {
+          showAuthError('Sign-in was cancelled. Click "Continue with Google" to try again.');
+        } else if (resp.error === 'invalid_request' || resp.error === 'idpiframe_initialization_failed') {
+          showAuthError('Configuration error. Make sure you are opening this app from its GitHub Pages URL (https://apatel85.github.io/pl-dashboard/...), not from a local file on your computer.');
+        } else {
+          showAuthError('Google sign-in failed: ' + resp.error + '. Please try again.');
+        }
+        return;
+      }
+      // Fetch user profile from Google
+      try {
+        const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: 'Bearer ' + resp.access_token }
+        });
+        const profile = await profileRes.json();
+        // Note: this token only has email/profile scope.
+        // Google Sheets token is requested separately when user enables backup.
+        await verifyLicense(profile.email, profile.sub, profile.name);
+      } catch(e) {
+        setAuthLoading(false);
+        showAuthError('Could not retrieve your Google profile. Please try again.');
+      }
+    }
+  });
+  client.requestAccessToken();
+}
+
+// ── Verify email against Supabase pl_licensed_users ───────────
+async function verifyLicense(email, googleSub, displayName) {
+  setAuthLoading(true);
+
+  // Log the attempt
+  supaFetch('/rest/v1/pl_access_log', {
+    method: 'POST',
+    prefer: 'return=minimal',
+    body: JSON.stringify({
+      email,
+      google_sub:  googleSub,
+      event:       'checking',
+      user_agent:  navigator.userAgent.substring(0, 200)
+    })
+  }).catch(() => {});  // non-blocking
+
+  try {
+    // Look up the email in licensed users table
+    const rows = await supaFetch(
+      `/rest/v1/pl_licensed_users?email=eq.${encodeURIComponent(email)}&select=email,name,plan,status,expires_at,license_key`
+    );
+
+    if (!rows || rows.length === 0) {
+      // Email not found
+      logAccessEvent(email, googleSub, 'denied');
+      setAuthLoading(false);
+      showAccessDenied(email, 'not_found');
+      return;
+    }
+
+    const user = rows[0];
+
+    // Check status
+    if (user.status === 'suspended') {
+      logAccessEvent(email, googleSub, 'suspended');
+      setAuthLoading(false);
+      showAccessDenied(email, 'suspended');
+      return;
+    }
+
+    // Check expiry (for non-lifetime plans)
+    if (user.expires_at && new Date(user.expires_at) < new Date()) {
+      logAccessEvent(email, googleSub, 'expired');
+      setAuthLoading(false);
+      showAccessDenied(email, 'expired');
+      return;
+    }
+
+    // ✅ Access granted
+    logAccessEvent(email, googleSub, 'granted');
+
+    authUser = {
+      email,
+      name:       displayName || user.name || email,
+      googleSub,
+      plan:       user.plan,
+      licenseKey: user.license_key
+    };
+
+    saveCachedSession(authUser);
+    showAuthSuccess(authUser);
+
+  } catch(e) {
+    setAuthLoading(false);
+    // If Supabase is unreachable, fall back to cached session if available
+    const cached = loadCachedSession();
+    if (cached && cached.email === email) {
+      authUser = cached;
+      showAuthSuccess(authUser);
+    } else {
+      showAuthError('Could not verify your license right now. Please check your internet connection and try again.\n\nError: ' + e.message);
+    }
+  }
+}
+
+// ── Log access event to Supabase ──────────────────────────────
+function logAccessEvent(email, googleSub, event) {
+  supaFetch('/rest/v1/pl_access_log', {
+    method: 'POST',
+    prefer: 'return=minimal',
+    body: JSON.stringify({ email, google_sub: googleSub, event, user_agent: navigator.userAgent.substring(0, 200) })
+  }).catch(() => {});
+}
+
+// ── UI state helpers ──────────────────────────────────────────
+function setAuthLoading(on) {
+  document.getElementById('auth-google-btn').style.display = on ? 'none' : 'inline-flex';
+  document.getElementById('auth-loading').style.display    = on ? 'block' : 'none';
+  document.getElementById('auth-error').style.display      = 'none';
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('auth-google-btn').style.display = 'inline-flex';
+  document.getElementById('auth-loading').style.display    = 'none';
+}
+
+function showAccessDenied(email, reason) {
+  document.getElementById('auth-signin-panel').style.display = 'none';
+  document.getElementById('auth-denied-panel').style.display = 'block';
+  const msgs = {
+    not_found: `No license was found for <strong>${email}</strong>.<br><br>
+      If you purchased this dashboard, make sure you're signing in with the same Google account
+      you used at checkout. If you used a different email at purchase, contact support.`,
+    suspended: `Your license for <strong>${email}</strong> has been suspended.<br><br>
+      Please contact support if you believe this is an error.`,
+    expired:   `Your license for <strong>${email}</strong> has expired.<br><br>
+      Please renew your subscription to continue accessing the dashboard.`
+  };
+  document.getElementById('auth-denied-msg').innerHTML = msgs[reason] || `Access denied for ${email}.`;
+}
+
+function showAuthSuccess(user) {
+  document.getElementById('auth-signin-panel').style.display  = 'none';
+  document.getElementById('auth-success-panel').style.display = 'block';
+  document.getElementById('auth-success-msg').innerHTML =
+    `Welcome back, <strong>${user.name.split(' ')[0]}</strong>! &nbsp;·&nbsp; ` +
+    `<span style="color:#0ecfbe">${user.plan.charAt(0).toUpperCase()+user.plan.slice(1)} license</span>`;
+
+  // Animate progress bar then dismiss gate
+  setTimeout(() => {
+    document.getElementById('auth-progress-bar').style.width = '100%';
+  }, 100);
+  setTimeout(() => unlockApp(user, true), 1500);
+}
+
+function authResetAndRetry() {
+  clearCachedSession();
+  gsheetsToken = null;
+  document.getElementById('auth-denied-panel').style.display  = 'none';
+  document.getElementById('auth-signin-panel').style.display  = 'block';
+}
+
+// ── Unlock: hide gate, boot the app ──────────────────────────
+function unlockApp(user, isNewSignIn = false) {
+  const gate = document.getElementById('auth-gate');
+  gate.style.transition = 'opacity .4s ease';
+  gate.style.opacity = '0';
+  setTimeout(() => { gate.style.display = 'none'; }, 420);
+
+  // Show user info in sidebar
+  if (user) {
+    document.getElementById('biz-sidebar').style.display = 'block';
+    document.getElementById('biz-sidebar-name').textContent = user.name;
+    document.getElementById('biz-sidebar-year').textContent =
+      user.plan.charAt(0).toUpperCase()+user.plan.slice(1)+' · '+user.email;
+  }
+
+  // Boot the app if this is a fresh sign-in (cached session boots in load handler)
+  if (isNewSignIn) bootApp();
+}
+
+// ── Sign out ──────────────────────────────────────────────────
+function authSignOut() {
+  clearCachedSession();
+  gsheetsToken = null;
+  authUser     = null;
+  // Revoke Google token if possible
+  if (window.google && google.accounts) {
+    google.accounts.id.disableAutoSelect();
+  }
+  // Reload page to show auth gate again
+  window.location.reload();
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  TOAST
 // ═══════════════════════════════════════════════════════════════════
 
@@ -2858,68 +3218,110 @@ function toast(msg,type='info'){const c=document.getElementById('toast');const e
 // ═══════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', async () => {
+  // ── Step 1: Check for valid cached session ──────────────────
+  const cached = loadCachedSession();
+  if (cached) {
+    // Session still valid — skip the gate and boot straight in
+    authUser = cached;
+    unlockApp(cached);
+    bootApp();
+  } else {
+    // No valid session — show the gate, wait for sign-in
+    // bootApp() will be called by unlockApp() → showAuthSuccess()
+    // We still init the DB silently in the background
+    silentInit();
+  }
+});
+
+// Silent pre-init while user is on the auth gate (speeds up unlock)
+async function silentInit() {
+  try { await openDB(); } catch(e) { console.warn('[DB]', e); }
+}
+
+// Full app boot — called after auth is confirmed
+async function bootApp() {
   // 1. Open IndexedDB
   try {
     await openDB();
   } catch(e) {
-    document.getElementById('db-status-bar').className = 'err';
+    document.getElementById('db-status-bar').className  = 'err';
     document.getElementById('db-status-bar').textContent = '✕ DB error: ' + e.message;
     toast('Database error: ' + e.message, 'error');
   }
 
   // 2. Load settings
   loadSettings();
-  document.getElementById('setting-biz-name').value    = settings.bizName||'';
-  document.getElementById('setting-fiscal-year').value = settings.fiscalYear||'';
-  document.getElementById('setting-currency').value    = settings.currency||'$';
-  document.getElementById('qa-currency-prefix').textContent = settings.currency||'$';
-  document.getElementById('version-badge').textContent = `v${APP_VERSION}`;
+  document.getElementById('setting-biz-name').value      = settings.bizName || '';
+  document.getElementById('setting-fiscal-year').value   = settings.fiscalYear || '';
+  document.getElementById('setting-currency').value      = settings.currency || '$';
+  document.getElementById('qa-currency-prefix').textContent = settings.currency || '$';
+  document.getElementById('version-badge').textContent   = `v${APP_VERSION}`;
   document.getElementById('qa-date').value = new Date().toISOString().split('T')[0];
   updateSidebarBiz();
 
-  // 3. Restore Layer 2 metadata UI
+  // 3. Layer 2 file backup UI
   const l2meta = loadL2Meta();
-  if (l2meta.fileName) updateL2UI(l2meta.fileName, l2meta.lastBackup||'Never');
+  if (l2meta.fileName) updateL2UI(l2meta.fileName, l2meta.lastBackup || 'Never');
 
-  // 4. Request persistent storage automatically on first load
+  // 4. Request persistent storage
   if (navigator.storage && navigator.storage.persist) {
-    navigator.storage.persist().then(granted => {
-      if (granted) console.info('[storage] Persistent storage granted');
-    });
+    navigator.storage.persist().catch(() => {});
   }
 
-  // 5. Restore file handle hint
+  // 5. File handle hint
   const savedFile = localStorage.getItem(FS_HANDLE_KEY);
   if (savedFile) {
-    document.getElementById('sync-file-label').innerHTML = `Previously linked: <strong>${savedFile}</strong> — click "Link File" to reconnect`;
+    const el = document.getElementById('sync-file-label');
+    if (el) el.innerHTML = `Previously linked: <strong>${savedFile}</strong> — click "Link File" to reconnect`;
   }
 
-  // 6. Welcome message
+  // 6. Add sign-out to settings page
+  addSignOutButton();
+
+  // 7. Welcome + snapshot
   const count = await dbCount();
   if (count > 0) {
     toast(`Welcome back — ${count.toLocaleString()} transactions loaded`, 'info');
-    // Take a snapshot on open if we have data (protects against accidental wipes)
     takeSnapshot(true);
   }
 
-  // 7. Start backup scheduler (auto-snapshot on changes)
+  // 8. Auto-backup & beforeunload
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       takeSnapshot(true);
       if (autoFileHandle) runFileBackupNow();
     }
   });
-  window.addEventListener('beforeunload', () => {
-    takeSnapshot(true);
-  });
+  window.addEventListener('beforeunload', () => { takeSnapshot(true); });
 
-  // 8. Start auto file backup timer if handle was set up
+  // 9. Auto file backup timer
   if (l2meta.fileName) startAutoFileBackupTimer();
 
   updateStorageInfo();
   startVersionCheckScheduler();
   showView('dashboard-view');
-});
+}
+
+// Inject sign-out button into the settings page
+function addSignOutButton() {
+  const settingsPage = document.getElementById('settings-view');
+  if (!settingsPage || document.getElementById('signout-card')) return;
+  const card = document.createElement('div');
+  card.id = 'signout-card';
+  card.className = 'sync-card';
+  card.innerHTML = `
+    <h3>Account</h3>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px">
+      Signed in as <strong style="color:var(--text)">${authUser ? authUser.email : ''}</strong>
+      &nbsp;·&nbsp; <span style="color:var(--teal)">${authUser ? authUser.plan : ''} license</span>
+    </div>
+    <button class="btn btn-outline" onclick="authSignOut()">Sign Out</button>
+  `;
+  settingsPage.querySelector('.view')?.appendChild(card);
+  // Append to the settings view's last child card instead
+  const lastCard = settingsPage.querySelector('.sync-card:last-of-type');
+  if (lastCard) lastCard.after(card);
+}
 </script>
 </body>
 </html>
