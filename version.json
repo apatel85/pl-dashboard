@@ -1,8 +1,29 @@
 {
-  "latest_version": "8.0.0",
+  "latest_version": "8.0.1",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/pl-dashboard-v8.html",
   "release_notes": [
+    {
+      "version": "8.0.1",
+      "date": "2026-05-14",
+      "title": "Mobile Layout Overhaul",
+      "summary": "Comprehensive mobile-first responsive redesign — proper stacking on phones, big tap targets, iOS safe-area support, full-screen modals on small screens, and bottom-pinned toasts.",
+      "changes": [
+        { "type": "fix", "text": "Charts now correctly stack vertically on mobile (was caused by a class name typo in mobile CSS)" },
+        { "type": "imp", "text": "All buttons and inputs meet 44px minimum tap-target size for accessibility" },
+        { "type": "imp", "text": "Form inputs use 16px font on mobile to prevent iOS auto-zoom on focus" },
+        { "type": "imp", "text": "iOS safe-area insets respected — no content hides behind notch or home indicator" },
+        { "type": "imp", "text": "Modals slide up from bottom on mobile (native app feel) instead of centered overlays" },
+        { "type": "imp", "text": "Mapping modal field grid stacks vertically on phones (was overlapping)" },
+        { "type": "imp", "text": "Backup tier rows wrap properly — status badges no longer overflow" },
+        { "type": "imp", "text": "Google Sheets connect card stacks on mobile so action buttons aren't cramped" },
+        { "type": "imp", "text": "Snapshot list rows wrap with action buttons on their own line on small screens" },
+        { "type": "imp", "text": "Sidebar drawer is now 85vw max width with proper iOS top padding" },
+        { "type": "imp", "text": "Toast position pinned to bottom-center on mobile, above iOS home indicator" },
+        { "type": "imp", "text": "PWA standalone mode hides the iOS install hint and adjusts top padding" },
+        { "type": "imp", "text": "Landscape orientation on small phones now scrolls modals properly" }
+      ]
+    },
     {
       "version": "8.0.0",
       "date": "2026-05-13",
