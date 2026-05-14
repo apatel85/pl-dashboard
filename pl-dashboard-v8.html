@@ -2863,6 +2863,19 @@ window.addEventListener('pagehide', () => {
   }
 });
 
+// When the device comes back online, retry any pending push so offline edits sync automatically.
+window.addEventListener('online', () => {
+  if (autoSyncEnabled && gsheetsToken && isDirty) {
+    toast('Back online — syncing changes to Google Sheets…', 'info');
+    gsheetsPushSilent();
+  }
+});
+
+// Friendly toast when going offline so the user knows edits are local-only until reconnected.
+window.addEventListener('offline', () => {
+  if (autoSyncEnabled) toast('Offline — changes will sync to Google Sheets when you reconnect', 'info');
+});
+
 // ═══════════════════════════════════════════════════════════════════
 //  STORAGE HEALTH + PERSISTENT STORAGE REQUEST
 // ═══════════════════════════════════════════════════════════════════
