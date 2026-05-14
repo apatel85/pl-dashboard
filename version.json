@@ -24,28 +24,151 @@
       "title": "Power Features — Undo, Search, Duplicates, Workers & Optimistic Sync",
       "summary": "5 high-impact upgrades adapted from Linear, Gmail, Stripe: undo any delete, instant search on Revenue/Expense, non-blocking CSV import via Web Worker, automatic duplicate detection on import, and live sync status indicators.",
       "changes": [
-        { "type": "new", "text": "Undo deletes: deleting a transaction now shows a 6-second 'Undo' toast (Linear/Gmail pattern)." },
-        { "type": "new", "text": "Instant inline search on Revenue and Expense tabs — debounced 150ms." },
-        { "type": "new", "text": "Pagination Prev/Next controls now visible on Revenue and Expense tables." },
-        { "type": "new", "text": "Non-blocking CSV import via Web Worker for files >500KB." },
-        { "type": "new", "text": "Automatic duplicate detection on CSV import." },
-        { "type": "new", "text": "Optimistic UI for Google Drive sync with live status indicators." },
-        { "type": "imp", "text": "CSP updated to allow blob: workers." }
+        { "type": "new", "text": "Undo deletes: deleting a transaction now shows a 6-second 'Undo' toast (Linear/Gmail pattern) — no more confirm dialog, no more accidental data loss. The transaction is fully restored if you click Undo." },
+        { "type": "new", "text": "Instant inline search on Revenue and Expense tabs — search descriptions, categories, amounts, dates, and months all at once with 150ms debounce. Empty-state hint appears when no matches found." },
+        { "type": "new", "text": "Pagination Prev/Next controls now visible on Revenue and Expense tables — combined with search you can scan 100k+ rows without ever leaving the page." },
+        { "type": "new", "text": "Non-blocking CSV import via Web Worker: files over 500KB now parse on a background thread, so the UI stays responsive (typing, charts, scrolling) during big imports. Progress bar shows live parse progress." },
+        { "type": "new", "text": "Automatic duplicate detection on CSV import: rows matching existing transactions on date + amount + description + type are flagged. One-click choice to skip duplicates (recommended) or import everything." },
+        { "type": "new", "text": "Optimistic UI for Google Drive sync: top-bar status now shows 'Syncing to Google Drive…' then '✓ Synced' on every edit, removing the 'did it sync?' anxiety. Failures show 'Sync failed — will retry'." },
+        { "type": "imp", "text": "CSP updated to allow blob: workers (required for the non-blocking CSV parsing) while keeping all other lock-down protections intact." }
       ]
     },
     {
       "version": "8.1.0",
       "date": "2026-05-14",
       "title": "CX Polish — Help, Install Prompt, Plain-Language Backup & Empty States",
-      "summary": "7 usability improvements: smart CSV import, actionable empty states, help drawer, smart install prompt, plain-English backup labels, canonical URL.",
+      "summary": "7 usability improvements: smart CSV import with date/number format selectors, actionable empty states with sample data, in-app help drawer, smart PWA install banner, plain-English backup labels, and canonical URL.",
       "changes": [
-        { "type": "new", "text": "CSV import: date format and number format selectors." },
-        { "type": "new", "text": "Empty state CTAs on Dashboard, Revenue, Expense." },
-        { "type": "new", "text": "Sample Data demo mode." },
-        { "type": "new", "text": "In-app Help drawer with Quick Start and FAQs." },
-        { "type": "new", "text": "Smart PWA install banner after 3+ transactions." },
-        { "type": "imp", "text": "Backup tab labels in plain English." },
-        { "type": "imp", "text": "Canonical URL meta tag added." }
+        { "type": "new", "text": "CSV import: date format selector (Auto-detect / US / European / ISO) and number format selector (Auto-detect / US 1,234.56 / EU 1.234,56) — no more silent parse failures on European bank exports" },
+        { "type": "new", "text": "Empty state on Dashboard, Revenue, and Expense tabs: three CTA buttons (Add Transaction, Import CSV, Try Sample Data) guide first-time users instead of a blank screen" },
+        { "type": "new", "text": "Sample Data mode: one click loads 6 months of realistic demo transactions so you can explore the app before entering real data" },
+        { "type": "new", "text": "In-app Help drawer: ? button in the top bar opens a slide-in panel with Quick Start steps and 7 common-question FAQs with a link to the full User Guide" },
+        { "type": "new", "text": "Smart PWA install banner: shows 'Install this app' only after you've added 3+ transactions (engaged users accept at ~25% vs ~3% on first load)" },
+        { "type": "imp", "text": "Backup tab labels renamed from developer jargon ('Layer 1/2/3') to plain English: Quick Save, Save to My Computer, Sync to Google Drive" },
+        { "type": "imp", "text": "Canonical URL meta tag added; manifest start_url updated to / so the app installs to the root URL" }
+      ]
+    },
+    {
+      "version": "8.0.4",
+      "date": "2026-05-14",
+      "title": "License Key Sign-In + Blank-Page Hardening",
+      "summary": "Sign in to the app with just your email + license key — no Google account required. Plus defensive code so a corrupted cached session can never blank the screen.",
+      "changes": [
+        { "type": "new", "text": "Alternative sign-in: use your email + license key (from your purchase receipt). No Google account needed to access the dashboard. Google sign-in remains the default; license-key entry is linked below the Google button." },
+        { "type": "fix", "text": "Blank-page root cause fixed: an old or malformed cached session (missing user.plan or user.name) would throw an uncaught error in unlockApp() after the auth gate was hidden, leaving the screen blank. unlockApp() now handles every field defensively and restores the auth gate if anything goes wrong." },
+        { "type": "fix", "text": "Boot flow wrapped in try/catch — if bootApp() itself crashes for any reason, the cached session is cleared and the auth gate is brought back so the user has a recoverable state." },
+        { "type": "imp", "text": "Google Sheets sync is unchanged and remains optional — it's still accessed from Backup tab and uses Google OAuth separately from app sign-in. License-key users get full Sheets sync if they choose to enable it." }
+      ]
+    },
+    {
+      "version": "8.0.3",
+      "date": "2026-05-14",
+      "title": "Direct Index + CSP Fix for Google OAuth",
+      "summary": "Clean URL now serves the dashboard directly (no redirect dance) and Content-Security-Policy now allows Google OAuth iframes — fixes blank-page issue.",
+      "changes": [
+        { "type": "fix", "text": "Blank page at clean URL — index.html now contains the full dashboard directly instead of redirecting (eliminates redirect failure mode)" },
+        { "type": "fix", "text": "CSP frame-src 'none' was blocking Google OAuth iframes — relaxed to allow accounts.google.com" },
+        { "type": "imp", "text": "CSP also now allows Google profile images (lh3.googleusercontent.com) and oauth2.googleapis.com" },
+        { "type": "imp", "text": "Service worker pre-caches both index.html and pl-dashboard-v8.html so both URLs work offline" }
+      ]
+    },
+    {
+      "version": "8.0.2",
+      "date": "2026-05-14",
+      "title": "Always-Latest Loader + One-Click Update",
+      "summary": "New clean URL with always-fresh loading, plus a 'Reload Now' button on the update banner that clears all caches and forces the latest build.",
+      "changes": [
+        { "type": "new", "text": "Clean URL: https://apatel85.github.io/pl-dashboard/ — auto-redirects to the newest build with cache-busting query string" },
+        { "type": "new", "text": "Update banner now has a 'Reload Now' button: clears service worker, drops all caches, and reloads to the latest version" },
+        { "type": "imp", "text": "Cache-Control headers on the HTML force browsers to revalidate on every visit" },
+        { "type": "imp", "text": "Service worker updated to v8.0.2 — old caches auto-purge on next load" }
+      ]
+    },
+    {
+      "version": "8.0.1",
+      "date": "2026-05-14",
+      "title": "Mobile Layout Overhaul",
+      "summary": "Comprehensive mobile-first responsive redesign — proper stacking on phones, big tap targets, iOS safe-area support, full-screen modals on small screens, and bottom-pinned toasts.",
+      "changes": [
+        { "type": "fix", "text": "Charts now correctly stack vertically on mobile (was caused by a class name typo in mobile CSS)" },
+        { "type": "imp", "text": "All buttons and inputs meet 44px minimum tap-target size for accessibility" },
+        { "type": "imp", "text": "Form inputs use 16px font on mobile to prevent iOS auto-zoom on focus" },
+        { "type": "imp", "text": "iOS safe-area insets respected — no content hides behind notch or home indicator" },
+        { "type": "imp", "text": "Modals slide up from bottom on mobile (native app feel) instead of centered overlays" },
+        { "type": "imp", "text": "Mapping modal field grid stacks vertically on phones (was overlapping)" },
+        { "type": "imp", "text": "Backup tier rows wrap properly — status badges no longer overflow" },
+        { "type": "imp", "text": "Google Sheets connect card stacks on mobile so action buttons aren't cramped" },
+        { "type": "imp", "text": "Snapshot list rows wrap with action buttons on their own line on small screens" },
+        { "type": "imp", "text": "Sidebar drawer is now 85vw max width with proper iOS top padding" },
+        { "type": "imp", "text": "Toast position pinned to bottom-center on mobile, above iOS home indicator" },
+        { "type": "imp", "text": "PWA standalone mode hides the iOS install hint and adjusts top padding" },
+        { "type": "imp", "text": "Landscape orientation on small phones now scrolls modals properly" }
+      ]
+    },
+    {
+      "version": "8.0.0",
+      "date": "2026-05-13",
+      "title": "Security, Performance & Offline Hardening",
+      "summary": "Audit-driven release: 19 security and reliability fixes, single self-contained file that works online AND offline, table pagination for 100k+ rows, and accessibility improvements.",
+      "changes": [
+        { "type": "new", "text": "Single self-contained HTML — Chart.js + XLSX.js inlined, no CDN dependency. Works fully offline from a downloaded file." },
+        { "type": "fix", "text": "XSS hardening — all user-controlled fields (descriptions, categories, CSV imports, toast messages) now properly HTML-escaped" },
+        { "type": "new", "text": "Content-Security-Policy meta tag added — blocks injected scripts even if escaping is bypassed" },
+        { "type": "fix", "text": "CSV export now prefixes formula-injection cells (=, +, -, @) with a leading quote to prevent Excel formula execution" },
+        { "type": "imp", "text": "Revenue and Expense tables now paginate at 50 rows per page — instant render even with 100,000+ transactions" },
+        { "type": "imp", "text": "Snapshot quota errors now surface a clear toast instead of failing silently" },
+        { "type": "fix", "text": "Amount parser now handles accounting-negative format (99.00) and EU format 1.234,56" },
+        { "type": "new", "text": "Date format selector in CSV mapping modal (auto / MM-DD-YYYY / DD-MM-YYYY)" },
+        { "type": "fix", "text": "CSV parser now correctly handles RFC 4180 escaped quotes and strips BOM" },
+        { "type": "fix", "text": "Monthly P&L total row now uses consistent Net Profit math (was mixing gross and net)" },
+        { "type": "new", "text": "Double-confirmation for Clear All Data — two prompts before permanent deletion" },
+        { "type": "new", "text": "User-facing error screen when IndexedDB is unavailable (private mode, quota exhausted)" },
+        { "type": "imp", "text": "Toast notifications now properly announce to screen readers (ARIA live region)" },
+        { "type": "imp", "text": "Float drift suppressed in displayed totals via Math.round(n*100)/100 in fmt()" }
+      ]
+    },
+    {
+      "version": "5.0.0",
+      "date": "2025-05-12",
+      "title": "3-Layer Backup + Google Sheets Cloud Sync",
+      "summary": "Full data protection with browser snapshots, auto-file backup, and Google Sheets live sync.",
+      "changes": [
+        { "type": "new", "text": "Layer 1: Auto browser snapshots — last 5 states stored, one-click restore" },
+        { "type": "new", "text": "Layer 2: Auto file backup every 30 min to your computer (Chrome/Edge/Brave)" },
+        { "type": "new", "text": "Layer 3: Google Sheets live sync — push/pull cloud backup accessible from any device" },
+        { "type": "new", "text": "Protection score banner showing which backup layers are active" },
+        { "type": "new", "text": "In-app step-by-step Google sign-in guide — no technical knowledge needed" },
+        { "type": "new", "text": "Persistent storage request — protects IndexedDB from browser eviction" },
+        { "type": "new", "text": "Storage health dashboard with size estimates" },
+        { "type": "imp", "text": "All data changes trigger automatic snapshot scheduling" }
+      ]
+    },
+    {
+      "version": "4.0.0",
+      "date": "2025-04-01",
+      "title": "IndexedDB Engine + File Sync",
+      "summary": "Complete data entry, IndexedDB storage for 100K+ rows, and local file sync.",
+      "changes": [
+        { "type": "new", "text": "IndexedDB storage — handles 100,000+ transactions with proper indexing" },
+        { "type": "new", "text": "Quick-Add form with Enter-key rapid entry" },
+        { "type": "new", "text": "Inline editing of all transaction fields in the table" },
+        { "type": "new", "text": "Paginated transactions table with sort, search, and multi-filter" },
+        { "type": "new", "text": "File System Access API — sync directly to a CSV or XLSX on disk" },
+        { "type": "new", "text": "Export to Excel (.xlsx) with Transactions + Monthly Summary sheets" },
+        { "type": "imp", "text": "Charts and dashboard fully async — no lag on large datasets" }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2025-01-01",
+      "title": "Initial Release",
+      "summary": "Full-featured P&L dashboard with CSV import, charts, and auto-save.",
+      "changes": [
+        { "type": "new", "text": "CSV upload with intelligent field mapping" },
+        { "type": "new", "text": "Revenue & expense tracking with category breakdown" },
+        { "type": "new", "text": "4 interactive charts: bar, line, and donut visualizations" },
+        { "type": "new", "text": "Auto-save — data persists between sessions" },
+        { "type": "new", "text": "Export to CSV and JSON backup/restore" }
       ]
     }
   ]
