@@ -1,8 +1,23 @@
 {
-  "latest_version": "8.0.4",
+  "latest_version": "8.1.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.1.0",
+      "date": "2026-05-14",
+      "title": "CX Polish — Help, Install Prompt, Plain-Language Backup & Empty States",
+      "summary": "7 usability improvements: smart CSV import with date/number format selectors, actionable empty states with sample data, in-app help drawer, smart PWA install banner, plain-English backup labels, and canonical URL.",
+      "changes": [
+        { "type": "new", "text": "CSV import: date format selector (Auto-detect / US / European / ISO) and number format selector (Auto-detect / US 1,234.56 / EU 1.234,56) — no more silent parse failures on European bank exports" },
+        { "type": "new", "text": "Empty state on Dashboard, Revenue, and Expense tabs: three CTA buttons (Add Transaction, Import CSV, Try Sample Data) guide first-time users instead of a blank screen" },
+        { "type": "new", "text": "Sample Data mode: one click loads 6 months of realistic demo transactions so you can explore the app before entering real data" },
+        { "type": "new", "text": "In-app Help drawer: ? button in the top bar opens a slide-in panel with Quick Start steps and 7 common-question FAQs with a link to the full User Guide" },
+        { "type": "new", "text": "Smart PWA install banner: shows 'Install this app' only after you've added 3+ transactions (engaged users accept at ~25% vs ~3% on first load)" },
+        { "type": "imp", "text": "Backup tab labels renamed from developer jargon ('Layer 1/2/3') to plain English: Quick Save, Save to My Computer, Sync to Google Drive" },
+        { "type": "imp", "text": "Canonical URL meta tag added; manifest start_url updated to / so the app installs to the root URL" }
+      ]
+    },
     {
       "version": "8.0.4",
       "date": "2026-05-14",
