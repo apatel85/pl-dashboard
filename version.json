@@ -1,8 +1,30 @@
 {
-  "latest_version": "5.0.0",
+  "latest_version": "8.0.0",
   "minimum_version": "1.0.0",
-  "download_url": "https://apatel85.github.io/pl-dashboard/pl-dashboard-v5.html",
+  "download_url": "https://apatel85.github.io/pl-dashboard/pl-dashboard-v8.html",
   "release_notes": [
+    {
+      "version": "8.0.0",
+      "date": "2026-05-13",
+      "title": "Security, Performance & Offline Hardening",
+      "summary": "Audit-driven release: 19 security and reliability fixes, single self-contained file that works online AND offline, table pagination for 100k+ rows, and accessibility improvements.",
+      "changes": [
+        { "type": "new", "text": "Single self-contained HTML — Chart.js + XLSX.js inlined, no CDN dependency. Works fully offline from a downloaded file." },
+        { "type": "fix", "text": "XSS hardening — all user-controlled fields (descriptions, categories, CSV imports, toast messages) now properly HTML-escaped" },
+        { "type": "new", "text": "Content-Security-Policy meta tag added — blocks injected scripts even if escaping is bypassed" },
+        { "type": "fix", "text": "CSV export now prefixes formula-injection cells (=, +, -, @) with a leading quote to prevent Excel formula execution" },
+        { "type": "imp", "text": "Revenue and Expense tables now paginate at 50 rows per page — instant render even with 100,000+ transactions" },
+        { "type": "imp", "text": "Snapshot quota errors now surface a clear toast instead of failing silently" },
+        { "type": "fix", "text": "Amount parser now handles accounting-negative format (99.00) and EU format 1.234,56" },
+        { "type": "new", "text": "Date format selector in CSV mapping modal (auto / MM-DD-YYYY / DD-MM-YYYY)" },
+        { "type": "fix", "text": "CSV parser now correctly handles RFC 4180 escaped quotes and strips BOM" },
+        { "type": "fix", "text": "Monthly P&L total row now uses consistent Net Profit math (was mixing gross and net)" },
+        { "type": "new", "text": "Double-confirmation for Clear All Data — two prompts before permanent deletion" },
+        { "type": "new", "text": "User-facing error screen when IndexedDB is unavailable (private mode, quota exhausted)" },
+        { "type": "imp", "text": "Toast notifications now properly announce to screen readers (ARIA live region)" },
+        { "type": "imp", "text": "Float drift suppressed in displayed totals via Math.round(n*100)/100 in fmt()" }
+      ]
+    },
     {
       "version": "5.0.0",
       "date": "2025-05-12",
