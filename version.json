@@ -1,8 +1,20 @@
 {
-  "latest_version": "8.0.1",
+  "latest_version": "8.0.2",
   "minimum_version": "1.0.0",
-  "download_url": "https://apatel85.github.io/pl-dashboard/pl-dashboard-v8.html",
+  "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.0.2",
+      "date": "2026-05-14",
+      "title": "Always-Latest Loader + One-Click Update",
+      "summary": "New clean URL with always-fresh loading, plus a 'Reload Now' button on the update banner that clears all caches and forces the latest build.",
+      "changes": [
+        { "type": "new", "text": "Clean URL: https://apatel85.github.io/pl-dashboard/ — auto-redirects to the newest build with cache-busting query string" },
+        { "type": "new", "text": "Update banner now has a 'Reload Now' button: clears service worker, drops all caches, and reloads to the latest version" },
+        { "type": "imp", "text": "Cache-Control headers on the HTML force browsers to revalidate on every visit" },
+        { "type": "imp", "text": "Service worker updated to v8.0.2 — old caches auto-purge on next load" }
+      ]
+    },
     {
       "version": "8.0.1",
       "date": "2026-05-14",

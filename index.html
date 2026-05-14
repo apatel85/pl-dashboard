@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>P&L Dashboard</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0f1117">
+<style>
+  html,body{margin:0;padding:0;background:#0f1117;color:#e8eaf0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;height:100%}
+  .center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center}
+  .spinner{width:36px;height:36px;border:3px solid #2a2f3d;border-top-color:#00c896;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:18px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  a{color:#00c896}
+</style>
+<script>
+// === ALWAYS-LATEST LOADER ===
+// This file lives at the clean URL  https://apatel85.github.io/pl-dashboard/
+// It is intentionally tiny so users can never get stuck on a stale cached copy.
+// It immediately redirects to the real app file with a build-version query
+// string — that URL will then be cached normally by the browser & CDN, and
+// the next deploy bumps the version so caches invalidate cleanly.
+//
+// BUMP THIS WITH EACH RELEASE so users get the new version automatically.
+var APP_BUILD = '8.0.2';
+
+(function(){
+  try {
+    // If browsing inside a PWA standalone window, also clear stale SW caches
+    // so the user picks up the new build immediately.
+    if ('caches' in window && APP_BUILD) {
+      // Don't await — best effort, then redirect
+      caches.keys().then(function(keys){
+        return Promise.all(keys.filter(function(k){
+          // Drop any cache whose version doesn't match the current build
+          return !k.endsWith(APP_BUILD);
+        }).map(function(k){ return caches.delete(k); }));
+      }).catch(function(){});
+    }
+  } catch(e) {}
+
+  var url = 'pl-dashboard-v8.html?v=' + encodeURIComponent(APP_BUILD);
+  // Use replace() so the redirect doesn't pollute browser history.
+  window.location.replace(url);
+})();
+</script>
+</head>
+<body>
+  <div class="center">
+    <div class="spinner" aria-hidden="true"></div>
+    <h2 style="margin:0 0 8px;font-weight:500">P&L Dashboard</h2>
+    <p style="margin:0;color:#6b7394;font-size:13px">Loading the latest version…</p>
+    <noscript>
+      <p style="margin-top:20px"><a href="pl-dashboard-v8.html">Open dashboard</a> (JavaScript is required for auto-update)</p>
+    </noscript>
+  </div>
+</body>
+</html>

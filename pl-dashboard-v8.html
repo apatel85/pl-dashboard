@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, minimum-scale=1.0, maximum-scale=5.0">
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self' https://iknfvddnevudpjtyxkbh.supabase.co https://sheets.googleapis.com https://accounts.google.com; frame-src 'none'; object-src 'none';">
 <title>P&L Dashboard — Business Finance Tracker</title>
 <link rel="manifest" href="manifest.json">
@@ -1325,8 +1327,9 @@ tbody tr:hover { background: var(--surface2); }
   <span class="update-badge">🔔 Update Available</span>
   <span class="update-text" id="update-banner-text">A new version is available.</span>
   <div class="update-actions">
-    <button class="btn-update btn-update-primary" onclick="openChangelog()">See What's New</button>
-    <button class="btn-update btn-update-dismiss" onclick="dismissUpdate()">Dismiss</button>
+    <button class="btn-update btn-update-primary" onclick="reloadToLatest()">Reload Now</button>
+    <button class="btn-update" onclick="openChangelog()" style="background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff">What's New</button>
+    <button class="btn-update btn-update-dismiss" onclick="dismissUpdate()">Later</button>
   </div>
 </div>
 
@@ -2146,7 +2149,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.0.1';
+const APP_VERSION       = '8.0.2';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -3690,6 +3693,38 @@ async function checkForUpdates(silent=true){
 
 function showUpdateBanner(data){const notes=(data.release_notes||[])[0]?.summary||'Improvements and bug fixes.';document.getElementById('update-banner-text').innerHTML=`<strong>v${data.latest_version}</strong> is available &nbsp;·&nbsp; ${notes}`;document.getElementById('update-banner').classList.add('visible');document.getElementById('app').style.marginTop='48px';}
 function dismissUpdate(){if(remoteVerData)localStorage.setItem(DISMISSED_KEY,remoteVerData.latest_version);document.getElementById('update-banner').classList.remove('visible');document.getElementById('app').style.marginTop='0';}
+
+/**
+ * reloadToLatest — forces a hard reload to the newest deployed version.
+ * Steps:
+ *  1. If a service worker is registered with a waiting update, activate it.
+ *  2. Tell SW to drop all caches.
+ *  3. Reload the page with a fresh ?v= cache-busting query string so neither
+ *     browser cache nor any CDN edge cache can return a stale copy.
+ */
+async function reloadToLatest(){
+  try{
+    const v = (remoteVerData && remoteVerData.latest_version) || APP_VERSION;
+    if('serviceWorker' in navigator){
+      const reg = await navigator.serviceWorker.getRegistration();
+      if(reg && reg.waiting){ reg.waiting.postMessage({type:'SKIP_WAITING'}); }
+      // Wipe all caches so the next fetch goes to the network.
+      if('caches' in window){
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      // Unregister so a brand-new SW can install on next load.
+      if(reg) await reg.unregister();
+    }
+    const url = new URL(location.href);
+    url.searchParams.set('v', v);
+    url.searchParams.set('t', String(Date.now()));
+    location.replace(url.toString());
+  }catch(e){
+    console.warn('[reloadToLatest]', e);
+    location.reload();
+  }
+}
 
 function openChangelog(){
   const releases=remoteVerData?.release_notes||LOCAL_CHANGELOG,latest=remoteVerData?.latest_version||APP_VERSION;
