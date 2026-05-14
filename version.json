@@ -14,7 +14,7 @@
         { "type": "new", "text": "Pagination Prev/Next controls now visible on Revenue and Expense tables — combined with search you can scan 100k+ rows without ever leaving the page." },
         { "type": "new", "text": "Non-blocking CSV import via Web Worker: files over 500KB now parse on a background thread, so the UI stays responsive (typing, charts, scrolling) during big imports. Progress bar shows live parse progress." },
         { "type": "new", "text": "Automatic duplicate detection on CSV import: rows matching existing transactions on date + amount + description + type are flagged. One-click choice to skip duplicates (recommended) or import everything." },
-        { "type": "new", "text": "Optimistic UI for Google Drive sync: top-bar status now shows 'Syncing to Google Drive…' → '✓ Synced' on every edit, removing the 'did it sync?' anxiety. Failures show 'Sync failed — will retry'." },
+        { "type": "new", "text": "Optimistic UI for Google Drive sync: top-bar status now shows 'Syncing to Google Drive…' then '✓ Synced' on every edit, removing the 'did it sync?' anxiety. Failures show 'Sync failed — will retry'." },
         { "type": "imp", "text": "CSP updated to allow blob: workers (required for the non-blocking CSV parsing) while keeping all other lock-down protections intact." }
       ]
     },
