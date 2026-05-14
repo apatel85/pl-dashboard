@@ -22,5 +22,44 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["finance", "productivity", "business"]
+  "categories": ["finance", "productivity", "business"],
+  "shortcuts": [
+    {
+      "name": "Add Transaction",
+      "short_name": "Add",
+      "description": "Quickly add a new revenue or expense",
+      "url": "./?action=add",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Import CSV / Excel",
+      "short_name": "Import",
+      "description": "Import a transactions file",
+      "url": "./?action=import",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Jump to the P&L dashboard",
+      "url": "./?action=dashboard",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "./?share=1",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "file",
+          "accept": ["text/csv", ".csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"]
+        }
+      ]
+    }
+  }
 }

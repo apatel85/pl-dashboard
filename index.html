@@ -1587,6 +1587,7 @@ tbody tr:hover { background: var(--surface2); }
         <div class="table-wrap">
           <table id="rev-table">
             <thead><tr>
+              <th style="width:30px"><input type="checkbox" id="rev-select-all" onchange="toggleSelectAllRev(this.checked)" aria-label="Select all on page"></th>
               <th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Month</th>
             </tr></thead>
             <tbody id="rev-tbody"></tbody>
@@ -1616,6 +1617,7 @@ tbody tr:hover { background: var(--surface2); }
         <div class="table-wrap">
           <table id="exp-table">
             <thead><tr>
+              <th style="width:30px"><input type="checkbox" id="exp-select-all" onchange="toggleSelectAllExp(this.checked)" aria-label="Select all on page"></th>
               <th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Month</th>
             </tr></thead>
             <tbody id="exp-tbody"></tbody>
@@ -1723,7 +1725,8 @@ tbody tr:hover { background: var(--surface2); }
           </div>
           <div class="form-field" style="margin-top:-4px">
             <label class="field-label">Description / Notes</label>
-            <input class="field-input" id="qa-description" placeholder="Optional — transaction details, reference, memo…" style="max-width:600px">
+            <input class="field-input" id="qa-description" placeholder="Optional — transaction details, reference, memo…" style="max-width:600px" oninput="onDescriptionInput()">
+            <div id="qa-cat-suggestion" style="display:none;font-size:12px;color:var(--muted);margin-top:6px;padding:6px 10px;background:var(--surface2);border:1px solid var(--teal);border-radius:6px"></div>
           </div>
           <div id="qa-error" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div>
         </div>
@@ -2258,6 +2261,56 @@ tbody tr:hover { background: var(--surface2); }
   </div>
 </div>
 
+<!-- Industry Template Picker Modal -->
+<div id="industry-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);max-width:520px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:var(--text)">Pick your industry</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">We'll set up categories tailored to your business — change them anytime in Categories</div>
+      </div>
+      <button onclick="closeIndustryPicker()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:0 4px">×</button>
+    </div>
+    <div id="industry-options" style="padding:14px 22px;display:flex;flex-direction:column;gap:10px"></div>
+    <div style="padding:14px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);text-align:center">
+      You can always add, rename, or delete categories in the <strong style="color:var(--text)">Categories</strong> tab later.
+    </div>
+  </div>
+</div>
+
+<!-- Keyboard Shortcuts Cheat Sheet Modal -->
+<div id="shortcuts-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);max-width:460px;width:100%">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:16px;font-weight:700;color:var(--text)">⌨️ Keyboard Shortcuts</div>
+      <button onclick="closeShortcuts()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:0 4px">×</button>
+    </div>
+    <div style="padding:14px 22px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+      <div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;margin:6px 0 2px">Actions</div>
+      <div style="display:flex;justify-content:space-between"><span>New transaction</span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">n</kbd></div>
+      <div style="display:flex;justify-content:space-between"><span>Focus search</span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">/</kbd></div>
+      <div style="display:flex;justify-content:space-between"><span>Show this cheat sheet</span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">?</kbd></div>
+      <div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 2px">Go to view</div>
+      <div style="display:flex;justify-content:space-between"><span>Dashboard</span><span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">g</kbd> <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">d</kbd></span></div>
+      <div style="display:flex;justify-content:space-between"><span>Revenue</span><span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">g</kbd> <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">r</kbd></span></div>
+      <div style="display:flex;justify-content:space-between"><span>Expenses</span><span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">g</kbd> <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">e</kbd></span></div>
+      <div style="display:flex;justify-content:space-between"><span>Backup &amp; Restore</span><span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">g</kbd> <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">b</kbd></span></div>
+      <div style="display:flex;justify-content:space-between"><span>Settings</span><span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">g</kbd> <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">s</kbd></span></div>
+      <div style="display:flex;justify-content:space-between"><span>Import CSV</span><span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">g</kbd> <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">i</kbd></span></div>
+    </div>
+    <div style="padding:12px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);text-align:center">
+      Shortcuts are disabled while typing in inputs. Press <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">Esc</kbd> to close any dialog.
+    </div>
+  </div>
+</div>
+
+<!-- Bulk action bar — shown when ≥1 transaction is selected -->
+<div id="bulk-action-bar" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--teal);border-radius:10px;padding:10px 16px;display:none;align-items:center;gap:12px;z-index:55;box-shadow:0 8px 24px rgba(0,0,0,0.4);max-width:calc(100vw - 24px);flex-wrap:wrap">
+  <span id="bulk-count" style="font-size:13px;font-weight:600;color:var(--text)">0 selected</span>
+  <button class="btn btn-danger" onclick="bulkDeleteSelected()" style="font-size:12px">🗑 Delete selected</button>
+  <button class="btn btn-ghost" onclick="clearBulkSelection()" style="font-size:12px;color:var(--muted)">Clear</button>
+</div>
+
 <!-- Toast container -->
 <div id="toast" role="status" aria-live="polite" aria-atomic="false"></div>
 
@@ -2294,7 +2347,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.2.0';
+const APP_VERSION       = '8.3.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -2358,6 +2411,42 @@ const DEFAULT_CATEGORIES = [
   'Professional Services','Insurance','Office Supplies','Travel & Meals',
   'Bank Fees & Payment Processing','Other Expense'
 ];
+
+// ── Industry templates — pre-loaded category sets so a new business
+// can set up in one click. Each template includes both revenue and
+// expense categories typical for that industry.
+const INDUSTRY_TEMPLATES = {
+  consulting: {
+    name: '💼 Consulting / Professional Services',
+    blurb: 'Best for: independent consultants, agencies, freelancers, professional services firms',
+    categories: ['Client Retainers','Project Fees','Hourly Billable Work','Workshop / Training Income','Other Revenue',
+                 'Contractor / Freelancer Fees','Subscriptions & Tools','Office Rent','Travel & Meals','Marketing & Advertising','Professional Services (Legal/Accounting)','Insurance','Bank Fees & Payment Processing','Other Expense']
+  },
+  ecommerce: {
+    name: '🛍 E-commerce / Retail',
+    blurb: 'Best for: online stores, Shopify/Etsy/Amazon sellers, brick-and-mortar retail',
+    categories: ['Product Sales','Shipping Income','Returns & Refunds','Wholesale Revenue','Other Revenue',
+                 'Cost of Goods Sold (COGS)','Shipping & Fulfillment','Marketing & Advertising','Platform Fees (Shopify/Stripe/Amazon)','Returns & Refund Costs','Inventory & Supplies','Software & Subscriptions','Insurance','Other Expense']
+  },
+  saas: {
+    name: '☁️ SaaS / Software',
+    blurb: 'Best for: subscription software, B2B apps, indie hackers, micro-SaaS',
+    categories: ['Subscription Revenue (MRR)','One-time License Sales','Setup / Onboarding Fees','Affiliate / Referral Revenue','Other Revenue',
+                 'Hosting & Infrastructure','Software & Subscriptions','Salaries & Wages','Contractor / Freelancer Fees','Marketing & Advertising','Professional Services','Customer Support Tools','Insurance','Bank Fees & Payment Processing','Other Expense']
+  },
+  restaurant: {
+    name: '🍽 Restaurant / Hospitality',
+    blurb: 'Best for: restaurants, cafés, food trucks, catering, hospitality businesses',
+    categories: ['Dine-in Sales','Takeout & Delivery','Catering / Events','Beverage Sales','Merchandise','Other Revenue',
+                 'Food & Beverage Costs (COGS)','Salaries & Wages','Rent / Lease','Utilities','Equipment & Maintenance','Marketing & Advertising','Licenses & Permits','Insurance','Other Expense']
+  },
+  generic: {
+    name: '🏢 Generic Business (default)',
+    blurb: 'Best for: general use, mixed business, not sure yet — you can change later',
+    categories: [...DEFAULT_CATEGORIES]
+  }
+};
+const INDUSTRY_PICKED_KEY = 'pl_industry_picked';
 function loadCategories() {
   try {
     const raw = localStorage.getItem(CATEGORIES_KEY);
@@ -3362,6 +3451,51 @@ function setEntryType(t) {
   document.getElementById('qa-type-exp').className = 'type-btn exp'+(t==='expense'?' active':'');
 }
 
+// ── Auto-categorize from history ─────────────────────────────────
+// As user types a description, suggest the category most-used for
+// similar descriptions in the past. Simple substring + frequency match.
+let _suggestT;
+function onDescriptionInput(){
+  clearTimeout(_suggestT);
+  _suggestT = setTimeout(suggestCategoryFromDescription, 200);
+}
+async function suggestCategoryFromDescription(){
+  const descEl = document.getElementById('qa-description');
+  const catEl  = document.getElementById('qa-category');
+  const tipEl  = document.getElementById('qa-cat-suggestion');
+  const desc = (descEl.value||'').trim().toLowerCase();
+  if (!desc || desc.length < 3 || catEl.value.trim()) { tipEl.style.display='none'; return; }
+  try {
+    const all = await dbGetAll();
+    const counts = {};
+    all.forEach(t => {
+      const td = (t.description||'').toLowerCase();
+      if (!td || !t.category || t.type !== currentEntryType) return;
+      // Substring match in either direction; weight exact matches higher
+      let weight = 0;
+      if (td === desc) weight = 10;
+      else if (td.includes(desc) || desc.includes(td)) weight = 3;
+      else {
+        // Token overlap
+        const dt = new Set(desc.split(/\s+/).filter(w=>w.length>2));
+        const tt = new Set(td.split(/\s+/).filter(w=>w.length>2));
+        const overlap = [...dt].filter(w => tt.has(w)).length;
+        if (overlap >= 1) weight = overlap;
+      }
+      if (weight > 0) counts[t.category] = (counts[t.category]||0) + weight;
+    });
+    const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    if (!sorted.length) { tipEl.style.display='none'; return; }
+    const [topCat] = sorted[0];
+    tipEl.innerHTML = `💡 Suggested category: <strong style="color:var(--teal)">${escapeHtml(topCat)}</strong> <button onclick="acceptCategorySuggestion('${escapeHtml(topCat).replace(/'/g,"\\'")}')" style="margin-left:8px;background:var(--teal);border:none;color:#0f1117;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer">Use this</button>`;
+    tipEl.style.display = 'block';
+  } catch(e) { /* silent — non-critical */ }
+}
+function acceptCategorySuggestion(cat){
+  document.getElementById('qa-category').value = cat;
+  document.getElementById('qa-cat-suggestion').style.display = 'none';
+}
+
 async function quickAddTransaction() {
   const dateVal = document.getElementById('qa-date').value;
   const amount  = parseFloat(document.getElementById('qa-amount').value);
@@ -3381,6 +3515,7 @@ async function quickAddTransaction() {
   scheduleSnapshot();
   document.getElementById('qa-amount').value='';
   document.getElementById('qa-description').value='';
+  const tipEl=document.getElementById('qa-cat-suggestion');if(tipEl)tipEl.style.display='none';
   document.getElementById('qa-amount').focus();
   renderRecentEntries(); updateCatDatalist();
   toast(`✓ ${currentEntryType==='revenue'?'Revenue':'Expense'} added — ${fmt(amount)}`, 'success');
@@ -3483,6 +3618,67 @@ async function inlineEdit(id, field, value) {
 //  REVENUE / EXPENSE / MONTHLY TABLES
 // ═══════════════════════════════════════════════════════════════════
 
+// ── BULK SELECTION (revenue + expense tables) ──────────────────────
+const bulkSelection = new Set();
+function onBulkRowToggle(input){
+  const id = input.getAttribute('data-bulk-id');
+  if (input.checked) bulkSelection.add(id); else bulkSelection.delete(id);
+  updateBulkBar();
+}
+function toggleSelectAllRev(checked){
+  document.querySelectorAll('#rev-tbody input[data-bulk-id]').forEach(cb=>{
+    cb.checked = checked;
+    const id = cb.getAttribute('data-bulk-id');
+    if (checked) bulkSelection.add(id); else bulkSelection.delete(id);
+  });
+  updateBulkBar();
+}
+function toggleSelectAllExp(checked){
+  document.querySelectorAll('#exp-tbody input[data-bulk-id]').forEach(cb=>{
+    cb.checked = checked;
+    const id = cb.getAttribute('data-bulk-id');
+    if (checked) bulkSelection.add(id); else bulkSelection.delete(id);
+  });
+  updateBulkBar();
+}
+function updateBulkBar(){
+  const bar = document.getElementById('bulk-action-bar');
+  const n = bulkSelection.size;
+  if (!bar) return;
+  if (n === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('bulk-count').textContent = `${n} selected`;
+}
+function clearBulkSelection(){
+  bulkSelection.clear();
+  document.querySelectorAll('input[data-bulk-id]').forEach(cb=>cb.checked=false);
+  const r = document.getElementById('rev-select-all'); if (r) r.checked = false;
+  const x = document.getElementById('exp-select-all'); if (x) x.checked = false;
+  updateBulkBar();
+}
+async function bulkDeleteSelected(){
+  const ids = [...bulkSelection];
+  if (!ids.length) return;
+  try {
+    const deleted = [];
+    for (const id of ids) {
+      // dbGet expects the original id type (number or string)
+      const all = await dbGetAll();
+      const matchedId = all.find(t => String(t.id) === id)?.id;
+      if (matchedId === undefined) continue;
+      const t = await dbGet(matchedId);
+      if (t) { await dbDelete(matchedId); deleted.push(t); }
+    }
+    clearBulkSelection();
+    scheduleSnapshot();
+    renderRecentEntries();
+    if (document.getElementById('revenue-view').classList.contains('active')) renderRevTable();
+    if (document.getElementById('expenses-view').classList.contains('active')) renderExpTable();
+    if (document.getElementById('dashboard-view').classList.contains('active')) refreshDashboard();
+    offerUndo(`${deleted.length} transaction${deleted.length===1?'':'s'} deleted`, deleted);
+  } catch(e) { toast('Bulk delete failed: '+e.message, 'error'); }
+}
+
 let revPage=1,revPageSize=50,revSearchQuery='';let _revSearchT;
 function onRevSearchInput(){clearTimeout(_revSearchT);_revSearchT=setTimeout(()=>{revSearchQuery=(document.getElementById('rev-search').value||'').toLowerCase().trim();revPage=1;renderRevTable();},150);}
 function matchesSearch(t,q){if(!q)return true;return (t.description||'').toLowerCase().includes(q)||(t.category||'').toLowerCase().includes(q)||String(t.amount).includes(q)||(t.date||'').includes(q)||(t.month||'').toLowerCase().includes(q);}
@@ -3493,15 +3689,20 @@ async function renderRevTable() {
   document.getElementById('rev-count').textContent=txns.length+' entries'+(revSearchQuery?` (filtered)`:'');
   const tbody=document.getElementById('rev-tbody');
   if(!txns.length){
-    if(revSearchQuery){tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">No matches for "${escapeHtml(revSearchQuery)}"</td></tr>`;return;}
-    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No revenue entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Revenue</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;
+    if(revSearchQuery){tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">No matches for "${escapeHtml(revSearchQuery)}"</td></tr>`;return;}
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No revenue entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Revenue</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;
   }
   const totalPages=Math.max(1,Math.ceil(txns.length/revPageSize));
   if(revPage>totalPages)revPage=totalPages;
   if(revPage<1)revPage=1;
   const slice=txns.slice((revPage-1)*revPageSize,revPage*revPageSize);
-  tbody.innerHTML=slice.map(t=>`<tr><td>${escapeHtml(t.date)}</td><td><span style="background:var(--teal-dim);color:var(--teal);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td class="positive-val"><strong>${fmt(t.amount)}</strong></td><td>${escapeHtml(t.month+' '+t.year)}</td></tr>`).join('');
+  tbody.innerHTML=slice.map(t=>{
+    const id=String(t.id).replace(/"/g,'&quot;');
+    const checked=bulkSelection.has(String(t.id))?'checked':'';
+    return `<tr><td><input type="checkbox" data-bulk-id="${id}" ${checked} onchange="onBulkRowToggle(this)" aria-label="Select transaction"></td><td>${escapeHtml(t.date)}</td><td><span style="background:var(--teal-dim);color:var(--teal);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td class="positive-val"><strong>${fmt(t.amount)}</strong></td><td>${escapeHtml(t.month+' '+t.year)}</td></tr>`;
+  }).join('');
   const info=document.getElementById('rev-page-info');if(info)info.textContent=`Showing ${((revPage-1)*revPageSize+1)}–${Math.min(revPage*revPageSize,txns.length)} of ${txns.length}`;
+  updateBulkBar();
 }
 
 let expPage=1,expPageSize=50,expSearchQuery='';let _expSearchT;
@@ -3513,15 +3714,20 @@ async function renderExpTable() {
   document.getElementById('exp-count').textContent=txns.length+' entries'+(expSearchQuery?` (filtered)`:'');
   const tbody=document.getElementById('exp-tbody');
   if(!txns.length){
-    if(expSearchQuery){tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">No matches for "${escapeHtml(expSearchQuery)}"</td></tr>`;return;}
-    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No expense entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Expense</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;
+    if(expSearchQuery){tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">No matches for "${escapeHtml(expSearchQuery)}"</td></tr>`;return;}
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No expense entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Expense</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;
   }
   const totalPages=Math.max(1,Math.ceil(txns.length/expPageSize));
   if(expPage>totalPages)expPage=totalPages;
   if(expPage<1)expPage=1;
   const slice=txns.slice((expPage-1)*expPageSize,expPage*expPageSize);
-  tbody.innerHTML=slice.map(t=>`<tr><td>${escapeHtml(t.date)}</td><td><span style="background:var(--red-dim);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td class="negative-val"><strong>${fmt(t.amount)}</strong></td><td>${escapeHtml(t.month+' '+t.year)}</td></tr>`).join('');
+  tbody.innerHTML=slice.map(t=>{
+    const id=String(t.id).replace(/"/g,'&quot;');
+    const checked=bulkSelection.has(String(t.id))?'checked':'';
+    return `<tr><td><input type="checkbox" data-bulk-id="${id}" ${checked} onchange="onBulkRowToggle(this)" aria-label="Select transaction"></td><td>${escapeHtml(t.date)}</td><td><span style="background:var(--red-dim);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td class="negative-val"><strong>${fmt(t.amount)}</strong></td><td>${escapeHtml(t.month+' '+t.year)}</td></tr>`;
+  }).join('');
   const info=document.getElementById('exp-page-info');if(info)info.textContent=`Showing ${((expPage-1)*expPageSize+1)}–${Math.min(expPage*expPageSize,txns.length)} of ${txns.length}`;
+  updateBulkBar();
 }
 
 async function renderMonthlyTable() {
@@ -3546,6 +3752,8 @@ async function refreshDashboard() {
   const all=await dbGetAll();
   const existingCta=document.getElementById('empty-state-cta');
   if(existingCta)existingCta.remove();
+  // Show "Clear Sample Data" banner if any _sample-tagged rows exist
+  renderSampleDataBanner(all);
   if(!all.length){renderEmptyDashboard();return;}
   const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});
   all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else map[t.month].expenses+=t.amount;});
@@ -3572,6 +3780,39 @@ async function refreshDashboard() {
   renderCharts(monthly);
 }
 
+// ── INDUSTRY TEMPLATES ──────────────────────────────────────────
+function openIndustryPicker() {
+  const container = document.getElementById('industry-options');
+  container.innerHTML = '';
+  Object.entries(INDUSTRY_TEMPLATES).forEach(([key, tpl]) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-outline';
+    btn.style.cssText = 'text-align:left;padding:14px 16px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;height:auto;white-space:normal';
+    btn.innerHTML = `
+      <div style="font-size:14px;font-weight:600;color:var(--text)">${escapeHtml(tpl.name)}</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5">${escapeHtml(tpl.blurb)}</div>
+      <div style="font-size:10px;color:var(--teal);margin-top:4px">${tpl.categories.length} categories</div>`;
+    btn.onclick = () => applyIndustryTemplate(key);
+    container.appendChild(btn);
+  });
+  document.getElementById('industry-modal').style.display = 'flex';
+}
+function closeIndustryPicker() { document.getElementById('industry-modal').style.display = 'none'; }
+function applyIndustryTemplate(key) {
+  const tpl = INDUSTRY_TEMPLATES[key];
+  if (!tpl) return;
+  // Merge with any existing categories (don't wipe what the user has)
+  const existing = loadCategories();
+  const merged = [...new Set([...tpl.categories, ...existing])];
+  saveCategories(merged);
+  CATEGORIES = merged;
+  localStorage.setItem(INDUSTRY_PICKED_KEY, key);
+  closeIndustryPicker();
+  toast(`✓ ${tpl.categories.length} categories set up for ${tpl.name}`, 'success');
+  refreshDashboard();
+}
+
 async function loadSampleData(){
   const existing=await dbCount();
   if(existing>0){if(!confirm('This will add sample transactions alongside your existing data. Continue?'))return;}
@@ -3584,18 +3825,49 @@ async function loadSampleData(){
     [[3,'revenue',revCats[0],2800],[1,'revenue',revCats[1],1500],[2,'expense',expCats[0],900],[1,'expense',expCats[1],1200],[1,'expense',expCats[2],300]].forEach(([n,type,cat,base],ci)=>{
       for(let i=0;i<n;i++){
         const d=new Date(y,today.getMonth()-m,5+i*7);
-        sample.push({id:Date.now()+m*100+ci*10+i+Math.random(),date:d.toISOString().split('T')[0],type,category:cat,description:`Sample ${cat} entry`,amount:Math.round((base+Math.random()*base*0.3)*100)/100,month:MONTHS[d.getMonth()],year:d.getFullYear()});
+        // _sample:true tags rows so they can be cleared in one click later
+        sample.push({id:Date.now()+m*100+ci*10+i+Math.random(),date:d.toISOString().split('T')[0],type,category:cat,description:`Sample ${cat} entry`,amount:Math.round((base+Math.random()*base*0.3)*100)/100,month:MONTHS[d.getMonth()],year:d.getFullYear(),_sample:true});
       }
     });
   }
   await dbBulkPut(sample);
   scheduleSnapshot();
-  toast(`✓ Loaded ${sample.length} sample transactions — explore freely, then clear via Settings when done`,'success');
+  toast(`✓ Loaded ${sample.length} sample transactions — explore freely. A "Clear Sample Data" button is now on the Dashboard.`,'success',{duration:6000});
   refreshDashboard();
+}
+
+async function clearSampleData(){
+  try {
+    const all = await dbGetAll();
+    const samples = all.filter(t => t._sample);
+    if (!samples.length) { toast('No sample data to clear', 'info'); return; }
+    for (const t of samples) { await dbDelete(t.id); }
+    scheduleSnapshot();
+    toast(`✓ Cleared ${samples.length} sample transactions`, 'success');
+    refreshDashboard();
+  } catch(e) { toast('Failed to clear sample data: '+e.message, 'error'); }
 }
 
 function mkChip(label,active,onclick){const c=document.createElement('div');c.className='filter-chip'+(active?' active':'');c.textContent=label;c.onclick=onclick;return c;}
 function setKPI(id,val,sub,cls){const el=document.getElementById(id);el.textContent=fmt(val);el.className=`kpi-value ${cls}`;if(sub)document.getElementById(id+'-sub').textContent=sub;}
+function renderSampleDataBanner(all){
+  let existing = document.getElementById('sample-data-banner');
+  const hasSamples = all.some(t => t._sample);
+  if (!hasSamples) { if (existing) existing.remove(); return; }
+  if (existing) return; // already rendered
+  const dashView = document.getElementById('dashboard-view');
+  const pageHeader = dashView && dashView.querySelector('.page-header');
+  if (!pageHeader) return;
+  const banner = document.createElement('div');
+  banner.id = 'sample-data-banner';
+  banner.style.cssText = 'background:linear-gradient(135deg,#2a2418,#1f1a13);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px';
+  banner.innerHTML = `
+    <span style="font-size:18px">📋</span>
+    <span style="flex:1;min-width:200px;color:var(--text)"><strong style="color:var(--amber)">Sample data is loaded.</strong> <span style="color:var(--muted)">Try out the features, then clear it when ready to enter your real data.</span></span>
+    <button class="btn btn-outline" onclick="clearSampleData()" style="font-size:12px">🗑 Clear Sample Data</button>`;
+  pageHeader.after(banner);
+}
+
 function renderEmptyDashboard(){
   document.getElementById('dash-period').textContent='No data yet';
   ['kpi-rev','kpi-exp','kpi-net','kpi-gross','kpi-margin','kpi-avg-rev'].forEach(id=>document.getElementById(id).textContent='—');
@@ -3605,12 +3877,19 @@ function renderEmptyDashboard(){
     const card=document.createElement('div');
     card.id='empty-state-cta';
     card.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:32px 24px;text-align:center;margin-bottom:20px';
+    const industryPicked = localStorage.getItem(INDUSTRY_PICKED_KEY);
     card.innerHTML=`
       <div style="font-size:36px;margin-bottom:12px">📊</div>
       <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">Welcome to your P&amp;L Dashboard</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:22px;max-width:380px;margin-left:auto;margin-right:auto">Track your revenue and expenses, see charts, and export reports — all stored privately on your device.</div>
+      ${!industryPicked ? `
+      <div style="margin-bottom:18px">
+        <button class="btn btn-primary" onclick="openIndustryPicker()" style="font-size:14px">🚀 Set up for my industry</button>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Pick a template — Consulting, E-commerce, SaaS, Restaurant, or Generic — to get pre-built categories.</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin:14px 0 12px;text-transform:uppercase;letter-spacing:.08em">or start adding data</div>` : ''}
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="showView('add-view')">➕ Add Transaction</button>
+        <button class="btn ${industryPicked?'btn-primary':'btn-outline'}" onclick="showView('add-view')">➕ Add Transaction</button>
         <button class="btn btn-outline" onclick="showView('upload-view')">⬆ Import CSV / Excel</button>
         <button class="btn btn-outline" onclick="loadSampleData()">📋 Try Sample Data</button>
       </div>
@@ -4954,7 +5233,25 @@ async function bootApp() {
 
   updateStorageInfo();
   startVersionCheckScheduler();
-  showView('dashboard-view');
+
+  // Handle URL shortcuts (?action=add|import|dashboard) and Share Target.
+  // Manifest shortcuts launch the PWA with these query params.
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    if (action === 'add')       { showView('add-view'); }
+    else if (action === 'import')    { showView('upload-view'); }
+    else if (action === 'dashboard') { showView('dashboard-view'); }
+    else if (params.get('share')) {
+      // Share Target: receive shared CSV/XLSX, open the import view, and
+      // (eventually) auto-trigger the file picker. Mobile share sheets
+      // POST to ?share=1 with the file. We simply route to import.
+      showView('upload-view');
+      toast('Shared file received — tap "Import CSV" to continue', 'info');
+    } else {
+      showView('dashboard-view');
+    }
+  } catch(e) { showView('dashboard-view'); }
 }
 
 // Inject sign-out button into the settings page
@@ -5014,6 +5311,7 @@ function addSignOutButton() {
     {q:'How do I recover deleted data?', a:'Go to <strong>Backup &amp; Restore → Quick Save</strong> and click <strong>Restore</strong> on any recent snapshot to roll back.'},
     {q:'Can I export my data?', a:'Yes — use <strong>Export CSV</strong> or <strong>Export JSON</strong> from the top bar. JSON includes everything and can be re-imported.'},
     {q:'How do I install the app on my phone?', a:'On Android: tap the browser menu → <em>Add to Home Screen</em>. On iOS Safari: tap the Share button → <em>Add to Home Screen</em>.'},
+    {q:'Are there keyboard shortcuts?', a:'Yes. Press <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:0 5px;font-family:monospace">?</kbd> anywhere to see the full list. Common ones: <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:0 5px;font-family:monospace">n</kbd> new transaction, <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:0 5px;font-family:monospace">/</kbd> focus search, <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:0 5px;font-family:monospace">g</kbd>+<kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:0 5px;font-family:monospace">d</kbd> jump to Dashboard.'},
   ];
 
   function openHelpDrawer() {
@@ -5251,6 +5549,66 @@ function addSignOutButton() {
         .catch(err => console.warn('[sw] registration failed:', err));
     });
   }
+
+  // ── KEYBOARD SHORTCUTS ───────────────────────────────────────────
+  // Linear/Vim style. Disabled while typing in inputs.
+  let _gPending = false;
+  let _gTimer = null;
+  function openShortcuts(){ document.getElementById('shortcuts-modal').style.display='flex'; }
+  function closeShortcuts(){ document.getElementById('shortcuts-modal').style.display='none'; }
+
+  document.addEventListener('keydown', e => {
+    // Esc always closes any open dialog
+    if (e.key === 'Escape') {
+      ['shortcuts-modal','industry-modal','help-drawer'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && (el.style.display === 'flex' || el.style.display === 'block')) {
+          if (id === 'help-drawer') closeHelpDrawer();
+          else el.style.display = 'none';
+        }
+      });
+      const overlay = document.getElementById('help-overlay');
+      if (overlay && overlay.style.display === 'block') overlay.style.display = 'none';
+      return;
+    }
+    // Ignore when typing
+    const tag = (e.target && e.target.tagName) || '';
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (e.target && e.target.isContentEditable)) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+    // 'g' prefix → next key is a destination
+    if (_gPending) {
+      _gPending = false; clearTimeout(_gTimer);
+      const k = e.key.toLowerCase();
+      if (k === 'd') showView('dashboard-view');
+      else if (k === 'r') showView('revenue-view');
+      else if (k === 'e') showView('expenses-view');
+      else if (k === 'b') showView('backup-view');
+      else if (k === 's') showView('settings-view');
+      else if (k === 'i') showView('upload-view');
+      else if (k === 't') showView('transactions-view');
+      else if (k === 'm') showView('monthly-view');
+      e.preventDefault();
+      return;
+    }
+    const k = e.key;
+    if (k === 'g') {
+      _gPending = true;
+      _gTimer = setTimeout(()=>{_gPending=false;}, 1200);
+      e.preventDefault();
+    } else if (k === 'n') {
+      showView('add-view');
+      setTimeout(()=>{const a=document.getElementById('qa-amount');if(a)a.focus();},100);
+      e.preventDefault();
+    } else if (k === '/') {
+      // Focus the search box on the current view
+      const search = document.querySelector('.view.active input[type="search"]');
+      if (search) { search.focus(); e.preventDefault(); }
+    } else if (k === '?') {
+      openShortcuts();
+      e.preventDefault();
+    }
+  });
 
   // ── PWA INSTALL PROMPT ───────────────────────────────────────────
   // Smart timing: stash beforeinstallprompt, show banner only after

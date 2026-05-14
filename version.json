@@ -1,8 +1,23 @@
 {
-  "latest_version": "8.2.0",
+  "latest_version": "8.3.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.3.0",
+      "date": "2026-05-14",
+      "title": "Industry Templates, Smart Categories, Keyboard Shortcuts & Bulk Actions",
+      "summary": "6 polish features: one-click industry setup (Consulting/E-commerce/SaaS/Restaurant), auto-categorize from your history, full keyboard shortcuts, bulk-select with undo, PWA shortcuts + Share Target, and a clear-sample-data button.",
+      "changes": [
+        { "type": "new", "text": "Industry templates: pick Consulting, E-commerce, SaaS, Restaurant, or Generic on first run to get a tailored set of revenue + expense categories. Templates merge with existing categories — your data is never overwritten." },
+        { "type": "new", "text": "Auto-categorize from history: when you type a description that resembles a previous one, the app suggests the matching category with a one-tap 'Use this' button. Uses exact match, substring, then token overlap scoring." },
+        { "type": "new", "text": "Keyboard shortcuts: press ? anywhere to see the cheat sheet. n = new transaction, / = focus search, g+d/r/e/b/s/i/t/m = jump to view, Esc = close any dialog. Disabled while typing." },
+        { "type": "new", "text": "Bulk actions on Revenue and Expense: checkbox per row + select-all-on-page header. Floating action bar shows selection count; bulk delete uses the same 6-second Undo pattern as single deletes." },
+        { "type": "new", "text": "PWA shortcuts: long-press the app icon on Android/Chrome OS to see Add Transaction, Import CSV, and Dashboard quick actions." },
+        { "type": "new", "text": "Share Target API: 'Share to P&L Dashboard' now appears in your phone's share sheet for CSV and Excel files. Sharing routes to the import view ready for mapping." },
+        { "type": "new", "text": "Sample Data is now tagged so you can clear it in one click — the Dashboard shows a 'Clear Sample Data' button whenever demo transactions are loaded." }
+      ]
+    },
     {
       "version": "8.2.0",
       "date": "2026-05-14",
