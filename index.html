@@ -8,6 +8,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https://*.googleusercontent.com https://lh3.googleusercontent.com; connect-src 'self' https://iknfvddnevudpjtyxkbh.supabase.co https://sheets.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com; frame-src https://accounts.google.com https://content-sheets.googleapis.com; child-src https://accounts.google.com; object-src 'none';">
 <title>P&L Dashboard — Business Finance Tracker</title>
 <link rel="manifest" href="manifest.json">
+<link rel="canonical" href="https://apatel85.github.io/pl-dashboard/">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#0f1117">
@@ -1407,6 +1408,39 @@ tbody tr:hover { background: var(--surface2); }
     <button class="btn btn-outline" onclick="exportCSV()">⬇ Export CSV</button>
     <button class="btn btn-outline" onclick="exportJSON()">⬇ Export JSON</button>
     <button class="btn btn-primary" onclick="showView('upload-view')">⬆ Import Data</button>
+    <button class="btn btn-outline" onclick="openHelpDrawer()" aria-label="Help" title="Help &amp; Quick Start" style="padding:6px 10px;font-size:15px">?</button>
+  </div>
+</div>
+
+<!-- Help Drawer -->
+<div id="help-overlay" onclick="closeHelpDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200"></div>
+<div id="help-drawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:min(380px,100vw);background:var(--surface);border-left:1px solid var(--border);z-index:201;overflow-y:auto;padding:0">
+  <div style="position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:15px;font-weight:700;color:var(--text)">❓ Help &amp; Quick Start</span>
+    <button onclick="closeHelpDrawer()" aria-label="Close help" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:4px 8px">×</button>
+  </div>
+  <div style="padding:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Quick Start</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:10px;background:var(--surface2);border-radius:8px">
+        <span style="font-size:18px">➕</span>
+        <div><div style="font-size:13px;font-weight:600;color:var(--text)">Add your first transaction</div><div style="font-size:12px;color:var(--muted)">Click <strong>Add Transaction</strong> in the menu, or use <strong>Import CSV/Excel</strong> if you have a bank export.</div></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:10px;background:var(--surface2);border-radius:8px">
+        <span style="font-size:18px">📊</span>
+        <div><div style="font-size:13px;font-weight:600;color:var(--text)">See your P&amp;L</div><div style="font-size:12px;color:var(--muted)">Go to the <strong>Dashboard</strong> tab to see revenue, expenses, net profit, and charts.</div></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:10px;background:var(--surface2);border-radius:8px">
+        <span style="font-size:18px">🛡</span>
+        <div><div style="font-size:13px;font-weight:600;color:var(--text)">Keep your data safe</div><div style="font-size:12px;color:var(--muted)">Go to <strong>Backup &amp; Restore</strong> → connect Google Drive so your data is safe on all devices.</div></div>
+      </div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Common Questions</div>
+    <div id="help-faqs" style="display:flex;flex-direction:column;gap:2px;margin-bottom:20px"></div>
+    <div style="padding-top:14px;border-top:1px solid var(--border);text-align:center">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Full documentation</div>
+      <a href="https://github.com/apatel85/pl-dashboard/blob/main/USER_README.md" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:12px;text-decoration:none">📖 View Full Guide →</a>
+    </div>
   </div>
 </div>
 
@@ -1862,19 +1896,19 @@ tbody tr:hover { background: var(--surface2); }
           <div id="protection-msg" style="font-size:12px;color:var(--muted);margin-top:5px">Browser only — enable more layers to protect against data loss</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <div id="score-l1" class="backup-tier-status status-ok" style="font-size:11px">✓ Browser</div>
-          <div id="score-l2" class="backup-tier-status status-off" style="font-size:11px">○ Local File</div>
-          <div id="score-l3" class="backup-tier-status status-off" style="font-size:11px">○ Cloud</div>
+          <div id="score-l1" class="backup-tier-status status-ok" style="font-size:11px">✓ Quick Save</div>
+          <div id="score-l2" class="backup-tier-status status-off" style="font-size:11px">○ My Computer</div>
+          <div id="score-l3" class="backup-tier-status status-off" style="font-size:11px">○ Google Drive</div>
         </div>
       </div>
 
-      <!-- ═══ LAYER 1: BROWSER SNAPSHOTS (always on) ═══ -->
+      <!-- ═══ QUICK SAVE: BROWSER SNAPSHOTS (always on) ═══ -->
       <div class="sync-card">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">
           <div style="display:flex;align-items:flex-start;gap:12px">
             <div class="backup-tier-icon l1" style="margin-top:2px">🗃</div>
             <div>
-              <div style="font-size:14px;font-weight:600">Layer 1 — Browser Snapshots</div>
+              <div style="font-size:14px;font-weight:600">Quick Save — Browser Snapshots</div>
               <div style="font-size:12px;color:var(--muted);margin-top:2px">Automatic · Zero setup · Always on</div>
             </div>
           </div>
@@ -1891,22 +1925,22 @@ tbody tr:hover { background: var(--surface2); }
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button class="btn btn-outline" onclick="takeSnapshot(false)">📸 Take Snapshot Now</button>
           <button class="btn btn-outline" onclick="restoreFromSnapshot()" id="btn-restore-snap">⬆ Restore Latest Snapshot</button>
-          <button class="btn btn-danger" onclick="clearLayer1Data()" style="margin-left:auto;" title="Wipe all browser snapshots">🗑 Wipe All Snapshots</button>
+          <button class="btn btn-danger" onclick="clearLayer1Data()" style="margin-left:auto;" title="Wipe all browser snapshots">🗑 Wipe Quick Saves</button>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:10px;padding:8px 12px;background:var(--surface2);border-radius:6px;line-height:1.6">
           ⚠️ <strong style="color:var(--text)">Important:</strong> Snapshots are stored in the same browser.
           If you clear your browser's site data, snapshots may be lost alongside your main data.
-          For full protection, also enable Layer 2 (local file) or Layer 3 (Google Sheets).
+          For full protection, also enable <strong style="color:var(--text)">Save to My Computer</strong> or <strong style="color:var(--text)">Sync to Google Drive</strong>.
         </div>
       </div>
 
-      <!-- ═══ LAYER 2: LOCAL FILE BACKUP ═══ -->
+      <!-- ═══ SAVE TO MY COMPUTER ═══ -->
       <div class="sync-card">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">
           <div style="display:flex;align-items:flex-start;gap:12px">
             <div class="backup-tier-icon l2" style="margin-top:2px">💾</div>
             <div>
-              <div style="font-size:14px;font-weight:600">Layer 2 — Local File Backup</div>
+              <div style="font-size:14px;font-weight:600">Save to My Computer</div>
               <div style="font-size:12px;color:var(--muted);margin-top:2px">Optional · Saves to your computer · Auto every 30 min</div>
             </div>
           </div>
@@ -1926,7 +1960,7 @@ tbody tr:hover { background: var(--surface2); }
             <button class="btn btn-outline" onclick="setupAutoFileBackup()" id="btn-setup-autofile">📂 Choose Backup Location</button>
             <button class="btn btn-ghost" onclick="runFileBackupNow()" id="btn-run-autofile" disabled>▶ Backup Now</button>
             <button class="btn btn-ghost" onclick="unlinkAutoFile()" id="btn-unlink-autofile" disabled style="color:var(--muted)">✕ Unlink</button>
-            <button class="btn btn-danger" onclick="clearLayer2Data()" style="margin-left:auto;" title="Wipe Layer 2 backup link and metadata">🗑 Wipe Layer 2</button>
+            <button class="btn btn-danger" onclick="clearLayer2Data()" style="margin-left:auto;" title="Wipe local file backup link and metadata">🗑 Wipe Local File Backup</button>
           </div>
           <div style="font-size:11px;color:var(--muted);margin-top:8px">
             File: <span id="l2-file-name" style="color:var(--text)">None chosen</span>
@@ -1954,13 +1988,13 @@ tbody tr:hover { background: var(--surface2); }
         </div>
       </div>
 
-      <!-- ═══ LAYER 3: GOOGLE SHEETS ═══ -->
+      <!-- ═══ SYNC TO GOOGLE DRIVE ═══ -->
       <div class="sync-card" id="gsheets-card">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">
           <div style="display:flex;align-items:flex-start;gap:12px">
             <div class="backup-tier-icon l3" style="margin-top:2px">☁️</div>
             <div>
-              <div style="font-size:14px;font-weight:600">Layer 3 — Google Sheets Cloud Backup</div>
+              <div style="font-size:14px;font-weight:600">Sync to Google Drive</div>
               <div style="font-size:12px;color:var(--muted);margin-top:2px">Optional · Recommended · Survives computer loss</div>
             </div>
           </div>
@@ -1987,7 +2021,7 @@ tbody tr:hover { background: var(--surface2); }
         <div id="gsheets-panel"></div>
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="font-size:12px;color:var(--muted);flex:1;">Remove Google Sheets connection and credentials from this app.</span>
-          <button class="btn btn-danger" onclick="clearLayer3Data()" style="font-size:12px;" title="Wipe Layer 3 Google Sheets connection">🗑 Wipe Layer 3 Connection</button>
+          <button class="btn btn-danger" onclick="clearLayer3Data()" style="font-size:12px;" title="Wipe Google Drive connection and credentials">🗑 Wipe Google Drive Connection</button>
         </div>
       </div>
 
@@ -2182,7 +2216,26 @@ tbody tr:hover { background: var(--surface2); }
     </div>
     <div class="field-map-grid" id="field-map-grid"></div>
 
-    <div style="display:flex;gap:10px;margin-top:8px">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;padding:12px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px">
+        <label for="map-date-fmt" style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">📅 Date format:</label>
+        <select id="map-date-fmt" class="map-select" style="flex:1;min-width:0">
+          <option value="auto">Auto-detect</option>
+          <option value="mdy">MM/DD/YYYY (US)</option>
+          <option value="dmy">DD/MM/YYYY (European)</option>
+          <option value="ymd">YYYY-MM-DD (ISO)</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px">
+        <label for="map-num-fmt" style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">🔢 Number format:</label>
+        <select id="map-num-fmt" class="map-select" style="flex:1;min-width:0">
+          <option value="auto">Auto-detect</option>
+          <option value="us">1,234.56 (US)</option>
+          <option value="eu">1.234,56 (European)</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px">
       <button class="btn btn-primary" onclick="applyMapping()">✓ Apply &amp; Import</button>
       <button class="btn btn-outline" onclick="closeMapping()">Cancel</button>
     </div>
@@ -2198,6 +2251,21 @@ tbody tr:hover { background: var(--surface2); }
   <strong style="color:var(--teal)">📱 Install this app:</strong> tap the <strong>Share</strong> button in Safari, then <strong>"Add to Home Screen"</strong>. The app will work offline and sync with Google Sheets across all your devices.
 </div>
 
+<!-- PWA Install Banner (Chrome/Android/Edge) — shown after 3rd transaction, only once -->
+<div id="pwa-install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:linear-gradient(135deg,#1a2a1e,#162016);border-top:1px solid var(--green);padding:12px 16px;z-index:60;display:none">
+  <div style="max-width:700px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:20px">📱</span>
+    <div style="flex:1;min-width:200px">
+      <div style="font-size:13px;font-weight:600;color:#b7f0c8">Install P&amp;L Dashboard as an app</div>
+      <div style="font-size:11px;color:#6b9a78">Works offline · Your data stays private · Faster to open</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="triggerPwaInstall()" style="font-size:12px">Install Now</button>
+      <button class="btn btn-ghost" onclick="dismissPwaInstall()" aria-label="Dismiss install banner" style="font-size:12px;color:var(--muted)">Later</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════════════════════
 //  P&L DASHBOARD v4  —  3-Layer Backup + Google Sheets Live Sync
@@ -2210,7 +2278,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.0.4';
+const APP_VERSION       = '8.1.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -2451,7 +2519,7 @@ async function takeSnapshot(silent = true) {
         if (snaps.length > 1) { snaps = snaps.slice(0, snaps.length - 1); localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snaps)); }
       } catch(_) {}
       console.warn('[L1 snapshot] QuotaExceededError — oldest snapshot trimmed');
-      if (!silent) toast('⚠ Snapshot storage full — oldest snapshot removed. Enable Layer 2 file backup for reliable protection with large datasets.', 'error');
+      if (!silent) toast('⚠ Quick Save storage full — oldest snapshot removed. Enable "Save to My Computer" for reliable protection with large datasets.', 'error');
     } else {
       console.warn('[L1 snapshot]', e);
       if (!silent) toast('Snapshot failed: ' + (e && e.message ? e.message : 'unknown error'), 'error');
@@ -3388,7 +3456,7 @@ async function renderRevTable() {
   const all=await dbGetAll(); const txns=all.filter(t=>t.type==='revenue').sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('rev-count').textContent=txns.length+' entries';
   const tbody=document.getElementById('rev-tbody');
-  if(!txns.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">No revenue entries yet</td></tr>';return;}
+  if(!txns.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No revenue entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Revenue</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;}
   const totalPages=Math.max(1,Math.ceil(txns.length/revPageSize));
   if(revPage>totalPages)revPage=totalPages;
   const slice=txns.slice((revPage-1)*revPageSize,revPage*revPageSize);
@@ -3401,7 +3469,7 @@ async function renderExpTable() {
   const all=await dbGetAll(); const txns=all.filter(t=>t.type==='expense').sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('exp-count').textContent=txns.length+' entries';
   const tbody=document.getElementById('exp-tbody');
-  if(!txns.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">No expense entries yet</td></tr>';return;}
+  if(!txns.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No expense entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Expense</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;}
   const totalPages=Math.max(1,Math.ceil(txns.length/expPageSize));
   if(expPage>totalPages)expPage=totalPages;
   const slice=txns.slice((expPage-1)*expPageSize,expPage*expPageSize);
@@ -3429,6 +3497,8 @@ let activeMonthFilter = null;
 
 async function refreshDashboard() {
   const all=await dbGetAll();
+  const existingCta=document.getElementById('empty-state-cta');
+  if(existingCta)existingCta.remove();
   if(!all.length){renderEmptyDashboard();return;}
   const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});
   all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else map[t.month].expenses+=t.amount;});
@@ -3455,9 +3525,52 @@ async function refreshDashboard() {
   renderCharts(monthly);
 }
 
+async function loadSampleData(){
+  const existing=await dbCount();
+  if(existing>0){if(!confirm('This will add sample transactions alongside your existing data. Continue?'))return;}
+  const today=new Date();const y=today.getFullYear();
+  const sample=[];
+  const revCats=['Product Sales','Consulting','Services','Subscriptions'];
+  const expCats=['Rent','Salaries','Marketing','Software','Utilities','Supplies'];
+  for(let m=0;m<6;m++){
+    const mo=MONTHS[(today.getMonth()-m+12)%12];
+    [[3,'revenue',revCats[0],2800],[1,'revenue',revCats[1],1500],[2,'expense',expCats[0],900],[1,'expense',expCats[1],1200],[1,'expense',expCats[2],300]].forEach(([n,type,cat,base],ci)=>{
+      for(let i=0;i<n;i++){
+        const d=new Date(y,today.getMonth()-m,5+i*7);
+        sample.push({id:Date.now()+m*100+ci*10+i+Math.random(),date:d.toISOString().split('T')[0],type,category:cat,description:`Sample ${cat} entry`,amount:Math.round((base+Math.random()*base*0.3)*100)/100,month:MONTHS[d.getMonth()],year:d.getFullYear()});
+      }
+    });
+  }
+  await dbBulkPut(sample);
+  scheduleSnapshot();
+  toast(`✓ Loaded ${sample.length} sample transactions — explore freely, then clear via Settings when done`,'success');
+  refreshDashboard();
+}
+
 function mkChip(label,active,onclick){const c=document.createElement('div');c.className='filter-chip'+(active?' active':'');c.textContent=label;c.onclick=onclick;return c;}
 function setKPI(id,val,sub,cls){const el=document.getElementById(id);el.textContent=fmt(val);el.className=`kpi-value ${cls}`;if(sub)document.getElementById(id+'-sub').textContent=sub;}
-function renderEmptyDashboard(){document.getElementById('dash-period').textContent='No data yet — add transactions or import a file';['kpi-rev','kpi-exp','kpi-net','kpi-gross','kpi-margin','kpi-avg-rev'].forEach(id=>document.getElementById(id).textContent='—');document.getElementById('month-filter').innerHTML='';}
+function renderEmptyDashboard(){
+  document.getElementById('dash-period').textContent='No data yet';
+  ['kpi-rev','kpi-exp','kpi-net','kpi-gross','kpi-margin','kpi-avg-rev'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('month-filter').innerHTML='';
+  const chartsGrid=document.querySelector('.charts-grid');
+  if(chartsGrid&&!document.getElementById('empty-state-cta')){
+    const card=document.createElement('div');
+    card.id='empty-state-cta';
+    card.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:32px 24px;text-align:center;margin-bottom:20px';
+    card.innerHTML=`
+      <div style="font-size:36px;margin-bottom:12px">📊</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">Welcome to your P&amp;L Dashboard</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:22px;max-width:380px;margin-left:auto;margin-right:auto">Track your revenue and expenses, see charts, and export reports — all stored privately on your device.</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="showView('add-view')">➕ Add Transaction</button>
+        <button class="btn btn-outline" onclick="showView('upload-view')">⬆ Import CSV / Excel</button>
+        <button class="btn btn-outline" onclick="loadSampleData()">📋 Try Sample Data</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:14px">💾 Once you have data, go to <strong style="color:var(--text)">Backup &amp; Restore</strong> to keep it safe across devices</div>`;
+    chartsGrid.before(card);
+  }
+}
 function fmt(n){const cur=settings.currency||'$';const rounded=Math.round((+n||0)*100)/100;const s=Math.abs(rounded).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});return rounded<0?`(${cur}${s})`:`${cur}${s}`;}
 
 function renderCharts(monthly) {
@@ -3557,12 +3670,13 @@ async function applyMapping(){
     const catVal=mapping.category!==null?(row[mapping.category]||'Uncategorized'):'Uncategorized';
     const descVal=mapping.description!==null?(row[mapping.description]||''):'';
     const _amtStr=String(amountRaw).trim();
+    const _numFmt=document.getElementById('map-num-fmt')?document.getElementById('map-num-fmt').value:'auto';
     const _acct=/^\(([0-9.,]+)\)$/.exec(_amtStr);
-    const _eu=/^-?[0-9]{1,3}(\.[0-9]{3})+(,[0-9]{2})$/.test(_amtStr.replace(/^-/,''));
+    const _isEU=_numFmt==='eu'||(_numFmt==='auto'&&/^-?[0-9]{1,3}(\.[0-9]{3})+(,[0-9]{2})$/.test(_amtStr.replace(/^-/,'')));
     let amount;
-    if(_acct){amount=-parseFloat(_acct[1].replace(/[,\s]/g,''));}
-    else if(_eu){amount=parseFloat(_amtStr.replace(/\./g,'').replace(',','.'));}
-    else{amount=parseFloat(_amtStr.replace(/[$,\s]/g,''));}
+    if(_acct){amount=-parseFloat(_acct[1].replace(/[.,\s]/g,m=>m===','&&_isEU?'.':''));}
+    else if(_isEU){amount=parseFloat(_amtStr.replace(/\./g,'').replace(',','.'));}
+    else{amount=parseFloat(_amtStr.replace(/[$€£,\s]/g,''));}
     if(isNaN(amount)){skipped++;return;}
     const tl=String(typeRaw).toLowerCase().trim();
     const type=['revenue','income','credit','sale','sales','cr'].some(k=>tl.includes(k))?'revenue':['expense','cost','debit','purchase','payment','dr'].some(k=>tl.includes(k))?'expense':(amount>=0?'revenue':'expense');
@@ -4496,42 +4610,42 @@ async function silentInit() {
 
 function clearLayer1Data() {
   showDoubleConfirm(
-    '⚠️ Wipe Layer 1 — Browser Snapshots?',
+    '⚠️ Wipe Quick Save — Browser Snapshots?',
     'This will permanently delete ALL browser snapshots. You will lose the ability to roll back to any previous state. Your main transaction data is NOT affected.',
     '🔴 Final confirmation — this cannot be undone',
-    'All Layer 1 browser snapshots will be permanently wiped. Click Confirm to proceed.',
+    'All browser snapshots will be permanently wiped. Click Confirm to proceed.',
     () => {
       localStorage.removeItem(SNAPSHOTS_KEY);
       renderSnapshotList();
       refreshStorageHealth();
-      toast('Layer 1 snapshots wiped', 'info');
+      toast('Browser snapshots wiped', 'info');
     }
   );
 }
 
 function clearLayer2Data() {
   showDoubleConfirm(
-    '⚠️ Wipe Layer 2 — Local File Backup?',
+    '⚠️ Remove Local File Backup?',
     'This will unlink your backup file and disable auto-backup. The file on your computer will NOT be deleted — only the connection and backup metadata will be cleared.',
     '🔴 Final confirmation — this cannot be undone',
-    'Layer 2 auto-backup will be fully disabled and all backup metadata cleared. Click Confirm to proceed.',
+    'Local file backup will be disabled and all backup metadata cleared. Click Confirm to proceed.',
     () => {
       autoFileHandle = null;
       clearInterval(autoBackupTimer);
       localStorage.removeItem(L2_META_KEY);
       updateL2UI(null, null);
       updateProtectionScore();
-      toast('Layer 2 local file backup cleared', 'info');
+      toast('Local file backup cleared', 'info');
     }
   );
 }
 
 function clearLayer3Data() {
   showDoubleConfirm(
-    '⚠️ Wipe Layer 3 — Google Sheets Connection?',
+    '⚠️ Remove Google Drive Connection?',
     'This will disconnect your Google Sheets link and sign you out of Google within this app. Your actual Google Sheet file will NOT be deleted — only the connection is removed.',
     '🔴 Final confirmation — this cannot be undone',
-    'Google Sheets sync will be fully disconnected and credentials cleared. Click Confirm to proceed.',
+    'Google Drive sync will be fully disconnected and credentials cleared. Click Confirm to proceed.',
     () => {
       gsheetsToken = null;
       sessionStorage.removeItem(GSHEETS_TOKEN_SESS_KEY);
@@ -4540,7 +4654,7 @@ function clearLayer3Data() {
       if (l3s) { l3s.textContent = 'Not connected'; l3s.className = 'backup-tier-status status-off'; }
       renderGSheetsPanel();
       updateProtectionScore();
-      toast('Layer 3 Google Sheets connection cleared', 'info');
+      toast('Google Drive connection cleared', 'info');
     }
   );
 }
@@ -4621,6 +4735,9 @@ async function bootApp() {
     takeSnapshot(true);
   }
 
+  // 7b. Show PWA install banner if conditions met (≥3 txns, not standalone, not dismissed)
+  if (_pwaInstallEvent) maybeShowInstallBanner();
+
   // 8. Auto-backup & beforeunload
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
@@ -4685,6 +4802,43 @@ function addSignOutButton() {
       });
     });
   });
+
+  // ── HELP DRAWER ──────────────────────────────────────────────────
+  const HELP_FAQS = [
+    {q:'How do I import transactions?', a:'Click <strong>Import CSV/Excel</strong> in the sidebar. Upload your bank export and map the columns to Date, Amount, Type, and Category.'},
+    {q:'How do I back up to multiple devices?', a:'Go to <strong>Backup &amp; Restore → Sync to Google Drive</strong>, connect your Google account, and enable Auto-sync. Do the same on each device.'},
+    {q:'Does it work offline?', a:'Yes — once you\'ve loaded the app online, it works fully offline. Edits sync automatically to Google Drive when you reconnect.'},
+    {q:'Where is my data stored?', a:'All transactions are stored in your browser\'s local database (IndexedDB), not on any server. Only Google Drive sync sends data anywhere — to your own Google account.'},
+    {q:'How do I recover deleted data?', a:'Go to <strong>Backup &amp; Restore → Quick Save</strong> and click <strong>Restore</strong> on any recent snapshot to roll back.'},
+    {q:'Can I export my data?', a:'Yes — use <strong>Export CSV</strong> or <strong>Export JSON</strong> from the top bar. JSON includes everything and can be re-imported.'},
+    {q:'How do I install the app on my phone?', a:'On Android: tap the browser menu → <em>Add to Home Screen</em>. On iOS Safari: tap the Share button → <em>Add to Home Screen</em>.'},
+  ];
+
+  function openHelpDrawer() {
+    const overlay = document.getElementById('help-overlay');
+    const drawer  = document.getElementById('help-drawer');
+    const faqContainer = document.getElementById('help-faqs');
+    if (!faqContainer.children.length) {
+      HELP_FAQS.forEach(faq => {
+        const item = document.createElement('div');
+        item.style.cssText = 'border-bottom:1px solid var(--border)';
+        item.innerHTML = `
+          <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block';this.querySelector('.help-chevron').textContent=this.nextElementSibling.style.display==='block'?'▲':'▼'"
+            style="width:100%;background:none;border:none;text-align:left;padding:10px 0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--text);font-size:13px;font-weight:500">
+            ${escapeHtml(faq.q)}<span class="help-chevron" style="color:var(--muted);font-size:10px;flex-shrink:0">▼</span>
+          </button>
+          <div style="display:none;font-size:12px;color:var(--muted);padding-bottom:10px;line-height:1.7">${faq.a}</div>`;
+        faqContainer.appendChild(item);
+      });
+    }
+    overlay.style.display = 'block';
+    drawer.style.display  = 'block';
+  }
+
+  function closeHelpDrawer() {
+    document.getElementById('help-overlay').style.display = 'none';
+    document.getElementById('help-drawer').style.display  = 'none';
+  }
 
 
   // ═══════════════════════════════════════════════════════════════════
@@ -4896,7 +5050,52 @@ function addSignOutButton() {
     });
   }
 
-  // iOS install hint — Safari on iOS doesn't auto-prompt for install
+  // ── PWA INSTALL PROMPT ───────────────────────────────────────────
+  // Smart timing: stash beforeinstallprompt, show banner only after
+  // user has added ≥3 transactions (engaged users, not first-timers).
+  // iOS: separate flow since it doesn't support beforeinstallprompt.
+  const PWA_INSTALL_DISMISSED_KEY = 'pl_pwa_install_dismissed_v1';
+  let _pwaInstallEvent = null;
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _pwaInstallEvent = e;
+    maybeShowInstallBanner();
+  });
+
+  async function maybeShowInstallBanner() {
+    try {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                           window.navigator.standalone === true;
+      if (isStandalone) return;
+      if (localStorage.getItem(PWA_INSTALL_DISMISSED_KEY)) return;
+      const count = await dbCount();
+      if (count < 3) return;
+      const banner = document.getElementById('pwa-install-banner');
+      if (banner) banner.style.display = 'block';
+    } catch(e) {}
+  }
+
+  function triggerPwaInstall() {
+    if (_pwaInstallEvent) {
+      _pwaInstallEvent.prompt();
+      _pwaInstallEvent.userChoice.then(choice => {
+        if (choice.outcome === 'accepted') {
+          dismissPwaInstall();
+          toast('✓ App installed — launch it from your home screen or app menu', 'success');
+        }
+        _pwaInstallEvent = null;
+      });
+    }
+  }
+
+  function dismissPwaInstall() {
+    localStorage.setItem(PWA_INSTALL_DISMISSED_KEY, '1');
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) banner.style.display = 'none';
+  }
+
+  // iOS install hint — Safari on iOS doesn't support beforeinstallprompt
   (function() {
     try {
       const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -4904,11 +5103,15 @@ function addSignOutButton() {
                            window.navigator.standalone === true;
       const dismissed = localStorage.getItem('pl_ios_hint_dismissed_v1') === 'true';
       if (isIos && !isStandalone && !dismissed) {
-        // Delay 2s so it doesn't compete with the auth gate
-        setTimeout(() => {
-          const el = document.getElementById('ios-install-hint');
-          if (el) el.style.display = 'block';
-        }, 2000);
+        // Show after 3s so it doesn't compete with the auth gate
+        setTimeout(async () => {
+          try {
+            const count = await dbCount();
+            if (count < 3) return;
+            const el = document.getElementById('ios-install-hint');
+            if (el) el.style.display = 'block';
+          } catch(e) {}
+        }, 3000);
       }
     } catch(e) {}
   })();
