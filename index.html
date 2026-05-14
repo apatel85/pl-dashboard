@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, minimum-scale=1.0, maximum-scale=5.0">
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https://*.googleusercontent.com https://lh3.googleusercontent.com; connect-src 'self' https://iknfvddnevudpjtyxkbh.supabase.co https://sheets.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com; frame-src https://accounts.google.com https://content-sheets.googleapis.com; child-src https://accounts.google.com; object-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://accounts.google.com https://apis.google.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https://*.googleusercontent.com https://lh3.googleusercontent.com; connect-src 'self' https://iknfvddnevudpjtyxkbh.supabase.co https://sheets.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com; frame-src https://accounts.google.com https://content-sheets.googleapis.com; child-src https://accounts.google.com blob:; object-src 'none';">
 <title>P&L Dashboard — Business Finance Tracker</title>
 <link rel="manifest" href="manifest.json">
 <link rel="canonical" href="https://apatel85.github.io/pl-dashboard/">
@@ -1579,9 +1579,10 @@ tbody tr:hover { background: var(--surface2); }
         <div class="page-title">Revenue <small>All revenue transactions</small></div>
       </div>
       <div class="table-card">
-        <div class="table-header">
+        <div class="table-header" style="flex-wrap:wrap;gap:10px">
           <h3>Revenue Entries</h3>
           <span id="rev-count" style="font-size:12px;color:var(--muted)"></span>
+          <input type="search" id="rev-search" placeholder="🔍 Search description, category, amount…" oninput="onRevSearchInput()" style="flex:1;min-width:200px;max-width:360px;margin-left:auto;padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
         </div>
         <div class="table-wrap">
           <table id="rev-table">
@@ -1590,6 +1591,13 @@ tbody tr:hover { background: var(--surface2); }
             </tr></thead>
             <tbody id="rev-tbody"></tbody>
           </table>
+        </div>
+        <div id="rev-pagination" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid var(--border);gap:10px;flex-wrap:wrap">
+          <span id="rev-page-info" style="font-size:12px;color:var(--muted)"></span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost" onclick="revPage=Math.max(1,revPage-1);renderRevTable()" style="font-size:12px;padding:4px 10px">‹ Prev</button>
+            <button class="btn btn-ghost" onclick="revPage++;renderRevTable()" style="font-size:12px;padding:4px 10px">Next ›</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1600,9 +1608,10 @@ tbody tr:hover { background: var(--surface2); }
         <div class="page-title">Expenses <small>All expense transactions</small></div>
       </div>
       <div class="table-card">
-        <div class="table-header">
+        <div class="table-header" style="flex-wrap:wrap;gap:10px">
           <h3>Expense Entries</h3>
           <span id="exp-count" style="font-size:12px;color:var(--muted)"></span>
+          <input type="search" id="exp-search" placeholder="🔍 Search description, category, amount…" oninput="onExpSearchInput()" style="flex:1;min-width:200px;max-width:360px;margin-left:auto;padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
         </div>
         <div class="table-wrap">
           <table id="exp-table">
@@ -1611,6 +1620,13 @@ tbody tr:hover { background: var(--surface2); }
             </tr></thead>
             <tbody id="exp-tbody"></tbody>
           </table>
+        </div>
+        <div id="exp-pagination" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid var(--border);gap:10px;flex-wrap:wrap">
+          <span id="exp-page-info" style="font-size:12px;color:var(--muted)"></span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost" onclick="expPage=Math.max(1,expPage-1);renderExpTable()" style="font-size:12px;padding:4px 10px">‹ Prev</button>
+            <button class="btn btn-ghost" onclick="expPage++;renderExpTable()" style="font-size:12px;padding:4px 10px">Next ›</button>
+          </div>
         </div>
       </div>
     </div>
@@ -2278,7 +2294,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.1.0';
+const APP_VERSION       = '8.2.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -2399,6 +2415,15 @@ function dbPut(txn) {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).put(txn).onsuccess = e => resolve(e.target.result);
     tx.onerror = e => reject(e.target.error);
+  });
+}
+
+function dbGet(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).get(id);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
   });
 }
 
@@ -3087,6 +3112,7 @@ async function gsheetsPushSilent() {
   if (!meta.spreadsheetId || !gsheetsToken) return false;
   if (isSyncing) return false;
   isSyncing = true;
+  setSaveStatus('syncing');
   try {
     const all = await dbGetAll();
     const headers = ['ID','Date','Type','Category','Description','Amount','Month','Year'];
@@ -3099,9 +3125,11 @@ async function gsheetsPushSilent() {
     saveGSheetsMeta(meta);
     isDirty = false;
     updateLastSyncUI();
+    setSaveStatus('synced');
     return true;
   } catch(e) {
     console.warn('[auto-push]', e);
+    setSaveStatus('sync-error');
     return false;
   } finally { isSyncing = false; }
 }
@@ -3268,10 +3296,14 @@ function scheduleSave() {
 function setSaveStatus(s) {
   const dot = document.getElementById('save-dot');
   const lbl = document.getElementById('save-label');
+  if (!dot || !lbl) return;
   dot.className = 'save-dot';
-  if (s==='saving') { dot.classList.add('saving'); lbl.textContent='Saving…'; }
+  if (s==='saving')     { dot.classList.add('saving'); lbl.textContent='Saving…'; }
   else if (s==='saved') { lbl.textContent='All saved'; }
-  else if (s==='error') { dot.classList.add('error'); lbl.textContent='Save error'; }
+  else if (s==='error') { dot.classList.add('error');  lbl.textContent='Save error'; }
+  else if (s==='syncing'){dot.classList.add('saving'); lbl.textContent='Syncing to Google Drive…'; }
+  else if (s==='synced'){ lbl.textContent='✓ Synced to Google Drive'; setTimeout(()=>{ if(lbl.textContent==='✓ Synced to Google Drive') lbl.textContent='All saved'; },2500); }
+  else if (s==='sync-error'){dot.classList.add('error'); lbl.textContent='⚠ Sync failed — will retry'; }
 }
 
 function updateSidebarBiz() {
@@ -3451,27 +3483,42 @@ async function inlineEdit(id, field, value) {
 //  REVENUE / EXPENSE / MONTHLY TABLES
 // ═══════════════════════════════════════════════════════════════════
 
-let revPage=1,revPageSize=50;
+let revPage=1,revPageSize=50,revSearchQuery='';let _revSearchT;
+function onRevSearchInput(){clearTimeout(_revSearchT);_revSearchT=setTimeout(()=>{revSearchQuery=(document.getElementById('rev-search').value||'').toLowerCase().trim();revPage=1;renderRevTable();},150);}
+function matchesSearch(t,q){if(!q)return true;return (t.description||'').toLowerCase().includes(q)||(t.category||'').toLowerCase().includes(q)||String(t.amount).includes(q)||(t.date||'').includes(q)||(t.month||'').toLowerCase().includes(q);}
 async function renderRevTable() {
-  const all=await dbGetAll(); const txns=all.filter(t=>t.type==='revenue').sort((a,b)=>b.date.localeCompare(a.date));
-  document.getElementById('rev-count').textContent=txns.length+' entries';
+  const all=await dbGetAll(); let txns=all.filter(t=>t.type==='revenue');
+  if(revSearchQuery)txns=txns.filter(t=>matchesSearch(t,revSearchQuery));
+  txns.sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('rev-count').textContent=txns.length+' entries'+(revSearchQuery?` (filtered)`:'');
   const tbody=document.getElementById('rev-tbody');
-  if(!txns.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No revenue entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Revenue</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;}
+  if(!txns.length){
+    if(revSearchQuery){tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">No matches for "${escapeHtml(revSearchQuery)}"</td></tr>`;return;}
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No revenue entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Revenue</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;
+  }
   const totalPages=Math.max(1,Math.ceil(txns.length/revPageSize));
   if(revPage>totalPages)revPage=totalPages;
+  if(revPage<1)revPage=1;
   const slice=txns.slice((revPage-1)*revPageSize,revPage*revPageSize);
   tbody.innerHTML=slice.map(t=>`<tr><td>${escapeHtml(t.date)}</td><td><span style="background:var(--teal-dim);color:var(--teal);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td class="positive-val"><strong>${fmt(t.amount)}</strong></td><td>${escapeHtml(t.month+' '+t.year)}</td></tr>`).join('');
   const info=document.getElementById('rev-page-info');if(info)info.textContent=`Showing ${((revPage-1)*revPageSize+1)}–${Math.min(revPage*revPageSize,txns.length)} of ${txns.length}`;
 }
 
-let expPage=1,expPageSize=50;
+let expPage=1,expPageSize=50,expSearchQuery='';let _expSearchT;
+function onExpSearchInput(){clearTimeout(_expSearchT);_expSearchT=setTimeout(()=>{expSearchQuery=(document.getElementById('exp-search').value||'').toLowerCase().trim();expPage=1;renderExpTable();},150);}
 async function renderExpTable() {
-  const all=await dbGetAll(); const txns=all.filter(t=>t.type==='expense').sort((a,b)=>b.date.localeCompare(a.date));
-  document.getElementById('exp-count').textContent=txns.length+' entries';
+  const all=await dbGetAll(); let txns=all.filter(t=>t.type==='expense');
+  if(expSearchQuery)txns=txns.filter(t=>matchesSearch(t,expSearchQuery));
+  txns.sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('exp-count').textContent=txns.length+' entries'+(expSearchQuery?` (filtered)`:'');
   const tbody=document.getElementById('exp-tbody');
-  if(!txns.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No expense entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Expense</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;}
+  if(!txns.length){
+    if(expSearchQuery){tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">No matches for "${escapeHtml(expSearchQuery)}"</td></tr>`;return;}
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No expense entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Expense</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;
+  }
   const totalPages=Math.max(1,Math.ceil(txns.length/expPageSize));
   if(expPage>totalPages)expPage=totalPages;
+  if(expPage<1)expPage=1;
   const slice=txns.slice((expPage-1)*expPageSize,expPage*expPageSize);
   tbody.innerHTML=slice.map(t=>`<tr><td>${escapeHtml(t.date)}</td><td><span style="background:var(--red-dim);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td class="negative-val"><strong>${fmt(t.amount)}</strong></td><td>${escapeHtml(t.month+' '+t.year)}</td></tr>`).join('');
   const info=document.getElementById('exp-page-info');if(info)info.textContent=`Showing ${((expPage-1)*expPageSize+1)}–${Math.min(expPage*expPageSize,txns.length)} of ${txns.length}`;
@@ -3599,10 +3646,85 @@ dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over')
 dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)parseCSVFile(f);});
 function handleFileSelect(e){const f=e.target.files[0];if(f)parseCSVFile(f);e.target.value='';}
 
+// ── Worker source — inlined as a string and turned into a Blob URL so
+// the app stays a single self-contained file. Used for CSV files
+// >500KB so the main thread stays responsive (UI / charts / typing).
+const CSV_WORKER_SRC = `
+self.onmessage = function(e){
+  const text = e.data.text;
+  const lines = text.replace(/^\\ufeff/,'').replace(/\\r\\n?/g,'\\n').split('\\n');
+  const total = lines.length;
+  const rows = [];
+  let lastProgress = 0;
+  for (let li = 0; li < total; li++) {
+    const line = lines[li];
+    if (li === total - 1 && line === '') break;
+    const r = []; let cur = '', q = false, i = 0;
+    while (i < line.length) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (q && line[i+1] === '"') { cur += '"'; i += 2; continue; }
+        q = !q; i++; continue;
+      }
+      if (ch === ',' && !q) { r.push(cur); cur = ''; i++; continue; }
+      cur += ch; i++;
+    }
+    r.push(cur);
+    rows.push(r);
+    if (li - lastProgress >= 2000) {
+      self.postMessage({type:'progress', pct: li/total});
+      lastProgress = li;
+    }
+  }
+  self.postMessage({type:'done', rows});
+};
+`;
+let _csvWorker = null;
+function getCsvWorker(){
+  if(_csvWorker)return _csvWorker;
+  try{
+    const blob = new Blob([CSV_WORKER_SRC],{type:'application/javascript'});
+    _csvWorker = new Worker(URL.createObjectURL(blob));
+  }catch(e){console.warn('Worker unavailable, will fall back to main-thread parsing',e);}
+  return _csvWorker;
+}
+
 function parseCSVFile(file){
-  const reader=new FileReader();
-  reader.onload=e=>{const rows=parseCSV(e.target.result);if(rows.length<2){toast('File empty or invalid','error');return;}parsedCSV=rows;csvHeaders=rows[0];openMappingModal();};
+  // For large files, offload to worker; small files parse synchronously
+  // so the import is instant for typical bank exports.
+  const useWorker = file.size > 500*1024 && typeof Worker !== 'undefined';
+  const reader = new FileReader();
+  if(useWorker){
+    const prog = document.getElementById('import-progress');
+    const bar = document.getElementById('import-progress-bar');
+    if(prog){prog.style.display='block';}
+    reader.onload = e => {
+      const worker = getCsvWorker();
+      if(!worker){ // fallback
+        const rows = parseCSV(e.target.result);
+        if(prog)prog.style.display='none';
+        finishCsvImport(rows);
+        return;
+      }
+      worker.onmessage = ev => {
+        if(ev.data.type==='progress'){if(bar)bar.style.width=Math.round(ev.data.pct*100*0.5)+'%';return;}
+        if(ev.data.type==='done'){
+          if(bar)bar.style.width='100%';
+          setTimeout(()=>{if(prog)prog.style.display='none';if(bar)bar.style.width='0';},400);
+          finishCsvImport(ev.data.rows);
+        }
+      };
+      worker.postMessage({text:e.target.result});
+    };
+  } else {
+    reader.onload = e => finishCsvImport(parseCSV(e.target.result));
+  }
   reader.readAsText(file);
+}
+
+function finishCsvImport(rows){
+  if(!rows||rows.length<2){toast('File empty or invalid','error');return;}
+  parsedCSV=rows;csvHeaders=rows[0];openMappingModal();
 }
 
 function parseCSV(text){
@@ -3691,15 +3813,44 @@ async function applyMapping(){
     const year=(!parsed||isNaN(parsed))?'':parsed.getFullYear();
     newTxns.push({id:Date.now()+idx+Math.random(),date,type,category:catVal,description:descVal,amount:Math.abs(amount),month,year});
   });
+
+  // Duplicate detection: hash incoming rows against existing transactions.
+  // Same (date|amount|description|type) is treated as a duplicate. Use a
+  // native confirm so we don't have to retrofit the shared confirm modal.
+  const existing = await dbGetAll();
+  const existingHashes = new Set(existing.map(txnHash));
+  const dupes = newTxns.filter(t => existingHashes.has(txnHash(t)));
+  let finalTxns = newTxns;
+  if (dupes.length > 0) {
+    const importAll = confirm(
+      `${dupes.length} of ${newTxns.length} rows look like duplicates of transactions you already have (same date, amount, description, and type).\n\n` +
+      `Click OK to import everything including duplicates.\n` +
+      `Click Cancel to skip the duplicates (recommended).`
+    );
+    if (!importAll) {
+      finalTxns = newTxns.filter(t => !existingHashes.has(txnHash(t)));
+    }
+  }
+  const skippedDupes = newTxns.length - finalTxns.length;
+
   const prog=document.getElementById('import-progress'),bar=document.getElementById('import-progress-bar');
   if(prog)prog.style.display='block';
-  await dbBulkPut(newTxns,pct=>{if(bar)bar.style.width=(pct*100)+'%';});
+  await dbBulkPut(finalTxns,pct=>{if(bar)bar.style.width=(pct*100)+'%';});
   if(bar)bar.style.width='100%';
   setTimeout(()=>{if(prog)prog.style.display='none';},600);
   closeMapping();
   scheduleSnapshot();
-  toast(`✓ Imported ${newTxns.length} transactions${skipped?` (${skipped} skipped)`:''}`,'success');
+  const parts = [`✓ Imported ${finalTxns.length} transactions`];
+  if(skipped)parts.push(`${skipped} unparseable`);
+  if(skippedDupes)parts.push(`${skippedDupes} duplicates skipped`);
+  toast(parts.join(' · '),'success');
   showView('dashboard-view');
+}
+
+function txnHash(t){
+  // Stable fingerprint for dedup. Round amount to 2dp to ignore float drift.
+  const amt = Math.round((+t.amount||0)*100)/100;
+  return `${t.date}|${amt}|${(t.description||'').trim().toLowerCase()}|${t.type}`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3806,16 +3957,23 @@ function showConfirm(title, msg, onConfirm) {
   document.getElementById('confirm-modal').classList.add('open');
 }
 
-function confirmDelete(id) {
-  showConfirm('Delete Transaction?', 'This transaction will be permanently removed.',
-    async () => {
-      await dbDelete(id);
-      scheduleSnapshot();
-      renderRecentEntries();
-      if (document.getElementById('transactions-view').classList.contains('active')) renderTxnTable();
-      toast('Transaction deleted','info');
-    }
-  );
+async function confirmDelete(id) {
+  // Optimistic delete with undo — Linear/Gmail pattern. No confirm dialog;
+  // the 6-second undo toast is the safety net.
+  try {
+    const txn = await dbGet(id);
+    if (!txn) { toast('Transaction not found','error'); return; }
+    await dbDelete(id);
+    scheduleSnapshot();
+    renderRecentEntries();
+    if (document.getElementById('transactions-view').classList.contains('active')) renderTxnTable();
+    if (document.getElementById('revenue-view').classList.contains('active')) renderRevTable();
+    if (document.getElementById('expenses-view').classList.contains('active')) renderExpTable();
+    if (document.getElementById('dashboard-view').classList.contains('active')) refreshDashboard();
+    offerUndo('Transaction deleted', [txn]);
+  } catch(e) {
+    toast('Could not delete: '+e.message,'error');
+  }
 }
 
 function closeConfirm(){document.getElementById('confirm-modal').classList.remove('open');}
@@ -4558,7 +4716,51 @@ function authSignOut() {
 //  TOAST
 // ═══════════════════════════════════════════════════════════════════
 
-function toast(msg,type='info'){const c=document.getElementById('toast');const el=document.createElement('div');el.className=`toast-msg ${type}`;const icon=document.createElement('span');icon.textContent={success:'✓',error:'✕',info:'ℹ'}[type]||'ℹ';el.appendChild(icon);el.appendChild(document.createTextNode(' '+msg));c.appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300);},3200);}
+function toast(msg,type='info',opts){
+  const c=document.getElementById('toast');
+  const el=document.createElement('div');
+  el.className=`toast-msg ${type}`;
+  const icon=document.createElement('span');
+  icon.textContent={success:'✓',error:'✕',info:'ℹ'}[type]||'ℹ';
+  el.appendChild(icon);
+  el.appendChild(document.createTextNode(' '+msg));
+  const duration=(opts&&opts.duration)||3200;
+  if(opts&&opts.action){
+    const btn=document.createElement('button');
+    btn.textContent=opts.action.label||'Undo';
+    btn.style.cssText='margin-left:12px;background:transparent;border:1px solid currentColor;color:inherit;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer';
+    btn.onclick=()=>{try{opts.action.onClick();}finally{el.remove();}};
+    el.appendChild(btn);
+  }
+  c.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300);},duration);
+  return el;
+}
+
+// ── UNDO REGISTRY ──────────────────────────────────────────────────
+// Hold deleted transactions in memory; restore them via Undo before
+// the toast expires. After expiry, the delete is permanent.
+function offerUndo(label,deletedTxns,onConfirmed){
+  toast(label,'info',{
+    duration:6000,
+    action:{
+      label:'Undo',
+      onClick:async()=>{
+        try{
+          for(const t of deletedTxns){await dbPut(t);}
+          scheduleSnapshot();
+          renderRecentEntries();
+          if(document.getElementById('transactions-view').classList.contains('active'))renderTxnTable();
+          if(document.getElementById('revenue-view').classList.contains('active'))renderRevTable();
+          if(document.getElementById('expenses-view').classList.contains('active'))renderExpTable();
+          if(document.getElementById('dashboard-view').classList.contains('active'))refreshDashboard();
+          toast(`✓ Restored ${deletedTxns.length} transaction${deletedTxns.length===1?'':'s'}`,'success');
+        }catch(e){toast('Could not restore: '+e.message,'error');}
+      }
+    }
+  });
+  if(onConfirmed)setTimeout(onConfirmed,6100);
+}
 
 // ═══════════════════════════════════════════════════════════════════
 //  INIT

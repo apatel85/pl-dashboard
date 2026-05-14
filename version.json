@@ -1,8 +1,23 @@
 {
-  "latest_version": "8.1.0",
+  "latest_version": "8.2.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.2.0",
+      "date": "2026-05-14",
+      "title": "Power Features — Undo, Search, Duplicates, Workers & Optimistic Sync",
+      "summary": "5 high-impact upgrades adapted from Linear, Gmail, Stripe: undo any delete, instant search on Revenue/Expense, non-blocking CSV import via Web Worker, automatic duplicate detection on import, and live sync status indicators.",
+      "changes": [
+        { "type": "new", "text": "Undo deletes: deleting a transaction now shows a 6-second 'Undo' toast (Linear/Gmail pattern) — no more confirm dialog, no more accidental data loss. The transaction is fully restored if you click Undo." },
+        { "type": "new", "text": "Instant inline search on Revenue and Expense tabs — search descriptions, categories, amounts, dates, and months all at once with 150ms debounce. Empty-state hint appears when no matches found." },
+        { "type": "new", "text": "Pagination Prev/Next controls now visible on Revenue and Expense tables — combined with search you can scan 100k+ rows without ever leaving the page." },
+        { "type": "new", "text": "Non-blocking CSV import via Web Worker: files over 500KB now parse on a background thread, so the UI stays responsive (typing, charts, scrolling) during big imports. Progress bar shows live parse progress." },
+        { "type": "new", "text": "Automatic duplicate detection on CSV import: rows matching existing transactions on date + amount + description + type are flagged. One-click choice to skip duplicates (recommended) or import everything." },
+        { "type": "new", "text": "Optimistic UI for Google Drive sync: top-bar status now shows 'Syncing to Google Drive…' → '✓ Synced' on every edit, removing the 'did it sync?' anxiety. Failures show 'Sync failed — will retry'." },
+        { "type": "imp", "text": "CSP updated to allow blob: workers (required for the non-blocking CSV parsing) while keeping all other lock-down protections intact." }
+      ]
+    },
     {
       "version": "8.1.0",
       "date": "2026-05-14",
