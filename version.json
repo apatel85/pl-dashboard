@@ -1,8 +1,20 @@
 {
-  "latest_version": "8.0.3",
+  "latest_version": "8.0.4",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.0.4",
+      "date": "2026-05-14",
+      "title": "License Key Sign-In + Blank-Page Hardening",
+      "summary": "Sign in to the app with just your email + license key — no Google account required. Plus defensive code so a corrupted cached session can never blank the screen.",
+      "changes": [
+        { "type": "new", "text": "Alternative sign-in: use your email + license key (from your purchase receipt). No Google account needed to access the dashboard. Google sign-in remains the default; license-key entry is linked below the Google button." },
+        { "type": "fix", "text": "Blank-page root cause fixed: an old or malformed cached session (missing user.plan or user.name) would throw an uncaught error in unlockApp() after the auth gate was hidden, leaving the screen blank. unlockApp() now handles every field defensively and restores the auth gate if anything goes wrong." },
+        { "type": "fix", "text": "Boot flow wrapped in try/catch — if bootApp() itself crashes for any reason, the cached session is cleared and the auth gate is brought back so the user has a recoverable state." },
+        { "type": "imp", "text": "Google Sheets sync is unchanged and remains optional — it's still accessed from Backup tab and uses Google OAuth separately from app sign-in. License-key users get full Sheets sync if they choose to enable it." }
+      ]
+    },
     {
       "version": "8.0.3",
       "date": "2026-05-14",

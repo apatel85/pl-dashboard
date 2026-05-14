@@ -1239,6 +1239,67 @@ tbody tr:hover { background: var(--surface2); }
         background:#2a1515;border:1px solid #e74c3c;border-radius:8px;
         font-size:13px;color:#f1948a;line-height:1.6;text-align:left;
       "></div>
+
+      <!-- Alternative: sign in with license key (no Google account required) -->
+      <div style="margin-top:22px;padding-top:18px;border-top:1px solid #2a3045;font-size:12px;color:#6b7394">
+        Prefer not to use a Google account?
+        <a href="#" onclick="showLicenseKeyPanel(); return false;" style="color:#0ecfbe;text-decoration:none;font-weight:600">Sign in with your license key →</a>
+      </div>
+    </div>
+
+    <!-- License-key sign-in panel (alternative to Google) -->
+    <div id="auth-licensekey-panel" style="display:none">
+      <div style="font-size:15px;font-weight:600;color:#e8eaf0;margin-bottom:8px">Sign in with your license key</div>
+      <div style="font-size:13px;color:#6b7394;margin-bottom:24px;line-height:1.6">
+        Enter the email used at checkout and the license key from your receipt.<br>
+        No Google account needed for app access.
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;text-align:left;margin-bottom:16px">
+        <label style="font-size:12px;color:#6b7394;font-weight:600">
+          Email address
+          <input id="auth-lk-email" type="email" autocomplete="email" inputmode="email"
+            placeholder="you@example.com"
+            style="display:block;width:100%;margin-top:6px;padding:11px 12px;
+                   font-size:16px;background:#0f1117;color:#e8eaf0;
+                   border:1px solid #2a3045;border-radius:8px;outline:none;
+                   font-family:'DM Sans',sans-serif;box-sizing:border-box">
+        </label>
+        <label style="font-size:12px;color:#6b7394;font-weight:600">
+          License key
+          <input id="auth-lk-key" type="text" autocomplete="off" spellcheck="false"
+            placeholder="XXXX-XXXX-XXXX-XXXX"
+            style="display:block;width:100%;margin-top:6px;padding:11px 12px;
+                   font-size:16px;background:#0f1117;color:#e8eaf0;
+                   border:1px solid #2a3045;border-radius:8px;outline:none;
+                   font-family:'DM Sans',sans-serif;letter-spacing:1px;box-sizing:border-box">
+        </label>
+      </div>
+
+      <button onclick="authSignInWithLicenseKey()" style="
+        display:inline-flex;align-items:center;justify-content:center;gap:10px;
+        width:100%;padding:12px 20px;border-radius:8px;
+        background:#0ecfbe;color:#0f1117;border:none;
+        font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;
+        cursor:pointer;transition:all .15s;
+      " id="auth-lk-submit">
+        Sign in
+      </button>
+
+      <div id="auth-lk-loading" style="display:none;margin-top:18px;font-size:13px;color:#6b7394">
+        <span style="display:inline-block;animation:spin .8s linear infinite">↻</span>
+        Verifying your license key…
+      </div>
+
+      <div id="auth-lk-error" style="
+        display:none;margin-top:16px;padding:12px 16px;
+        background:#2a1515;border:1px solid #e74c3c;border-radius:8px;
+        font-size:13px;color:#f1948a;line-height:1.6;text-align:left;
+      "></div>
+
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid #2a3045;font-size:12px;color:#6b7394">
+        <a href="#" onclick="showGoogleSignInPanel(); return false;" style="color:#0ecfbe;text-decoration:none">← Back to Google sign-in</a>
+      </div>
     </div>
 
     <!-- Access denied panel -->
@@ -2149,7 +2210,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.0.3';
+const APP_VERSION       = '8.0.4';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -3836,6 +3897,108 @@ function authSignIn() {
   client.requestAccessToken();
 }
 
+// ── License-key sign-in (alternative to Google) ───────────────
+// Lets a user unlock the app by providing only their email + the
+// license_key they received at checkout. No Google account required.
+// Google Sheets sync remains optional and is signed-in separately
+// from the Backup tab once the user is inside the app.
+function showLicenseKeyPanel() {
+  const signin  = document.getElementById('auth-signin-panel');
+  const lkPanel = document.getElementById('auth-licensekey-panel');
+  if (signin)  signin.style.display  = 'none';
+  if (lkPanel) lkPanel.style.display = 'block';
+  const em = document.getElementById('auth-lk-email');
+  if (em) setTimeout(() => em.focus(), 50);
+}
+
+function showGoogleSignInPanel() {
+  const signin  = document.getElementById('auth-signin-panel');
+  const lkPanel = document.getElementById('auth-licensekey-panel');
+  if (lkPanel) lkPanel.style.display = 'none';
+  if (signin)  signin.style.display  = 'block';
+}
+
+function setLkLoading(on) {
+  const btn  = document.getElementById('auth-lk-submit');
+  const load = document.getElementById('auth-lk-loading');
+  const err  = document.getElementById('auth-lk-error');
+  if (btn)  btn.style.display  = on ? 'none'  : 'inline-flex';
+  if (load) load.style.display = on ? 'block' : 'none';
+  if (on && err) err.style.display = 'none';
+}
+
+function showLkError(msg) {
+  const el = document.getElementById('auth-lk-error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+  const btn = document.getElementById('auth-lk-submit');
+  if (btn) btn.style.display = 'inline-flex';
+  const load = document.getElementById('auth-lk-loading');
+  if (load) load.style.display = 'none';
+}
+
+async function authSignInWithLicenseKey() {
+  const emailEl = document.getElementById('auth-lk-email');
+  const keyEl   = document.getElementById('auth-lk-key');
+  const email   = (emailEl ? emailEl.value : '').trim().toLowerCase();
+  const key     = (keyEl   ? keyEl.value   : '').trim();
+  if (!email || !email.includes('@')) { showLkError('Enter a valid email address.'); return; }
+  if (!key || key.length < 8)         { showLkError('Enter your license key.');      return; }
+
+  setLkLoading(true);
+
+  // Log the attempt (non-blocking)
+  supaFetch('/rest/v1/pl_access_log', {
+    method: 'POST', prefer: 'return=minimal',
+    body: JSON.stringify({
+      email, google_sub: 'license_key',
+      event: 'checking',
+      user_agent: navigator.userAgent.substring(0, 200)
+    })
+  }).catch(() => {});
+
+  try {
+    // Look up the email + license_key in Supabase
+    const rows = await supaFetch(
+      '/rest/v1/pl_licensed_users?email=eq.' + encodeURIComponent(email) +
+      '&license_key=eq.' + encodeURIComponent(key) +
+      '&select=email,name,plan,status,expires_at,license_key'
+    );
+
+    if (!rows || rows.length === 0) {
+      logAccessEvent(email, 'license_key', 'denied');
+      showLkError('No matching license found. Check the email and license key from your receipt, or use Google sign-in instead.');
+      return;
+    }
+
+    const user = rows[0];
+
+    if (user.status === 'suspended') {
+      logAccessEvent(email, 'license_key', 'suspended');
+      showLkError('Your license has been suspended. Please contact support.');
+      return;
+    }
+    if (user.expires_at && new Date(user.expires_at) < new Date()) {
+      logAccessEvent(email, 'license_key', 'expired');
+      showLkError('Your license has expired. Please renew to continue.');
+      return;
+    }
+
+    // ✅ Access granted — same flow as Google sign-in path
+    logAccessEvent(email, 'license_key', 'granted');
+    const userData = {
+      email: user.email,
+      name:  user.name || user.email.split('@')[0],
+      plan:  user.plan || 'lifetime'
+    };
+    saveCachedSession(userData);
+    authUser = userData;
+    showAuthSuccess(userData);
+  } catch(e) {
+    console.error('[license-key auth]', e);
+    showLkError('Could not verify your license — check your internet connection and try again. (' + e.message + ')');
+  }
+}
+
 // ── Verify email against Supabase pl_licensed_users ───────────
 async function verifyLicense(email, googleSub, displayName) {
   setAuthLoading(true);
@@ -4222,21 +4385,46 @@ function authResetAndRetry() {
 
 // ── Unlock: hide gate, boot the app ──────────────────────────
 function unlockApp(user, isNewSignIn = false) {
-  const gate = document.getElementById('auth-gate');
-  gate.style.transition = 'opacity .4s ease';
-  gate.style.opacity = '0';
-  setTimeout(() => { gate.style.display = 'none'; }, 420);
+  try {
+    const gate = document.getElementById('auth-gate');
+    if (gate) {
+      gate.style.transition = 'opacity .4s ease';
+      gate.style.opacity = '0';
+      setTimeout(() => { if (gate) gate.style.display = 'none'; }, 420);
+    }
 
-  // Show user info in sidebar
-  if (user) {
-    document.getElementById('biz-sidebar').style.display = 'block';
-    document.getElementById('biz-sidebar-name').textContent = user.name;
-    document.getElementById('biz-sidebar-year').textContent =
-      user.plan.charAt(0).toUpperCase()+user.plan.slice(1)+' · '+user.email;
+    // Show user info in sidebar — defensive: every field optional, every DOM lookup nullable
+    if (user) {
+      const sidebar = document.getElementById('biz-sidebar');
+      if (sidebar) sidebar.style.display = 'block';
+      const nameEl = document.getElementById('biz-sidebar-name');
+      if (nameEl) nameEl.textContent = user.name || user.email || 'User';
+      const planEl = document.getElementById('biz-sidebar-year');
+      if (planEl) {
+        const plan = String(user.plan || 'member');
+        planEl.textContent =
+          plan.charAt(0).toUpperCase() + plan.slice(1) +
+          (user.email ? ' · ' + user.email : '');
+      }
+    }
+
+    // Boot the app if this is a fresh sign-in (cached session boots in load handler)
+    if (isNewSignIn) bootApp();
+  } catch(e) {
+    console.error('[unlockApp]', e);
+    // Bad cached session shape — wipe it and restore the auth gate so the
+    // user can sign in fresh instead of being stuck on a blank screen.
+    try { localStorage.removeItem(AUTH_SESSION_KEY); } catch(_) {}
+    const gate = document.getElementById('auth-gate');
+    if (gate) {
+      gate.style.display    = 'flex';
+      gate.style.opacity    = '1';
+      gate.style.transition = '';
+    }
+    const panel = document.getElementById('auth-signin-panel');
+    if (panel) panel.style.display = 'block';
+    showAuthError('Your saved session was invalid. Please sign in again.');
   }
-
-  // Boot the app if this is a fresh sign-in (cached session boots in load handler)
-  if (isNewSignIn) bootApp();
 }
 
 // ── Sign out ──────────────────────────────────────────────────
@@ -4263,18 +4451,37 @@ function toast(msg,type='info'){const c=document.getElementById('toast');const e
 // ═══════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', async () => {
-  // ── Step 1: Check for valid cached session ──────────────────
-  const cached = loadCachedSession();
-  if (cached) {
-    // Session still valid — skip the gate and boot straight in
-    authUser = cached;
-    unlockApp(cached);
-    bootApp();
-  } else {
-    // No valid session — show the gate, wait for sign-in
-    // bootApp() will be called by unlockApp() → showAuthSuccess()
-    // We still init the DB silently in the background
-    silentInit();
+  try {
+    // ── Step 1: Check for valid cached session ──────────────────
+    const cached = loadCachedSession();
+    if (cached) {
+      // Session still valid — skip the gate and boot straight in
+      authUser = cached;
+      unlockApp(cached);
+      try { await bootApp(); } catch(bootErr) {
+        console.error('[bootApp]', bootErr);
+        // Boot failed but we already hid the auth gate — bring it back so
+        // the user has a recoverable state instead of a blank screen.
+        try { localStorage.removeItem(AUTH_SESSION_KEY); } catch(_) {}
+        const gate = document.getElementById('auth-gate');
+        if (gate) { gate.style.display='flex'; gate.style.opacity='1'; }
+        const panel = document.getElementById('auth-signin-panel');
+        if (panel) panel.style.display = 'block';
+        if (typeof showAuthError === 'function') {
+          showAuthError('Could not load your dashboard: ' + (bootErr.message || 'unknown error') + '. Please sign in again.');
+        }
+      }
+    } else {
+      // No valid session — show the gate, wait for sign-in
+      // bootApp() will be called by unlockApp() → showAuthSuccess()
+      // We still init the DB silently in the background
+      silentInit();
+    }
+  } catch(e) {
+    console.error('[bootloader]', e);
+    // Last-resort: keep the auth gate visible so the user always has something to look at.
+    const gate = document.getElementById('auth-gate');
+    if (gate) { gate.style.display='flex'; gate.style.opacity='1'; }
   }
 });
 
