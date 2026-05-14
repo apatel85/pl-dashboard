@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self' https://iknfvddnevudpjtyxkbh.supabase.co https://sheets.googleapis.com https://accounts.google.com; frame-src 'none'; object-src 'none';">
 <title>P&L Dashboard — Business Finance Tracker</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="P&L Dash">
 <script>/* Chart.js 4.4.1 (inlined for offline use) */
 /*!
  * Chart.js v4.4.1
@@ -1929,6 +1936,12 @@ tbody tr:hover { background: var(--surface2); }
 <!-- Toast container -->
 <div id="toast" role="status" aria-live="polite" aria-atomic="false"></div>
 
+<!-- iOS install hint — shown only on iOS Safari, not in standalone mode, not yet dismissed -->
+<div id="ios-install-hint" style="display:none;position:fixed;bottom:14px;left:14px;right:14px;max-width:520px;margin:0 auto;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;z-index:50;font-size:13px;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,0.4)">
+  <button onclick="dismissIosHint()" aria-label="Dismiss install hint" style="position:absolute;top:6px;right:8px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:4px 8px">×</button>
+  <strong style="color:var(--teal)">📱 Install this app:</strong> tap the <strong>Share</strong> button in Safari, then <strong>"Add to Home Screen"</strong>. The app will work offline and sync with Google Sheets across all your devices.
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════════════════════
 //  P&L DASHBOARD v4  —  3-Layer Backup + Google Sheets Live Sync
@@ -1941,7 +1954,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '5.0.0';
+const APP_VERSION       = '8.0.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -2262,6 +2275,7 @@ let snapTimer = null;
 function scheduleSnapshot() {
   clearTimeout(snapTimer);
   snapTimer = setTimeout(() => takeSnapshot(true), 3000);
+  if (typeof scheduleAutoPush === 'function') scheduleAutoPush();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2458,6 +2472,11 @@ function renderGSheetsPanel() {
         <button class="btn btn-ghost" onclick="gsheetsSignOut()" style="font-size:11px;color:var(--muted)">Disconnect</button>
       </div>
 
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:6px;cursor:pointer;font-size:13px;color:var(--text)">
+        <input type="checkbox" id="autosync-toggle" ${autoSyncEnabled?'checked':''} onchange="setAutoSync(this.checked)" style="width:16px;height:16px;cursor:pointer">
+        <span><strong>Auto-sync to Google Sheets</strong> — pushes changes 3 seconds after each edit and pulls every 60 seconds while the tab is open. Works across all your devices.</span>
+      </label>
+
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="gsheetsPush()">⬆ Push — Save to Google Sheets</button>
         <button class="btn btn-outline" onclick="gsheetsPull()">⬇ Pull — Restore from Google Sheets</button>
@@ -2465,8 +2484,9 @@ function renderGSheetsPanel() {
       </div>
 
       <div style="font-size:12px;color:var(--muted);line-height:1.6;padding:10px 14px;background:var(--surface2);border-radius:6px">
-        <strong style="color:var(--text)">Push</strong> sends all your current data to Google Sheets (overwrites what's there).<br>
-        <strong style="color:var(--text)">Pull</strong> imports data from Google Sheets back into this dashboard (merges by ID).
+        <strong style="color:var(--text)">Auto-sync</strong> keeps every device showing the same data — enable it on each device signed in with the same Google account.<br>
+        <strong style="color:var(--text)">Push</strong> manually sends current data to Google Sheets (overwrites what's there).<br>
+        <strong style="color:var(--text)">Pull</strong> manually imports data from Google Sheets (merges by ID).
       </div>
     </div>`;
 
@@ -2526,6 +2546,7 @@ function gsheetsSignIn() {
       sessionStorage.setItem(GSHEETS_TOKEN_SESS_KEY, gsheetsToken);
       toast('✓ Signed in to Google', 'success');
       renderGSheetsPanel();
+      if (autoSyncEnabled) startAutoSync();
     }
   });
   client.requestAccessToken();
@@ -2716,6 +2737,131 @@ function gsheetsUnlink() {
   renderGSheetsPanel();
   toast('Google Sheet unlinked', 'info');
 }
+
+// ═══════════════════════════════════════════════════════════════════
+//  LAYER 3 — AUTO-SYNC (event-driven, conflict-aware)
+// ═══════════════════════════════════════════════════════════════════
+
+const GSHEETS_AUTOSYNC_KEY = 'pl_gsheets_autosync_v1';
+let autoSyncEnabled = localStorage.getItem(GSHEETS_AUTOSYNC_KEY) === 'true';
+let autoPushTimer = null;
+let autoPullTimer = null;
+let isSyncing = false;
+let isDirty = false;
+
+function setAutoSync(on) {
+  autoSyncEnabled = !!on;
+  localStorage.setItem(GSHEETS_AUTOSYNC_KEY, autoSyncEnabled ? 'true' : 'false');
+  if (autoSyncEnabled) startAutoSync();
+  else stopAutoSync();
+  renderGSheetsPanel();
+  toast(autoSyncEnabled ? 'Auto-sync enabled — changes sync to Google Sheets automatically' : 'Auto-sync disabled', 'info');
+}
+
+async function gsheetsPushSilent() {
+  const meta = loadGSheetsMeta();
+  if (!meta.spreadsheetId || !gsheetsToken) return false;
+  if (isSyncing) return false;
+  isSyncing = true;
+  try {
+    const all = await dbGetAll();
+    const headers = ['ID','Date','Type','Category','Description','Amount','Month','Year'];
+    const rows    = [headers, ...all.map(t => [t.id, t.date, t.type, t.category||'', t.description||'', t.amount, t.month||'', t.year||''])];
+    await gSheetsAPI('POST', `https://sheets.googleapis.com/v4/spreadsheets/${meta.spreadsheetId}/values/${GSHEETS_SHEET_TITLE}:clear`, {});
+    await gSheetsAPI('PUT',
+      `https://sheets.googleapis.com/v4/spreadsheets/${meta.spreadsheetId}/values/${encodeURIComponent(GSHEETS_SHEET_TITLE+'!A1')}?valueInputOption=RAW`,
+      { values: rows });
+    meta.lastSync = new Date().toLocaleString();
+    saveGSheetsMeta(meta);
+    isDirty = false;
+    updateLastSyncUI();
+    return true;
+  } catch(e) {
+    console.warn('[auto-push]', e);
+    return false;
+  } finally { isSyncing = false; }
+}
+
+async function gsheetsPullSilent() {
+  const meta = loadGSheetsMeta();
+  if (!meta.spreadsheetId || !gsheetsToken) return false;
+  if (isSyncing) return false;
+  isSyncing = true;
+  try {
+    const res = await gSheetsAPI('GET',
+      `https://sheets.googleapis.com/v4/spreadsheets/${meta.spreadsheetId}/values/${encodeURIComponent(GSHEETS_SHEET_TITLE+'!A1:H')}`, null);
+    const rows = res.values || [];
+    if (rows.length < 2) return false;
+    const [header, ...data] = rows;
+    const idx = Object.fromEntries(header.map((h,i) => [h.toLowerCase(), i]));
+    const txns = data.map(r => ({
+      id:          r[idx['id']] ? String(r[idx['id']]) : String(Date.now() + Math.random()),
+      date:        r[idx['date']]        || '',
+      type:        r[idx['type']]        || 'revenue',
+      category:    r[idx['category']]    || 'Uncategorized',
+      description: r[idx['description']] || '',
+      amount:      parseFloat(r[idx['amount']]) || 0,
+      month:       r[idx['month']]       || '',
+      year:        parseInt(r[idx['year']]) || ''
+    })).filter(t => t.amount > 0);
+    if (txns.length === 0) return false;
+    await dbBulkPut(txns);
+    meta.lastSync = new Date().toLocaleString();
+    saveGSheetsMeta(meta);
+    updateLastSyncUI();
+    if (typeof refreshDashboard === 'function') refreshDashboard();
+    return true;
+  } catch(e) {
+    console.warn('[auto-pull]', e);
+    return false;
+  } finally { isSyncing = false; }
+}
+
+function updateLastSyncUI() {
+  const el = document.getElementById('l3-last-sync');
+  if (el) el.textContent = loadGSheetsMeta().lastSync || 'Never';
+}
+
+// Debounced push — called from scheduleSnapshot so every data change triggers a sync 3s later.
+function scheduleAutoPush() {
+  if (!autoSyncEnabled) return;
+  isDirty = true;
+  clearTimeout(autoPushTimer);
+  autoPushTimer = setTimeout(() => { gsheetsPushSilent(); }, 3000);
+}
+
+function startAutoSync() {
+  if (!gsheetsToken || !loadGSheetsMeta().spreadsheetId) return;
+  gsheetsPullSilent();  // initial pull on enable
+  clearInterval(autoPullTimer);
+  // Periodic pull every 60s, only when tab visible AND no unsynced local edits.
+  autoPullTimer = setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    if (isSyncing || isDirty) return;
+    gsheetsPullSilent();
+  }, 60000);
+}
+
+function stopAutoSync() {
+  clearInterval(autoPullTimer);
+  clearTimeout(autoPushTimer);
+  autoPullTimer = null; autoPushTimer = null;
+}
+
+// Pull when tab becomes visible (user switched back to this device/tab).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && autoSyncEnabled && !isSyncing && !isDirty) {
+    gsheetsPullSilent();
+  }
+});
+
+// Final push before page unloads if there are pending edits.
+window.addEventListener('pagehide', () => {
+  if (autoSyncEnabled && isDirty && gsheetsToken) {
+    clearTimeout(autoPushTimer);
+    gsheetsPushSilent();
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════════
 //  STORAGE HEALTH + PERSISTENT STORAGE REQUEST
@@ -3994,6 +4140,7 @@ async function bootApp() {
               gsheetsToken = resp.access_token;
               sessionStorage.setItem(GSHEETS_TOKEN_SESS_KEY, gsheetsToken);
               renderGSheetsPanel();
+              if (autoSyncEnabled) startAutoSync();
             }
           }
         });
@@ -4001,6 +4148,9 @@ async function bootApp() {
       } catch(e) { /* silent — user will see Sign In button if needed */ }
     }
   }
+
+  // 3c. Start auto-sync if token is available and auto-sync is enabled
+  if (gsheetsToken && autoSyncEnabled) startAutoSync();
 
   // 4. Request persistent storage
   if (navigator.storage && navigator.storage.persist) {
@@ -4274,6 +4424,53 @@ function addSignOutButton() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeCatModal();
   });
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  PWA — Service Worker registration + iOS install hint
+  // ═══════════════════════════════════════════════════════════════════
+
+  // Register service worker — only when served over http(s). Skips file:// silently.
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:') && location.protocol !== 'file:') {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(reg => {
+          // Listen for updates and prompt user to reload if a new version is waiting
+          reg.addEventListener('updatefound', () => {
+            const installing = reg.installing;
+            if (!installing) return;
+            installing.addEventListener('statechange', () => {
+              if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                toast('A new version is available — refresh to update', 'info');
+              }
+            });
+          });
+        })
+        .catch(err => console.warn('[sw] registration failed:', err));
+    });
+  }
+
+  // iOS install hint — Safari on iOS doesn't auto-prompt for install
+  (function() {
+    try {
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                           window.navigator.standalone === true;
+      const dismissed = localStorage.getItem('pl_ios_hint_dismissed_v1') === 'true';
+      if (isIos && !isStandalone && !dismissed) {
+        // Delay 2s so it doesn't compete with the auth gate
+        setTimeout(() => {
+          const el = document.getElementById('ios-install-hint');
+          if (el) el.style.display = 'block';
+        }, 2000);
+      }
+    } catch(e) {}
+  })();
+
+  function dismissIosHint() {
+    localStorage.setItem('pl_ios_hint_dismissed_v1', 'true');
+    const el = document.getElementById('ios-install-hint');
+    if (el) el.style.display = 'none';
+  }
 
 </script>
 </body>
