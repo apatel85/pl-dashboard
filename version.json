@@ -1,8 +1,20 @@
 {
-  "latest_version": "8.0.2",
+  "latest_version": "8.0.3",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.0.3",
+      "date": "2026-05-14",
+      "title": "Direct Index + CSP Fix for Google OAuth",
+      "summary": "Clean URL now serves the dashboard directly (no redirect dance) and Content-Security-Policy now allows Google OAuth iframes — fixes blank-page issue.",
+      "changes": [
+        { "type": "fix", "text": "Blank page at clean URL — index.html now contains the full dashboard directly instead of redirecting (eliminates redirect failure mode)" },
+        { "type": "fix", "text": "CSP frame-src 'none' was blocking Google OAuth iframes — relaxed to allow accounts.google.com" },
+        { "type": "imp", "text": "CSP also now allows Google profile images (lh3.googleusercontent.com) and oauth2.googleapis.com" },
+        { "type": "imp", "text": "Service worker pre-caches both index.html and pl-dashboard-v8.html so both URLs work offline" }
+      ]
+    },
     {
       "version": "8.0.2",
       "date": "2026-05-14",
