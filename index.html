@@ -1385,46 +1385,57 @@ tbody tr:hover { background: var(--surface2); }
   .table-wrap tr {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px;
-    margin-bottom: 10px;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
     position: relative;
   }
   .table-wrap tr:hover { border-color: var(--teal); }
-  /* Override generic `th, td { padding: 8px 10px !important }` from the 768px rule */
+  /* Override generic `th, td { padding: 8px 10px !important }` from 768px rule */
   .table-wrap td {
     border: 0 !important;
-    padding: 6px 0 6px 110px !important;
+    padding: 3px 0 3px 92px !important;
     position: relative;
-    min-height: 28px;
-    font-size: 14px;
+    min-height: 18px;
+    font-size: 13px;
     text-align: left !important;
-    line-height: 1.4;
+    line-height: 1.35;
     word-break: break-word;
   }
+  .table-wrap td:empty,
+  .table-wrap td[data-label=""]:has(button) { padding: 0 !important; min-height: 0; }
   .table-wrap td::before {
     content: attr(data-label);
-    position: absolute; left: 0; top: 6px;
-    width: 100px;
+    position: absolute; left: 0; top: 3px;
+    width: 84px;
     color: var(--muted);
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: .05em;
-    line-height: 1.4;
+    letter-spacing: .04em;
+    line-height: 1.5;
     text-align: left;
   }
-  /* First td (checkbox) sits top-right, no label */
-  .table-wrap td:first-child {
+  /* Checkbox / delete / empty-label td sits top-right, no label */
+  .table-wrap td:first-child:has(input[type="checkbox"]),
+  .table-wrap td[data-label=""]:has(button) {
     padding: 0 !important;
-    position: absolute; top: 10px; right: 10px;
+    position: absolute; top: 8px; right: 10px;
     min-height: auto;
     width: auto;
   }
-  .table-wrap td:first-child::before { display: none; }
-  /* Amount stands out */
+  .table-wrap td:first-child:has(input[type="checkbox"])::before,
+  .table-wrap td[data-label=""]::before { display: none; }
+  /* Amount stands out, but compact */
   .table-wrap td.positive-val,
-  .table-wrap td.negative-val { font-size: 16px; font-weight: 700; padding-top: 8px !important; padding-bottom: 8px !important; }
+  .table-wrap td.negative-val { font-size: 14px; font-weight: 700; padding-top: 5px !important; padding-bottom: 5px !important; }
+  /* Editable cell inputs inside cards: don't reserve a fixed width that breaks layout */
+  .table-wrap td .editable-cell {
+    width: 100% !important;
+    max-width: 100% !important;
+    font-size: 13px;
+    padding: 4px 6px;
+  }
 
   /* Revenue/Expense inline search bar: full-width, proper padding on mobile */
   .table-header input[type="search"] {
@@ -1462,10 +1473,16 @@ tbody tr:hover { background: var(--surface2); }
 /* ══════════════════════════════════════════
    MOBILE LAYOUT (≤480px) — extra tweaks
 ══════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .kpi-grid > .kpi-card { flex: 0 0 46% !important; }
+  .kpi-card { padding: 12px 14px !important; }
+}
 @media (max-width: 480px) {
-  .kpi-grid > .kpi-card { flex: 0 0 82%; }
-  .kpi-value { font-size: 22px !important; }
-  #main { padding: 12px 10px; }
+  .kpi-grid > .kpi-card { flex: 0 0 48% !important; }
+  .kpi-value { font-size: 20px !important; }
+  .kpi-label { font-size: 9.5px !important; }
+  .kpi-sub { font-size: 10px !important; }
+  #main { padding: 10px 8px; }
 }
 
 /* ══════════════════════════════════════════
@@ -1487,9 +1504,10 @@ tbody tr:hover { background: var(--surface2); }
 .cat-picker.open .cat-picker-arrow { transform: translateY(-50%) rotate(180deg); color: var(--teal); }
 .cat-picker-popover {
   /* position and dimensions set dynamically by JS (fixed, escape overflow:hidden) */
-  overflow-y: auto;
+  overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  touch-action: pan-y;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1564,6 +1582,51 @@ tbody tr:hover { background: var(--surface2); }
 
   /* Add some top space below sticky topbar */
   .view { padding-top: 4px; }
+}
+
+/* Topbar icon buttons (visible on mobile) */
+.topbar-icon-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  width: 36px; height: 36px;
+  font-size: 16px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.topbar-icon-btn:hover { color: var(--teal); border-color: var(--teal); }
+@media (max-width: 640px) {
+  #topbar .topbar-icon-btn { display: flex !important; }
+  #topbar > .topbar-right > .btn.btn-outline[onclick*="openHelpDrawer"] { display: none !important; }
+}
+@media (min-width: 641px) {
+  #mobile-search-btn, #mobile-help-btn { display: none !important; }
+}
+
+/* Mobile search overlay */
+#mobile-search-overlay {
+  display: none;
+  position: fixed;
+  top: 48px; left: 0; right: 0;
+  z-index: 140;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+#mobile-search-overlay.open { display: flex; gap: 8px; align-items: center; }
+#mobile-search-overlay input {
+  flex: 1; min-height: 40px;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 0 12px; font-size: 16px;
+}
+#mobile-search-overlay button {
+  background: none; border: none; color: var(--muted);
+  font-size: 18px; padding: 8px 10px; cursor: pointer;
 }
 </style>
 </head>
@@ -1793,8 +1856,16 @@ tbody tr:hover { background: var(--surface2); }
     <button class="btn btn-outline" onclick="exportJSON()">⬇ Export JSON</button>
     <button class="btn btn-primary" onclick="showView('upload-view')">⬆ Import Data</button>
     <button class="btn btn-outline" onclick="openHelpDrawer()" aria-label="Help" title="Help &amp; Quick Start" style="padding:6px 10px;font-size:15px">?</button>
-    <button id="themeToggle" onclick="toggleTheme()" aria-label="Toggle light/dark theme" aria-pressed="false" title="Toggle theme" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;padding:5px 9px;font-size:16px;line-height:1;min-width:var(--tap);min-height:32px;display:flex;align-items:center;justify-content:center;transition:all .15s">☀️</button>
+    <button class="topbar-icon-btn" id="mobile-search-btn" onclick="openMobileSearch()" aria-label="Search transactions" title="Search">🔍</button>
+    <button class="topbar-icon-btn" id="mobile-help-btn" onclick="openHelpDrawer()" aria-label="Help" title="Help">?</button>
+    <button id="themeToggle" onclick="toggleTheme()" aria-label="Toggle light/dark theme" aria-pressed="false" title="Toggle theme" class="topbar-icon-btn">☀️</button>
   </div>
+</div>
+
+<!-- Mobile search overlay -->
+<div id="mobile-search-overlay" role="search">
+  <input type="search" id="mobile-search-input" placeholder="Search transactions…" oninput="onMobileSearchInput(this.value)" aria-label="Search transactions">
+  <button onclick="closeMobileSearch()" aria-label="Close search">✕</button>
 </div>
 
 <!-- Help Drawer -->
@@ -1819,6 +1890,13 @@ tbody tr:hover { background: var(--surface2); }
         <span style="font-size:18px">🛡</span>
         <div><div style="font-size:13px;font-weight:600;color:var(--text)">Keep your data safe</div><div style="font-size:12px;color:var(--muted)">Go to <strong>Backup &amp; Restore</strong> → connect Google Drive so your data is safe on all devices.</div></div>
       </div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 10px">Install as App</div>
+    <div style="font-size:12px;color:var(--text);padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:14px;line-height:1.5">
+      <div style="margin-bottom:6px"><strong>iPhone / iPad:</strong> Tap <strong>Share</strong> → <strong>Add to Home Screen</strong>.</div>
+      <div style="margin-bottom:6px"><strong>Android Chrome:</strong> Menu (⋮) → <strong>Install app</strong> or <strong>Add to Home screen</strong>.</div>
+      <div style="margin-bottom:6px"><strong>Desktop Chrome / Edge:</strong> Address-bar install icon (⊕) or Menu → <strong>Install P&amp;L Dashboard</strong>.</div>
+      <button class="btn btn-primary" onclick="tryInstallPWA()" style="margin-top:8px;width:100%;font-size:12px">📱 Install Now</button>
     </div>
     <div style="font-size:13px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Common Questions</div>
     <div id="help-faqs" style="display:flex;flex-direction:column;gap:2px;margin-bottom:20px"></div>
@@ -2059,7 +2137,7 @@ tbody tr:hover { background: var(--surface2); }
         <div class="table-wrap">
           <table id="monthly-table">
             <thead><tr>
-              <th>Month</th><th>Revenue</th><th>Expenses</th><th>Gross Profit</th><th>Net Profit</th><th>Margin %</th>
+              <th>Month</th><th>Revenue</th><th>Expenses</th><th>Net Profit</th><th>Margin %</th>
             </tr></thead>
             <tbody id="monthly-tbody"></tbody>
           </table>
@@ -2505,6 +2583,17 @@ tbody tr:hover { background: var(--surface2); }
     <div id="settings-view" class="view">
       <div class="page-header">
         <div class="page-title">Settings <small>Configure your dashboard</small></div>
+      </div>
+      <div class="settings-card">
+        <h3>📱 Install as App</h3>
+        <div style="font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:10px">Install the dashboard on your device for faster access, offline support, and a full-screen experience.</div>
+        <div style="font-size:12px;color:var(--text);background:var(--surface2);border-radius:8px;padding:10px;line-height:1.7;margin-bottom:10px">
+          <div><strong>iPhone / iPad:</strong> Share → Add to Home Screen</div>
+          <div><strong>Android Chrome:</strong> Menu (⋮) → Install app</div>
+          <div><strong>Desktop Chrome / Edge:</strong> Address-bar install icon (⊕) → Install</div>
+        </div>
+        <button class="btn btn-primary" onclick="tryInstallPWA()" style="font-size:13px">Install Now</button>
+        <a href="https://github.com/apatel85/pl-dashboard/blob/main/USER_README.md" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:13px;margin-left:8px;text-decoration:none">View guide →</a>
       </div>
       <div class="settings-card">
         <h3>Business Information</h3>
@@ -3850,7 +3939,7 @@ function showView(viewId) {
   if (nav) nav.classList.add('active');
   // sync bottom tab bar
   document.querySelectorAll('.bb-btn').forEach(b=>b.classList.remove('active'));
-  const bbMap={'dashboard-view':'bb-dashboard','revenue-view':'bb-revenue','expenses-view':'bb-expenses','add-view':'bb-add'};
+  const bbMap={'dashboard-view':'bb-dashboard','revenue-view':'bb-revenue','expenses-view':'bb-expenses','add-view':'bb-add','transactions-view':'bb-more','monthly-view':'bb-more','upload-view':'bb-more','categories-view':'bb-more','sync-view':'bb-more','backup-view':'bb-more','settings-view':'bb-more'};
   if(bbMap[viewId]){const bb=document.getElementById(bbMap[viewId]);if(bb)bb.classList.add('active');}
 
   if (viewId==='dashboard-view')    refreshDashboard();
@@ -4085,12 +4174,12 @@ async function renderTxnTable() {
   const tbody=document.getElementById('txn-tbody');
   if (!rows.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted)">No transactions match filters</td></tr>'; }
   else tbody.innerHTML=rows.map(t=>`<tr>
-    <td><input class="editable-cell" value="${t.date}" onchange="inlineEdit(${JSON.stringify(t.id)},'date',this.value)" style="width:110px"></td>
-    <td><select class="editable-cell" onchange="inlineEdit(${JSON.stringify(t.id)},'type',this.value)" style="width:90px"><option value="revenue" ${t.type==='revenue'?'selected':''}>Revenue</option><option value="expense" ${t.type==='expense'?'selected':''}>Expense</option></select></td>
-    <td><input class="editable-cell" value="${(t.category||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'category',this.value)" style="width:150px"></td>
-    <td><input class="editable-cell" value="${(t.description||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'description',this.value)" style="width:180px"></td>
-    <td style="text-align:right;font-weight:600;color:${t.type==='revenue'?'var(--teal)':'var(--red)'}">${fmt(t.amount)}</td>
-    <td><button onclick="confirmDelete(${JSON.stringify(t.id)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button></td>
+    <td data-label="Date"><input class="editable-cell" value="${t.date}" onchange="inlineEdit(${JSON.stringify(t.id)},'date',this.value)" style="width:110px"></td>
+    <td data-label="Type"><select class="editable-cell" onchange="inlineEdit(${JSON.stringify(t.id)},'type',this.value)" style="width:90px"><option value="revenue" ${t.type==='revenue'?'selected':''}>Revenue</option><option value="expense" ${t.type==='expense'?'selected':''}>Expense</option></select></td>
+    <td data-label="Category"><input class="editable-cell" value="${(t.category||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'category',this.value)" style="width:150px"></td>
+    <td data-label="Description"><input class="editable-cell" value="${(t.description||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'description',this.value)" style="width:180px"></td>
+    <td data-label="Amount" class="${t.type==='revenue'?'positive-val':'negative-val'}" style="text-align:right;font-weight:600">${fmt(t.amount)}</td>
+    <td data-label=""><button onclick="confirmDelete(${JSON.stringify(t.id)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'" aria-label="Delete">✕</button></td>
   </tr>`).join('');
   ['date','type','category','amount'].forEach(c=>{const th=document.getElementById('th-'+c);if(th)th.className=txnSort.col===c?'sorted-'+txnSort.dir:'';});
   document.getElementById('txn-page-info').textContent=total?`Showing ${((txnPage-1)*txnPageSize+1).toLocaleString()}–${Math.min(txnPage*txnPageSize,total).toLocaleString()} of ${total.toLocaleString()}`:'No results';
@@ -4245,10 +4334,9 @@ async function renderMonthlyTable() {
   all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else map[t.month].expenses+=t.amount;});
   const monthly=MONTHS.map(m=>({month:m,...map[m],net:map[m].revenue-map[m].expenses})).filter(m=>m.revenue>0||m.expenses>0);
   const tbody=document.getElementById('monthly-tbody');
-  if(!monthly.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">No data yet</td></tr>';return;}
+  if(!monthly.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">No data yet</td></tr>';return;}
   const totRev=monthly.reduce((s,m)=>s+m.revenue,0),totExp=monthly.reduce((s,m)=>s+m.expenses,0),totNet=totRev-totExp;
-  const cogs=all.filter(t=>t.type==='expense'&&(t.category||'').toLowerCase().includes('cog')).reduce((s,t)=>s+t.amount,0);
-  tbody.innerHTML=monthly.map(m=>{const mg=m.revenue>0?((m.net/m.revenue)*100).toFixed(1):'0.0';return`<tr><td><strong>${m.month}</strong></td><td class="positive-val">${fmt(m.revenue)}</td><td class="negative-val">${fmt(m.expenses)}</td><td class="${m.net>=0?'positive-val':'negative-val'}"><strong>${fmt(m.net)}</strong></td><td>${mg}%</td></tr>`;}).join('')+`<tr class="total-row"><td>FULL YEAR</td><td>${fmt(totRev)}</td><td>${fmt(totExp)}</td><td class="${totNet>=0?'positive-val':'negative-val'}">${fmt(totNet)}</td><td>${totRev>0?((totNet/totRev)*100).toFixed(1):'0.0'}%</td></tr>`;
+  tbody.innerHTML=monthly.map(m=>{const mg=m.revenue>0?((m.net/m.revenue)*100).toFixed(1):'0.0';return`<tr><td data-label="Month"><strong>${escapeHtml(m.month)}</strong></td><td data-label="Revenue" class="positive-val">${fmt(m.revenue)}</td><td data-label="Expenses" class="negative-val">${fmt(m.expenses)}</td><td data-label="Net Profit" class="${m.net>=0?'positive-val':'negative-val'}"><strong>${fmt(m.net)}</strong></td><td data-label="Margin %">${mg}%</td></tr>`;}).join('')+`<tr class="total-row"><td data-label="Month">FULL YEAR</td><td data-label="Revenue">${fmt(totRev)}</td><td data-label="Expenses">${fmt(totExp)}</td><td data-label="Net Profit" class="${totNet>=0?'positive-val':'negative-val'}">${fmt(totNet)}</td><td data-label="Margin %">${totRev>0?((totNet/totRev)*100).toFixed(1):'0.0'}%</td></tr>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -6173,8 +6261,46 @@ function addSignOutButton() {
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     _pwaInstallEvent = e;
+    window.deferredPrompt = e;
     maybeShowInstallBanner();
   });
+
+  function tryInstallPWA() {
+    if (window.deferredPrompt && typeof window.deferredPrompt.prompt === 'function') {
+      window.deferredPrompt.prompt();
+      window.deferredPrompt.userChoice.then(() => { window.deferredPrompt = null; _pwaInstallEvent = null; });
+      return;
+    }
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+      toast('On iPhone/iPad: tap Share → Add to Home Screen', 'info');
+      return;
+    }
+    toast('Open your browser menu → "Install app" or "Add to Home screen"', 'info');
+  }
+
+  function openMobileSearch() {
+    const o = document.getElementById('mobile-search-overlay');
+    if (o) { o.classList.add('open'); document.getElementById('mobile-search-input')?.focus(); }
+  }
+  function closeMobileSearch() {
+    const o = document.getElementById('mobile-search-overlay');
+    if (o) o.classList.remove('open');
+    const inp = document.getElementById('mobile-search-input');
+    if (inp) inp.value = '';
+    onMobileSearchInput('');
+  }
+  function onMobileSearchInput(value) {
+    const active = document.querySelector('.view.active');
+    if (!active) return;
+    if (active.id === 'revenue-view') {
+      const r = document.getElementById('rev-search'); if (r) { r.value = value; if (typeof onRevSearchInput === 'function') onRevSearchInput(); }
+    } else if (active.id === 'expenses-view') {
+      const e = document.getElementById('exp-search'); if (e) { e.value = value; if (typeof onExpSearchInput === 'function') onExpSearchInput(); }
+    } else if (active.id === 'transactions-view') {
+      const t = document.getElementById('txn-search'); if (t) { t.value = value; if (typeof debouncedSearch === 'function') debouncedSearch(); }
+    }
+  }
 
   async function maybeShowInstallBanner() {
     try {
