@@ -1391,38 +1391,40 @@ tbody tr:hover { background: var(--surface2); }
     position: relative;
   }
   .table-wrap tr:hover { border-color: var(--teal); }
+  /* Override generic `th, td { padding: 8px 10px !important }` from the 768px rule */
   .table-wrap td {
-    border: 0;
-    padding: 5px 0 5px 44%;
+    border: 0 !important;
+    padding: 6px 0 6px 110px !important;
     position: relative;
     min-height: 28px;
-    font-size: 13px;
+    font-size: 14px;
     text-align: left !important;
     line-height: 1.4;
+    word-break: break-word;
   }
   .table-wrap td::before {
     content: attr(data-label);
-    position: absolute; left: 0;
-    width: 42%;
+    position: absolute; left: 0; top: 6px;
+    width: 100px;
     color: var(--muted);
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .05em;
-    line-height: 2;
-    padding-top: 1px;
+    line-height: 1.4;
     text-align: left;
   }
-  /* First td (checkbox) stays compact */
+  /* First td (checkbox) sits top-right, no label */
   .table-wrap td:first-child {
-    padding-left: 0;
-    position: absolute; top: 12px; right: 12px;
+    padding: 0 !important;
+    position: absolute; top: 10px; right: 10px;
     min-height: auto;
+    width: auto;
   }
   .table-wrap td:first-child::before { display: none; }
   /* Amount stands out */
   .table-wrap td.positive-val,
-  .table-wrap td.negative-val { font-size: 15px; font-weight: 700; }
+  .table-wrap td.negative-val { font-size: 16px; font-weight: 700; padding-top: 8px !important; padding-bottom: 8px !important; }
 
   /* Revenue/Expense inline search bar: full-width, proper padding on mobile */
   .table-header input[type="search"] {
@@ -1486,11 +1488,18 @@ tbody tr:hover { background: var(--surface2); }
 .cat-picker-popover {
   /* position and dimensions set dynamically by JS (fixed, escape overflow:hidden) */
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: 0 8px 32px rgba(0,0,0,.25);
   padding: 4px;
+}
+.cat-picker-option {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cat-picker-option {
   padding: 10px 12px;
@@ -3988,8 +3997,11 @@ function openCatPicker(e) {
   // Position fixed so parent overflow:hidden doesn't clip it
   const rect = input.getBoundingClientRect();
   const spaceBelow = window.innerHeight - rect.bottom - 8;
-  const maxH = Math.min(260, spaceBelow > 120 ? spaceBelow : window.innerHeight * 0.4);
-  pop.style.cssText = `position:fixed;top:${rect.bottom + 4}px;left:${rect.left}px;width:${rect.width}px;max-height:${maxH}px;z-index:9999;`;
+  const maxH = Math.min(280, spaceBelow > 140 ? spaceBelow : window.innerHeight * 0.4);
+  const isMobile = window.innerWidth <= 640;
+  const left  = isMobile ? 12 : rect.left;
+  const width = isMobile ? (window.innerWidth - 24) : rect.width;
+  pop.style.cssText = `position:fixed;top:${rect.bottom + 4}px;left:${left}px;width:${width}px;max-height:${maxH}px;z-index:9999;overflow-y:auto;-webkit-overflow-scrolling:touch;`;
   pop.hidden = false;
   document.getElementById('qa-cat-picker').classList.add('open');
 }
@@ -4024,7 +4036,10 @@ function filterCatPicker(value) {
     const rect   = input.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom - 8;
     const maxH   = Math.min(260, spaceBelow > 120 ? spaceBelow : window.innerHeight * 0.4);
-    pop.style.cssText = `position:fixed;top:${rect.bottom + 4}px;left:${rect.left}px;width:${rect.width}px;max-height:${maxH}px;z-index:9999;`;
+    const isMobile = window.innerWidth <= 640;
+    const left   = isMobile ? 12 : rect.left;
+    const width  = isMobile ? (window.innerWidth - 24) : rect.width;
+    pop.style.cssText = `position:fixed;top:${rect.bottom + 4}px;left:${left}px;width:${width}px;max-height:${maxH}px;z-index:9999;overflow-y:auto;-webkit-overflow-scrolling:touch;`;
     pop.hidden = false;
   }
   document.getElementById('qa-cat-picker').classList.add('open');
@@ -4685,7 +4700,7 @@ async function linkLocalFile(){
 }
 
 function updateSyncUI(name){
-  document.getElementById('sync-file-label').innerHTML=name?`Linked file: <strong>${name}</strong>`:'No file linked';
+  document.getElementById('sync-file-label').innerHTML=name?`Linked file: <strong>${escapeHtml(name)}</strong>`:'No file linked';
   ['btn-sync-from','btn-sync-to','btn-unlink'].forEach(id=>document.getElementById(id).disabled=!name);
 }
 
@@ -4717,7 +4732,7 @@ function unlinkFile(){linkedFileHandle=null;localStorage.removeItem(FS_HANDLE_KE
 
 async function exportCSV(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const csv=[['Date','Type','Category','Description','Amount','Month','Year'].join(','),...all.map(t=>[t.date,t.type,`"${csvSanitize(t.category)}"`,`"${csvSanitize(t.description||'')}"`,t.amount,t.month,t.year].join(','))].join('\n');download(csv,`pl_export_${Date.now()}.csv`,'text/csv');toast('CSV exported','success');}
 
-async function exportXLSX(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const wb=XLSX.utils.book_new();const txData=all.map(t=>({Date:t.date,Type:t.type,Category:t.category||'',Description:t.description||'',Amount:t.amount,Month:t.month,Year:t.year}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(txData),'Transactions');const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else map[t.month].expenses+=t.amount;});const sumData=MONTHS.filter(m=>map[m].revenue>0||map[m].expenses>0).map(m=>({Month:m,Revenue:map[m].revenue,Expenses:map[m].expenses,'Net Profit':map[m].revenue-map[m].expenses,'Margin %':map[m].revenue>0?((map[m].revenue-map[m].expenses)/map[m].revenue*100).toFixed(1)+'%':'0.0%'}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sumData),'Monthly Summary');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});download(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`pl_export_${Date.now()}.xlsx`,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');toast('Excel file exported','success');}
+async function exportXLSX(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const wb=XLSX.utils.book_new();const txData=all.map(t=>({Date:t.date,Type:t.type,Category:csvSanitize(t.category||''),Description:csvSanitize(t.description||''),Amount:t.amount,Month:t.month,Year:t.year}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(txData),'Transactions');const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else map[t.month].expenses+=t.amount;});const sumData=MONTHS.filter(m=>map[m].revenue>0||map[m].expenses>0).map(m=>({Month:m,Revenue:map[m].revenue,Expenses:map[m].expenses,'Net Profit':map[m].revenue-map[m].expenses,'Margin %':map[m].revenue>0?((map[m].revenue-map[m].expenses)/map[m].revenue*100).toFixed(1)+'%':'0.0%'}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sumData),'Monthly Summary');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});download(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`pl_export_${Date.now()}.xlsx`,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');toast('Excel file exported','success');}
 
 async function exportJSON(){const all=await dbGetAll();const payload={settings,transactions:all,exportedAt:new Date().toISOString()};download(JSON.stringify(payload,null,2),`pl_backup_${Date.now()}.json`,'application/json');toast('JSON backup exported','success');}
 
@@ -4822,7 +4837,7 @@ async function loadSettingsForm(){
   const n=await dbCount();
   document.getElementById('data-summary-text').textContent=`${n.toLocaleString()} total transactions in IndexedDB`;
   document.getElementById('settings-current-ver').textContent=APP_VERSION;
-  if(remoteVerData&&isNewerVersion(remoteVerData.latest_version,APP_VERSION)){document.getElementById('settings-update-status').innerHTML=`<span style="color:var(--green);font-weight:600">🔔 v${remoteVerData.latest_version} available!</span> <a href="#" onclick="openChangelog();return false" style="color:var(--teal)">See what's new →</a>`;}
+  if(remoteVerData&&isNewerVersion(remoteVerData.latest_version,APP_VERSION)){document.getElementById('settings-update-status').innerHTML=`<span style="color:var(--green);font-weight:600">🔔 v${escapeHtml(remoteVerData.latest_version)} available!</span> <a href="#" onclick="openChangelog();return false" style="color:var(--teal)">See what's new →</a>`;}
   else if(remoteVerData){document.getElementById('settings-update-status').textContent='✓ Latest version.';}
   updateStorageInfo();
 }
@@ -4840,7 +4855,7 @@ async function checkForUpdates(silent=true){
   try{const res=await fetch(VERSION_CHECK_URL+'?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!res.ok)throw new Error('HTTP '+res.status);remoteVerData=await res.json();localStorage.setItem(LAST_CHECK_KEY,String(Date.now()));const badge=document.getElementById('version-badge');badge.textContent=`v${APP_VERSION}`;if(!silent){document.getElementById('version-checking').style.display='none';badge.style.display='';}if(isNewerVersion(remoteVerData.latest_version,APP_VERSION)){const dismissed=localStorage.getItem(DISMISSED_KEY);if(dismissed!==remoteVerData.latest_version){showUpdateBanner(remoteVerData);badge.classList.add('has-update');badge.textContent=`v${APP_VERSION} ↑`;}}else{badge.classList.remove('has-update');if(!silent)toast('✓ You have the latest version','success');}}catch(e){console.info('[version-check]',e.message);if(!silent){document.getElementById('version-checking').style.display='none';document.getElementById('version-badge').style.display='';toast('Could not check for updates','error');}}
 }
 
-function showUpdateBanner(data){const notes=(data.release_notes||[])[0]?.summary||'Improvements and bug fixes.';document.getElementById('update-banner-text').innerHTML=`<strong>v${data.latest_version}</strong> is available &nbsp;·&nbsp; ${notes}`;document.getElementById('update-banner').classList.add('visible');document.getElementById('app').style.marginTop='48px';}
+function showUpdateBanner(data){const notes=escapeHtml((data.release_notes||[])[0]?.summary||'Improvements and bug fixes.');document.getElementById('update-banner-text').innerHTML=`<strong>v${escapeHtml(data.latest_version)}</strong> is available &nbsp;·&nbsp; ${notes}`;document.getElementById('update-banner').classList.add('visible');document.getElementById('app').style.marginTop='48px';}
 function dismissUpdate(){if(remoteVerData)localStorage.setItem(DISMISSED_KEY,remoteVerData.latest_version);document.getElementById('update-banner').classList.remove('visible');document.getElementById('app').style.marginTop='0';}
 
 /**
@@ -4877,7 +4892,7 @@ async function reloadToLatest(){
 
 function openChangelog(){
   const releases=remoteVerData?.release_notes||LOCAL_CHANGELOG,latest=remoteVerData?.latest_version||APP_VERSION;
-  document.getElementById('changelog-body').innerHTML=releases.map((rel,i)=>`<div class="release-block"><div class="release-version"><span class="ver-tag ${rel.version===latest?'latest':'old'}">${rel.version===latest?'● Latest':'●'} v${rel.version}</span><span class="ver-date">${rel.date||''}</span></div><div class="ver-title">${rel.title||''}</div><ul class="release-changes" style="margin-top:8px">${(rel.changes||[]).map(c=>`<li><span class="change-type ${c.type||'imp'}">${c.type==='new'?'New':c.type==='fix'?'Fix':'Imp'}</span><span>${c.text}</span></li>`).join('')}</ul></div>${i<releases.length-1?'<hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px">':''}`).join('');
+  document.getElementById('changelog-body').innerHTML=releases.map((rel,i)=>{const rv=escapeHtml(rel.version||'');const rd=escapeHtml(rel.date||'');const rt=escapeHtml(rel.title||'');const isLatest=rel.version===latest;return`<div class="release-block"><div class="release-version"><span class="ver-tag ${isLatest?'latest':'old'}">${isLatest?'● Latest':'●'} v${rv}</span><span class="ver-date">${rd}</span></div><div class="ver-title">${rt}</div><ul class="release-changes" style="margin-top:8px">${(rel.changes||[]).map(c=>`<li><span class="change-type ${escapeHtml(c.type||'imp')}">${c.type==='new'?'New':c.type==='fix'?'Fix':'Imp'}</span><span>${escapeHtml(c.text||'')}</span></li>`).join('')}</ul></div>${i<releases.length-1?'<hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px">':''}`;}).join('');
   const dlBtn=document.getElementById('changelog-download-link');
   if(remoteVerData?.download_url&&isNewerVersion(latest,APP_VERSION)){dlBtn.href=remoteVerData.download_url;dlBtn.style.display='inline-flex';}else dlBtn.style.display='none';
   document.getElementById('changelog-subtitle').textContent=`Your version: v${APP_VERSION}${remoteVerData?` · Latest: v${latest}`:''}`;
@@ -5189,24 +5204,25 @@ function showAuthError(msg) {
 function showAccessDenied(email, reason) {
   document.getElementById('auth-signin-panel').style.display = 'none';
   document.getElementById('auth-denied-panel').style.display = 'block';
+  const safeEmail = escapeHtml(email);
   const msgs = {
-    not_found: `No license was found for <strong>${email}</strong>.<br><br>
+    not_found: `No license was found for <strong>${safeEmail}</strong>.<br><br>
       If you purchased this dashboard, make sure you're signing in with the same Google account
       you used at checkout. If you used a different email at purchase, contact support.`,
-    suspended: `Your license for <strong>${email}</strong> has been suspended.<br><br>
+    suspended: `Your license for <strong>${safeEmail}</strong> has been suspended.<br><br>
       Please contact support if you believe this is an error.`,
-    expired:   `Your license for <strong>${email}</strong> has expired.<br><br>
+    expired:   `Your license for <strong>${safeEmail}</strong> has expired.<br><br>
       Please renew your subscription to continue accessing the dashboard.`
   };
-  document.getElementById('auth-denied-msg').innerHTML = msgs[reason] || `Access denied for ${email}.`;
+  document.getElementById('auth-denied-msg').innerHTML = msgs[reason] || `Access denied for ${safeEmail}.`;
 }
 
 function showAuthSuccess(user) {
   document.getElementById('auth-signin-panel').style.display  = 'none';
   document.getElementById('auth-success-panel').style.display = 'block';
   document.getElementById('auth-success-msg').innerHTML =
-    `Welcome back, <strong>${user.name.split(' ')[0]}</strong>! &nbsp;·&nbsp; ` +
-    `<span style="color:#0ecfbe">${user.plan.charAt(0).toUpperCase()+user.plan.slice(1)} license</span>`;
+    `Welcome back, <strong>${escapeHtml(user.name.split(' ')[0])}</strong>! &nbsp;·&nbsp; ` +
+    `<span style="color:#0ecfbe">${escapeHtml(user.plan.charAt(0).toUpperCase()+user.plan.slice(1))} license</span>`;
 
   // Animate progress bar
   setTimeout(() => { document.getElementById('auth-progress-bar').style.width = '70%'; }, 100);
@@ -5361,15 +5377,15 @@ async function showRestorePrompt(user, sheetInfo) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div>
         <div style="font-size:10px;font-weight:600;color:#6b7394;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">Transactions</div>
-        <div style="font-size:20px;font-weight:700;color:#0ecfbe">${sheetInfo.rowCount.toLocaleString()}</div>
+        <div style="font-size:20px;font-weight:700;color:#0ecfbe">${escapeHtml(String(sheetInfo.rowCount.toLocaleString()))}</div>
       </div>
       <div>
         <div style="font-size:10px;font-weight:600;color:#6b7394;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">Last Backed Up</div>
-        <div style="font-size:12px;font-weight:600;color:#e8eaf0;margin-top:4px">${dateStr}</div>
+        <div style="font-size:12px;font-weight:600;color:#e8eaf0;margin-top:4px">${escapeHtml(dateStr)}</div>
       </div>
     </div>
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid #2a3045;font-size:11px;color:#6b7394">
-      📄 ${sheetInfo.name}
+      📄 ${escapeHtml(sheetInfo.name)}
     </div>
   `;
 
@@ -5740,7 +5756,7 @@ async function bootApp() {
   const savedFile = localStorage.getItem(FS_HANDLE_KEY);
   if (savedFile) {
     const el = document.getElementById('sync-file-label');
-    if (el) el.innerHTML = `Previously linked: <strong>${savedFile}</strong> — click "Link File" to reconnect`;
+    if (el) el.innerHTML = `Previously linked: <strong>${escapeHtml(savedFile)}</strong> — click "Link File" to reconnect`;
   }
 
   // 6. Add sign-out to settings page
@@ -6038,7 +6054,7 @@ function addSignOutButton() {
     if (sel) {
       const current = sel.value;
       sel.innerHTML = '<option value="">— Select —</option>' +
-        CATEGORIES.map(c => `<option value="${c}"${c===current?' selected':''}>${c}</option>`).join('');
+        CATEGORIES.map(c => `<option value="${escapeHtml(c)}"${c===current?' selected':''}>${escapeHtml(c)}</option>`).join('');
     }
     // Refresh filter dropdowns if present
     ['txn-filter-cat','rev-filter-cat','exp-filter-cat'].forEach(id => {
@@ -6046,7 +6062,7 @@ function addSignOutButton() {
       if (!el) return;
       const cur = el.value;
       const base = el.querySelector('option[value=""]') ? '<option value="">All Categories</option>' : '';
-      el.innerHTML = base + CATEGORIES.map(c => `<option value="${c}"${c===cur?' selected':''}>${c}</option>`).join('');
+      el.innerHTML = base + CATEGORIES.map(c => `<option value="${escapeHtml(c)}"${c===cur?' selected':''}>${escapeHtml(c)}</option>`).join('');
     });
     // Also refresh the datalist in add-transaction form
     updateCatDatalist();
