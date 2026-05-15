@@ -1447,6 +1447,101 @@ tbody tr:hover { background: var(--surface2); }
   .kpi-value { font-size: 22px !important; }
   #main { padding: 12px 10px; }
 }
+
+/* ══════════════════════════════════════════
+   CATEGORY PICKER (custom dropdown)
+══════════════════════════════════════════ */
+.cat-picker { position: relative; }
+.cat-picker-input { padding-right: 34px !important; }
+.cat-picker-arrow {
+  position: absolute; right: 4px; top: 50%;
+  transform: translateY(-50%);
+  width: 30px; height: 30px;
+  background: none; border: none;
+  color: var(--muted); cursor: pointer;
+  font-size: 14px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; transition: transform .15s, color .15s;
+}
+.cat-picker-arrow:hover { color: var(--teal); background: var(--surface2); }
+.cat-picker.open .cat-picker-arrow { transform: translateY(-50%) rotate(180deg); color: var(--teal); }
+.cat-picker-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  z-index: 50;
+  padding: 4px;
+}
+.cat-picker-option {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 4px;
+  min-height: 40px;
+  display: flex; align-items: center;
+}
+.cat-picker-option:hover,
+.cat-picker-option:focus { background: var(--teal-dim); color: var(--teal); }
+.cat-picker-empty { padding: 14px; font-size: 12px; color: var(--muted); text-align: center; }
+
+@media (max-width: 640px) {
+  .cat-picker-option { padding: 12px 14px; font-size: 14px; min-height: 44px; }
+  .cat-picker-popover { max-height: 240px; }
+  .cat-picker-arrow { width: 36px; height: 36px; font-size: 16px; }
+}
+
+/* ══════════════════════════════════════════
+   STRONGER MOBILE FIXES — topbar + page-actions
+══════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* Topbar: no wrap, hide overflow, only show essentials */
+  #topbar {
+    flex-wrap: nowrap !important;
+    overflow: hidden;
+  }
+  .topbar-right {
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    overflow: hidden;
+  }
+  /* Hide ALL buttons in topbar except theme toggle */
+  #topbar .btn,
+  #topbar #version-badge,
+  #topbar #version-checking,
+  #topbar .save-status,
+  .topbar-right > .btn { display: none !important; }
+
+  /* Page actions: row layout with horizontal scroll if needed */
+  .page-actions {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+  .page-actions::-webkit-scrollbar { display: none; }
+  .page-actions .btn {
+    flex: 0 0 auto !important;
+    white-space: nowrap;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  /* Ensure page title text doesn't truncate weirdly */
+  .page-title { font-size: 22px !important; word-break: break-word; }
+  .page-title small { font-size: 12px !important; }
+
+  /* Add some top space below sticky topbar */
+  .view { padding-top: 4px; }
+}
 </style>
 </head>
 <body>
@@ -2007,8 +2102,12 @@ tbody tr:hover { background: var(--surface2); }
             </div>
             <div class="form-field">
               <label class="field-label">Category</label>
-              <input class="field-input" id="qa-category" list="qa-cat-list" placeholder="e.g. Product Sales" autocomplete="off">
-              <datalist id="qa-cat-list"></datalist>
+              <div class="cat-picker" id="qa-cat-picker">
+                <input class="field-input cat-picker-input" id="qa-category" placeholder="e.g. Product Sales" autocomplete="off"
+                  onclick="openCatPicker(event)" onfocus="openCatPicker(event)" oninput="filterCatPicker(this.value)">
+                <button type="button" class="cat-picker-arrow" onclick="toggleCatPicker(event)" aria-label="Open categories">▾</button>
+                <div class="cat-picker-popover" id="qa-cat-popover" role="listbox" hidden></div>
+              </div>
             </div>
             <div class="form-field">
               <label class="field-label">Amount *</label>
@@ -3849,8 +3948,75 @@ async function updateCatDatalist() {
   CATEGORIES = loadCategories(); // always use latest saved categories
   const all  = await dbGetAll();
   const cats = [...new Set([...CATEGORIES, ...all.map(t=>t.category).filter(Boolean)])].sort();
-  document.getElementById('qa-cat-list').innerHTML = cats.map(c=>`<option value="${c}">`).join('');
+  window._catList = cats;
+  renderCatPicker(cats);
 }
+
+function renderCatPicker(cats) {
+  const pop = document.getElementById('qa-cat-popover');
+  if (!pop) return;
+  if (!cats.length) {
+    pop.innerHTML = '<div class="cat-picker-empty">No categories yet — type to create one</div>';
+    return;
+  }
+  pop.innerHTML = cats.map(c =>
+    `<div class="cat-picker-option" role="option" data-value="${escapeHtml(c)}" onclick="selectCatPicker('${escapeHtml(c).replace(/'/g,"\\'")}')">${escapeHtml(c)}</div>`
+  ).join('');
+}
+
+function openCatPicker(e) {
+  if (e) e.stopPropagation();
+  const pop = document.getElementById('qa-cat-popover');
+  if (!pop) return;
+  // re-render with current full list (in case input has filter text)
+  const q = (document.getElementById('qa-category').value || '').toLowerCase().trim();
+  const all = window._catList || [];
+  const filtered = q ? all.filter(c => c.toLowerCase().includes(q)) : all;
+  renderCatPicker(filtered);
+  pop.hidden = false;
+  document.getElementById('qa-cat-picker').classList.add('open');
+}
+
+function closeCatPicker() {
+  const pop = document.getElementById('qa-cat-popover');
+  if (pop) pop.hidden = true;
+  const pick = document.getElementById('qa-cat-picker');
+  if (pick) pick.classList.remove('open');
+}
+
+function toggleCatPicker(e) {
+  e.stopPropagation();
+  const pop = document.getElementById('qa-cat-popover');
+  if (!pop) return;
+  if (pop.hidden) {
+    document.getElementById('qa-category').focus();
+    openCatPicker(e);
+  } else {
+    closeCatPicker();
+  }
+}
+
+function filterCatPicker(value) {
+  const q = (value || '').toLowerCase().trim();
+  const all = window._catList || [];
+  const filtered = q ? all.filter(c => c.toLowerCase().includes(q)) : all;
+  renderCatPicker(filtered);
+  const pop = document.getElementById('qa-cat-popover');
+  if (pop) pop.hidden = false;
+  document.getElementById('qa-cat-picker').classList.add('open');
+}
+
+function selectCatPicker(value) {
+  const input = document.getElementById('qa-category');
+  if (input) input.value = value;
+  closeCatPicker();
+}
+
+// Close picker on outside click
+document.addEventListener('click', (e) => {
+  const picker = document.getElementById('qa-cat-picker');
+  if (picker && !picker.contains(e.target)) closeCatPicker();
+});
 
 // ═══════════════════════════════════════════════════════════════════
 //  PAGINATED TRANSACTION TABLE
