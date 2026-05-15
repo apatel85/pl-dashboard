@@ -1300,8 +1300,23 @@ tbody tr:hover { background: var(--surface2); }
   min-height: var(--bottombar-h); width: 100%;
   transition: color .15s; position: relative;
 }
-.bb-btn.active { color: var(--teal); }
-.bb-btn.active .bb-icon { transform: scale(1.1); }
+.bb-btn.active {
+  color: var(--teal);
+  background: var(--teal-dim);
+}
+.bb-btn.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 18%; right: 18%;
+  height: 3px;
+  background: var(--teal);
+  border-radius: 0 0 3px 3px;
+}
+.bb-btn.active .bb-icon { transform: scale(1.08); }
+.bb-btn { position: relative; }
+/* Don't apply box highlight to the FAB (Add) button — it has its own styling */
+.bb-btn.bb-fab.active { background: none; }
+.bb-btn.bb-fab.active::before { display: none; }
 .bb-icon { font-size: 20px; line-height: 1; }
 .bb-label { font-size: 10px; font-weight: 500; letter-spacing: .02em; }
 /* FAB-style center Add button */
@@ -1628,9 +1643,250 @@ tbody tr:hover { background: var(--surface2); }
   background: none; border: none; color: var(--muted);
   font-size: 18px; padding: 8px 10px; cursor: pointer;
 }
+
+/* Hide redundant inline search inputs on mobile (topbar 🔍 covers them) */
+@media (max-width: 640px) {
+  #rev-search, #exp-search,
+  #transactions-view .search-bar .search-wrap { display: none !important; }
+}
+
+/* All Transactions: consistent editable cell sizing */
+#txn-table .editable-cell {
+  width: 100%;
+  height: 32px;
+  font-size: 13px;
+  padding: 4px 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  box-sizing: border-box;
+}
+#txn-table .editable-cell:focus { border-color: var(--teal); outline: none; }
+#txn-table th { white-space: nowrap; }
+#txn-table td { vertical-align: middle; padding: 6px 8px !important; }
+/* Column proportions on desktop */
+@media (min-width: 641px) {
+  #txn-table { table-layout: fixed; width: 100%; }
+  #txn-table th:nth-child(1), #txn-table td:nth-child(1) { width: 12%; }
+  #txn-table th:nth-child(2), #txn-table td:nth-child(2) { width: 11%; }
+  #txn-table th:nth-child(3), #txn-table td:nth-child(3) { width: 18%; }
+  #txn-table th:nth-child(4), #txn-table td:nth-child(4) { width: 35%; }
+  #txn-table th:nth-child(5), #txn-table td:nth-child(5) { width: 14%; text-align: right; }
+  #txn-table th:nth-child(6), #txn-table td:nth-child(6) { width: 10%; text-align: center; }
+}
+
+/* ══════════════════════════════════════════
+   LANDING PAGE
+══════════════════════════════════════════ */
+#landing-page {
+  display: none;
+  position: fixed; inset: 0; z-index: 9998;
+  background: var(--bg);
+  overflow-y: auto;
+  font-family: var(--sans);
+  color: var(--text);
+}
+#landing-page.show { display: block; }
+.landing-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky; top: 0; z-index: 2;
+}
+.landing-logo {
+  font-family: var(--serif); font-size: 22px; font-weight: 400;
+  letter-spacing: -.3px;
+}
+.landing-logo span { color: var(--teal); font-style: italic; }
+.landing-nav-actions { display: flex; gap: 10px; align-items: center; }
+.landing-hero {
+  text-align: center;
+  padding: 72px 24px 56px;
+  max-width: 880px; margin: 0 auto;
+}
+.landing-hero h1 {
+  font-family: var(--serif);
+  font-size: 56px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  margin-bottom: 20px;
+}
+.landing-hero h1 span { color: var(--teal); font-style: italic; }
+.landing-hero p {
+  font-size: 18px;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 620px;
+  margin: 0 auto 32px;
+}
+.landing-hero-actions {
+  display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+}
+.landing-hero-actions .btn {
+  font-size: 15px; padding: 13px 24px;
+  min-height: 48px;
+}
+.landing-trust {
+  margin-top: 24px; font-size: 12px; color: var(--muted);
+  display: flex; gap: 18px; justify-content: center; flex-wrap: wrap;
+}
+.landing-trust span::before { content: '✓ '; color: var(--green); font-weight: 700; }
+.landing-features {
+  background: var(--surface);
+  padding: 64px 24px;
+  border-top: 1px solid var(--border);
+}
+.landing-features h2 {
+  font-family: var(--serif);
+  font-size: 36px; font-weight: 400; text-align: center;
+  margin-bottom: 12px;
+}
+.landing-features-sub {
+  text-align: center; color: var(--muted);
+  font-size: 15px; margin-bottom: 48px;
+}
+.features-grid {
+  max-width: 1100px; margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+.feature-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 22px;
+  transition: border-color .2s, transform .2s;
+}
+.feature-card:hover { border-color: var(--teal); transform: translateY(-2px); }
+.feature-icon {
+  font-size: 32px;
+  width: 48px; height: 48px;
+  background: var(--teal-dim);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 14px;
+}
+.feature-card h3 {
+  font-size: 16px; font-weight: 600;
+  margin-bottom: 8px; color: var(--text);
+}
+.feature-card p {
+  font-size: 13px; color: var(--muted);
+  line-height: 1.55;
+}
+.landing-cta {
+  text-align: center;
+  padding: 72px 24px;
+  border-top: 1px solid var(--border);
+}
+.landing-cta h2 {
+  font-family: var(--serif);
+  font-size: 40px; font-weight: 400;
+  margin-bottom: 16px;
+}
+.landing-cta p {
+  font-size: 16px; color: var(--muted);
+  margin-bottom: 28px;
+}
+.landing-footer {
+  padding: 28px 24px;
+  text-align: center;
+  font-size: 12px; color: var(--muted);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.landing-footer a { color: var(--teal); text-decoration: none; }
+
+@media (max-width: 760px) {
+  .landing-nav { padding: 14px 18px; }
+  .landing-hero { padding: 48px 18px 40px; }
+  .landing-hero h1 { font-size: 36px; }
+  .landing-hero p { font-size: 15px; }
+  .features-grid { grid-template-columns: 1fr; gap: 14px; }
+  .landing-features { padding: 48px 18px; }
+  .landing-features h2 { font-size: 28px; }
+  .landing-cta { padding: 48px 18px; }
+  .landing-cta h2 { font-size: 28px; }
+}
 </style>
 </head>
 <body>
+
+<!-- ═══════════════ LANDING PAGE ═══════════════ -->
+<div id="landing-page">
+  <nav class="landing-nav">
+    <div class="landing-logo">P&amp;L <span>Dashboard</span></div>
+    <div class="landing-nav-actions">
+      <button class="btn btn-outline" onclick="goToSignIn()">Sign In</button>
+      <button class="btn btn-primary" onclick="goToSignIn()">Get Started</button>
+    </div>
+  </nav>
+
+  <section class="landing-hero">
+    <h1>Smart <span>P&amp;L tracking</span> for small businesses</h1>
+    <p>Track revenue, expenses, and profit. Import any CSV. Sync to Google Drive. Works offline. Your data stays on your device.</p>
+    <div class="landing-hero-actions">
+      <button class="btn btn-primary" onclick="goToSignIn()">Get Started — Free</button>
+      <button class="btn btn-outline" onclick="goToSignIn()">Sign In</button>
+    </div>
+    <div class="landing-trust">
+      <span>No credit card required</span>
+      <span>Privacy-first — data on your device</span>
+      <span>Works offline</span>
+    </div>
+  </section>
+
+  <section class="landing-features">
+    <h2>Everything you need to run your books</h2>
+    <div class="landing-features-sub">Built for solo operators, freelancers, and small teams</div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Real-time dashboard</h3>
+        <p>Revenue, expenses, net profit, gross margin, and 4 interactive charts — at a glance for any month or full year.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📤</div>
+        <h3>Import any CSV</h3>
+        <p>QuickBooks, Excel, bank exports, Shopify, Stripe. Auto-detect date and number formats. Smart column mapping.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Privacy-first</h3>
+        <p>All data stored locally in your browser via IndexedDB. Optional Google Drive backup you control.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📱</div>
+        <h3>Install as an app</h3>
+        <p>Works offline. Install on iPhone, Android, or desktop. Native-app feel with a bottom tab bar on mobile.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Fast at scale</h3>
+        <p>Handles 100,000+ transactions. Inline search, pagination, sorting. Web-worker CSV parsing keeps it snappy.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎨</div>
+        <h3>Light &amp; dark mode</h3>
+        <p>Beautiful in both. Follows your system preference, or pick your favorite manually.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="landing-cta">
+    <h2>Start tracking in minutes</h2>
+    <p>No credit card. No data harvesting. Just clean books.</p>
+    <button class="btn btn-primary landing-hero-actions" onclick="goToSignIn()" style="font-size:16px;padding:14px 32px;min-height:50px">Get Started — It's Free</button>
+  </section>
+
+  <footer class="landing-footer">
+    <p>© 2026 P&amp;L Dashboard · Open source on <a href="https://github.com/apatel85/pl-dashboard" target="_blank" rel="noopener">GitHub</a> · No tracking, no ads</p>
+  </footer>
+</div>
 
 <!-- ═══════════════ AUTH GATE ═══════════════ -->
 <div id="auth-gate" style="
@@ -4174,10 +4430,10 @@ async function renderTxnTable() {
   const tbody=document.getElementById('txn-tbody');
   if (!rows.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted)">No transactions match filters</td></tr>'; }
   else tbody.innerHTML=rows.map(t=>`<tr>
-    <td data-label="Date"><input class="editable-cell" value="${t.date}" onchange="inlineEdit(${JSON.stringify(t.id)},'date',this.value)" style="width:110px"></td>
-    <td data-label="Type"><select class="editable-cell" onchange="inlineEdit(${JSON.stringify(t.id)},'type',this.value)" style="width:90px"><option value="revenue" ${t.type==='revenue'?'selected':''}>Revenue</option><option value="expense" ${t.type==='expense'?'selected':''}>Expense</option></select></td>
-    <td data-label="Category"><input class="editable-cell" value="${(t.category||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'category',this.value)" style="width:150px"></td>
-    <td data-label="Description"><input class="editable-cell" value="${(t.description||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'description',this.value)" style="width:180px"></td>
+    <td data-label="Date"><input class="editable-cell" value="${t.date}" onchange="inlineEdit(${JSON.stringify(t.id)},'date',this.value)"></td>
+    <td data-label="Type"><select class="editable-cell" onchange="inlineEdit(${JSON.stringify(t.id)},'type',this.value)"><option value="revenue" ${t.type==='revenue'?'selected':''}>Revenue</option><option value="expense" ${t.type==='expense'?'selected':''}>Expense</option></select></td>
+    <td data-label="Category"><input class="editable-cell" value="${(t.category||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'category',this.value)"></td>
+    <td data-label="Description"><input class="editable-cell" value="${(t.description||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'description',this.value)"></td>
     <td data-label="Amount" class="${t.type==='revenue'?'positive-val':'negative-val'}" style="text-align:right;font-weight:600">${fmt(t.amount)}</td>
     <td data-label=""><button onclick="confirmDelete(${JSON.stringify(t.id)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'" aria-label="Delete">✕</button></td>
   </tr>`).join('');
@@ -6360,6 +6616,48 @@ function addSignOutButton() {
     const el = document.getElementById('ios-install-hint');
     if (el) el.style.display = 'none';
   }
+
+  // Landing page logic
+  function showLanding() {
+    const landing = document.getElementById('landing-page');
+    if (landing) landing.classList.add('show');
+    const gate = document.getElementById('auth-gate');
+    if (gate) gate.style.display = 'none';
+  }
+  function hideLanding() {
+    const landing = document.getElementById('landing-page');
+    if (landing) landing.classList.remove('show');
+  }
+  function goToSignIn() {
+    hideLanding();
+    const gate = document.getElementById('auth-gate');
+    if (gate) gate.style.display = 'flex';
+    // Mark that user has seen landing this session
+    try { sessionStorage.setItem('pl-landing-dismissed', '1'); } catch(e) {}
+  }
+
+  // On load, decide: cached session → straight to app; else → landing first
+  (function decideLandingOrAuth() {
+    function check() {
+      let hasSession = false;
+      try {
+        const raw = localStorage.getItem('pl_auth_session_v1');
+        if (raw) {
+          const sess = JSON.parse(raw);
+          if (sess && sess.user && sess.user.email) hasSession = true;
+        }
+      } catch(e) {}
+      const dismissed = sessionStorage.getItem('pl-landing-dismissed') === '1';
+      if (!hasSession && !dismissed) {
+        showLanding();
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', check);
+    } else {
+      check();
+    }
+  })();
 
 </script>
 </body>
