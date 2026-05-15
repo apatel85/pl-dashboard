@@ -2,36 +2,34 @@
 
 **Date:** 2026-05-15  
 **Format:** OLD_STRING / NEW_STRING patches, ordered top-to-bottom by line number  
-**Apply with:** Claude Code Edit tool — find OLD_STRING, replace with NEW_STRING  
-**All patches are non-overlapping and safe to apply independently**
-
-> Do NOT include in this file: T2-4 (dbQuery refactor) or T3-1 (integer arithmetic) — those require planned PRs with full testing.
+**Safe to apply:** All patches below are surgical and non-overlapping  
+**Do NOT apply:** T2-4 (dbQuery refactor) or T3-1 (integer arithmetic) from here — those need planned PRs
 
 ---
 
-## PATCH-001 — Escape version string in settings-update-status
+## PATCH-001 — Escape version string in settings-update-status (line ~4825)
 
 **Resolves:** NEW-013  
-**Line:** ~4825  
-**Time:** 2 min  
+**Effort:** 2 min  
+**Risk:** None
 
 **OLD_STRING:**
 ```
-document.getElementById('settings-update-status').innerHTML=`<span style="color:var(--green);font-weight:600">🔔 v${remoteVerData.latest_version} available!</span> <a href="#" onclick="openChangelog();return false" style="color:var(--teal)">See what's new →</a>`;}
+document.getElementById('settings-update-status').innerHTML=`<span style="color:var(--green);font-weight:600">🔔 v${remoteVerData.latest_version} available!</span>
 ```
 
 **NEW_STRING:**
 ```
-document.getElementById('settings-update-status').innerHTML=`<span style="color:var(--green);font-weight:600">🔔 v${escapeHtml(remoteVerData.latest_version)} available!</span> <a href="#" onclick="openChangelog();return false" style="color:var(--teal)">See what's new →</a>`;}
+document.getElementById('settings-update-status').innerHTML=`<span style="color:var(--green);font-weight:600">🔔 v${escapeHtml(remoteVerData.latest_version)} available!</span>
 ```
 
 ---
 
-## PATCH-002 — Escape version.json data in showUpdateBanner
+## PATCH-002 — Escape version.json data in showUpdateBanner (line ~4843)
 
 **Resolves:** NEW-001  
-**Line:** ~4843  
-**Time:** 3 min  
+**Effort:** 3 min  
+**Risk:** None
 
 **OLD_STRING:**
 ```
@@ -45,29 +43,29 @@ function showUpdateBanner(data){const notes=escapeHtml((data.release_notes||[])[
 
 ---
 
-## PATCH-003 — Escape all fields in openChangelog
+## PATCH-003 — Escape all fields in openChangelog (line ~4880)
 
 **Resolves:** NEW-002  
-**Line:** ~4880  
-**Time:** 10 min  
+**Effort:** 10 min  
+**Risk:** Low — functional change; changelog text will now show `&amp;` for `&` etc.
 
 **OLD_STRING:**
 ```
-  document.getElementById('changelog-body').innerHTML=releases.map((rel,i)=>`<div class="release-block"><div class="release-version"><span class="ver-tag ${rel.version===latest?'latest':'old'}">${rel.version===latest?'● Latest':'●'} v${rel.version}</span><span class="ver-date">${rel.date||''}</span></div><div class="ver-title">${rel.title||''}</div><ul class="release-changes" style="margin-top:8px">${(rel.changes||[]).map(c=>`<li><span class="change-type ${c.type||'imp'}">${c.type==='new'?'New':c.type==='fix'?'Fix':'Imp'}</span><span>${c.text}</span></li>`).join('')}</ul></div>${i<releases.length-1?'<hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px">':''}`).join('');
+document.getElementById('changelog-body').innerHTML=releases.map((rel,i)=>`<div class="release-block"><div class="release-version"><span class="ver-tag ${rel.version===latest?'latest':'old'}">${rel.version===latest?'● Latest':'●'} v${rel.version}</span><span class="ver-date">${rel.date||''}</span></div><div class="ver-title">${rel.title||''}</div><ul class="release-changes" style="margin-top:8px">${(rel.changes||[]).map(c=>`<li><span class="change-type ${c.type||'imp'}">${c.type==='new'?'New':c.type==='fix'?'Fix':'Imp'}</span><span>${c.text}</span></li>`).join('')}</ul></div>${i<releases.length-1?'<hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px">':''}`).join('');
 ```
 
 **NEW_STRING:**
 ```
-  document.getElementById('changelog-body').innerHTML=releases.map((rel,i)=>{const rv=escapeHtml(rel.version||'');const rd=escapeHtml(rel.date||'');const rt=escapeHtml(rel.title||'');const isLatest=rel.version===latest;return`<div class="release-block"><div class="release-version"><span class="ver-tag ${isLatest?'latest':'old'}">${isLatest?'● Latest':'●'} v${rv}</span><span class="ver-date">${rd}</span></div><div class="ver-title">${rt}</div><ul class="release-changes" style="margin-top:8px">${(rel.changes||[]).map(c=>`<li><span class="change-type ${escapeHtml(c.type||'imp')}">${c.type==='new'?'New':c.type==='fix'?'Fix':'Imp'}</span><span>${escapeHtml(c.text||'')}</span></li>`).join('')}</ul></div>${i<releases.length-1?'<hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px">':''}`;}).join('');
+document.getElementById('changelog-body').innerHTML=releases.map((rel,i)=>{const rv=escapeHtml(rel.version||'');const rd=escapeHtml(rel.date||'');const rt=escapeHtml(rel.title||'');const isLatest=rel.version===latest;return`<div class="release-block"><div class="release-version"><span class="ver-tag ${isLatest?'latest':'old'}">${isLatest?'● Latest':'●'} v${rv}</span><span class="ver-date">${rd}</span></div><div class="ver-title">${rt}</div><ul class="release-changes" style="margin-top:8px">${(rel.changes||[]).map(c=>`<li><span class="change-type ${escapeHtml(c.type||'imp')}">${c.type==='new'?'New':c.type==='fix'?'Fix':'Imp'}</span><span>${escapeHtml(c.text||'')}</span></li>`).join('')}</ul></div>${i<releases.length-1?'<hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px">':''}`;}).join('');
 ```
 
 ---
 
-## PATCH-004 — Escape email in showAccessDenied
+## PATCH-004 — Escape email in showAccessDenied (line ~5188)
 
 **Resolves:** NEW-004  
-**Lines:** ~5188–5201  
-**Time:** 5 min  
+**Effort:** 5 min  
+**Risk:** None
 
 **OLD_STRING:**
 ```
@@ -106,11 +104,11 @@ function showAccessDenied(email, reason) {
 
 ---
 
-## PATCH-005 — Escape user.name and user.plan in showAuthSuccess
+## PATCH-005 — Escape user.name and user.plan in showAuthSuccess (line ~5207)
 
 **Resolves:** NEW-003  
-**Lines:** ~5207–5209  
-**Time:** 3 min  
+**Effort:** 3 min  
+**Risk:** None
 
 **OLD_STRING:**
 ```
@@ -128,11 +126,11 @@ function showAccessDenied(email, reason) {
 
 ---
 
-## PATCH-006 — Escape sheetInfo.name and dateStr in auth-restore-details
+## PATCH-006 — Escape sheetInfo.name and dateStr in auth-restore-details (line ~5360)
 
 **Resolves:** NEW-005  
-**Lines:** ~5360–5373  
-**Time:** 5 min  
+**Effort:** 5 min  
+**Risk:** None
 
 **OLD_STRING:**
 ```
@@ -174,11 +172,11 @@ function showAccessDenied(email, reason) {
 
 ---
 
-## PATCH-007 — Escape file name in updateSyncUI
+## PATCH-007 — Escape file name in updateSyncUI (line ~4688)
 
 **Resolves:** NEW-010 (first occurrence)  
-**Line:** ~4688  
-**Time:** 2 min  
+**Effort:** 2 min  
+**Risk:** None
 
 **OLD_STRING:**
 ```
@@ -192,11 +190,11 @@ function showAccessDenied(email, reason) {
 
 ---
 
-## PATCH-008 — Escape savedFile name in init
+## PATCH-008 — Escape savedFile in init (line ~5743)
 
 **Resolves:** NEW-010 (second occurrence)  
-**Line:** ~5743  
-**Time:** 2 min  
+**Effort:** 2 min  
+**Risk:** None
 
 **OLD_STRING:**
 ```
@@ -210,11 +208,11 @@ function showAccessDenied(email, reason) {
 
 ---
 
-## PATCH-009 — Add csvSanitize to exportXLSX
+## PATCH-009 — Add csvSanitize to exportXLSX (line ~4720)
 
 **Resolves:** NEW-007  
-**Line:** ~4720  
-**Time:** 3 min  
+**Effort:** 5 min  
+**Risk:** None
 
 **OLD_STRING:**
 ```
@@ -228,11 +226,11 @@ const txData=all.map(t=>({Date:t.date,Type:t.type,Category:csvSanitize(t.categor
 
 ---
 
-## PATCH-010 — Escape CATEGORIES in entry form option build
+## PATCH-010 — Escape categories in option elements (line ~6040)
 
-**Resolves:** NEW-008 (first occurrence)  
-**Line:** ~6040–6041  
-**Time:** 3 min  
+**Resolves:** NEW-008  
+**Effort:** 5 min  
+**Risk:** None
 
 **OLD_STRING:**
 ```
@@ -248,11 +246,11 @@ const txData=all.map(t=>({Date:t.date,Type:t.type,Category:csvSanitize(t.categor
 
 ---
 
-## PATCH-011 — Escape CATEGORIES in filter dropdowns
+## PATCH-011 — Escape categories in filter dropdowns (line ~6049)
 
-**Resolves:** NEW-008 (second occurrence)  
-**Line:** ~6049  
-**Time:** 2 min  
+**Resolves:** NEW-008 (additional occurrences)  
+**Effort:** 2 min  
+**Risk:** None
 
 **OLD_STRING:**
 ```
@@ -270,8 +268,8 @@ const txData=all.map(t=>({Date:t.date,Type:t.type,Category:csvSanitize(t.categor
 
 **Resolves:** NEW-015  
 **File:** service-worker.js:17  
-**Time:** 1 min  
-**Note:** This triggers cache invalidation for all users — desired behavior for a version bump.
+**Effort:** 1 min  
+**Risk:** Low — triggers cache invalidation for all users (desired behavior)
 
 **OLD_STRING:**
 ```
@@ -285,11 +283,9 @@ const CACHE_VERSION = 'pl-dashboard-v8.3.0';
 
 ---
 
-## NOT INCLUDED HERE (architectural — plan as separate PRs)
+## NOT INCLUDED (architectural — plan separately)
 
-| Fix | Reason excluded |
-|---|---|
-| Monthly table column fix (NEW-006) | Requires deciding Gross Profit formula; touches table HTML + JS render |
-| renderRevTable/Exp dbQuery refactor (NEW-009) | Multi-function change to IndexedDB engine |
-| Float → integer cents (ISSUE-016) | Data migration required; high blast radius |
-| role=dialog on modals (NEW-011) | HTML structural change across 3 modal elements + focus-trap JS |
+- Monthly table column fix (NEW-006): Requires deciding between 5-col layout vs adding real Gross Profit calculation
+- renderRevTable/Exp dbQuery refactor (NEW-009): Multi-function change
+- Float → integer cents (ISSUE-016): Data migration required
+- role=dialog on modals (NEW-011): HTML structural change across multiple elements
