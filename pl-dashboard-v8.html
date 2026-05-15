@@ -625,6 +625,11 @@ tbody tr:hover { background: var(--surface2); }
 @media (max-width: 860px) {
   .form-grid-4 { grid-template-columns: 1fr 1fr; }
 }
+@media (max-width: 640px) {
+  .form-grid-4 { grid-template-columns: 1fr !important; gap: 8px; }
+  .form-grid-4 .form-field { width: 100%; }
+  .field-input, .field-select { min-height: 44px; font-size: 16px; padding: 10px 12px; }
+}
 
 .form-field { display: flex; flex-direction: column; gap: 5px; }
 .field-label {
@@ -1431,15 +1436,15 @@ tbody tr:hover { background: var(--surface2); }
     line-height: 1.5;
     text-align: left;
   }
-  /* Checkbox / delete / empty-label td sits top-right, no label */
-  .table-wrap td:first-child:has(input[type="checkbox"]),
+  /* Checkbox column: hide on mobile cards to avoid broken layout */
+  .table-wrap td:first-child:has(input[type="checkbox"]) { display: none !important; }
+  /* Delete / empty-label button td sits top-right, no label */
   .table-wrap td[data-label=""]:has(button) {
     padding: 0 !important;
     position: absolute; top: 8px; right: 10px;
     min-height: auto;
     width: auto;
   }
-  .table-wrap td:first-child:has(input[type="checkbox"])::before,
   .table-wrap td[data-label=""]::before { display: none; }
   /* Amount stands out, but compact */
   .table-wrap td.positive-val,
@@ -2215,6 +2220,8 @@ tbody tr:hover { background: var(--surface2); }
   <div onclick="showView('sync-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">🔄</span> File Sync</div>
   <div onclick="showView('backup-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">🛡</span> Backup &amp; Restore</div>
   <div onclick="showView('settings-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">⚙️</span> Settings</div>
+  <hr style="margin:4px 20px;border:none;border-top:1px solid var(--border)">
+  <div onclick="saveAndSignOut();closeMoreDrawer()" id="save-signout-btn" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--red);font-size:14px;font-weight:600"><span style="width:24px;text-align:center">💾</span> Save &amp; Sign Out</div>
 </div>
 
 <div id="app">
@@ -5871,6 +5878,8 @@ function unlockApp(user, isNewSignIn = false) {
       gate.style.opacity = '0';
       setTimeout(() => { if (gate) gate.style.display = 'none'; }, 420);
     }
+    // Always hide the landing page when app is unlocked
+    hideLanding();
 
     // Show user info in sidebar — defensive: every field optional, every DOM lookup nullable
     if (user) {
@@ -5904,6 +5913,24 @@ function unlockApp(user, isNewSignIn = false) {
     if (panel) panel.style.display = 'block';
     showAuthError('Your saved session was invalid. Please sign in again.');
   }
+}
+
+// Save all data layers then sign out
+async function saveAndSignOut() {
+  const btn = document.getElementById('save-signout-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    // Layer 1: browser snapshot
+    await takeSnapshot(false);
+    // Layer 2: local file backup if linked
+    if (autoFileHandle) { try { await runFileBackupNow(); } catch(e) {} }
+    // Layer 3: Google Sheets push if token available
+    if (gsheetsToken) { try { await gsheetsPushSilent(); } catch(e) {} }
+    toast('Data saved — signing out', 'success');
+  } catch(e) {
+    toast('Save completed (some layers may have failed)', 'info');
+  }
+  setTimeout(() => { authSignOut(); }, 800);
 }
 
 // ── Sign out ──────────────────────────────────────────────────
@@ -5987,7 +6014,8 @@ window.addEventListener('load', async () => {
         // the user has a recoverable state instead of a blank screen.
         try { localStorage.removeItem(AUTH_SESSION_KEY); } catch(_) {}
         const gate = document.getElementById('auth-gate');
-        if (gate) { gate.style.display='flex'; gate.style.opacity='1'; }
+        const landing = document.getElementById('landing-page');
+        if (gate && (!landing || !landing.classList.contains('show'))) { gate.style.display='flex'; gate.style.opacity='1'; }
         const panel = document.getElementById('auth-signin-panel');
         if (panel) panel.style.display = 'block';
         if (typeof showAuthError === 'function') {
@@ -6004,7 +6032,8 @@ window.addEventListener('load', async () => {
     console.error('[bootloader]', e);
     // Last-resort: keep the auth gate visible so the user always has something to look at.
     const gate = document.getElementById('auth-gate');
-    if (gate) { gate.style.display='flex'; gate.style.opacity='1'; }
+    const landing = document.getElementById('landing-page');
+    if (gate && (!landing || !landing.classList.contains('show'))) { gate.style.display='flex'; gate.style.opacity='1'; }
   }
 });
 
@@ -6097,14 +6126,14 @@ async function bootApp() {
   if (savedGToken) {
     gsheetsToken = savedGToken;
   } else {
-    // Silent re-auth attempt if a sheet is linked — no popup shown
+    // Silent re-auth attempt if a sheet is linked — prompt:'none' fails silently rather than showing UI
     const _gMeta = loadGSheetsMeta();
     if (_gMeta && _gMeta.spreadsheetId && window.google && typeof google.accounts !== 'undefined') {
       try {
         const _silentClient = google.accounts.oauth2.initTokenClient({
           client_id: GOOGLE_CLIENT_ID,
           scope: GSHEETS_ALL_SCOPES,
-          prompt: '',
+          prompt: 'none',
           callback: (resp) => {
             if (!resp.error && resp.access_token) {
               gsheetsToken = resp.access_token;
@@ -6112,10 +6141,11 @@ async function bootApp() {
               renderGSheetsPanel();
               if (autoSyncEnabled) startAutoSync();
             }
+            // On error (e.g. 'access_denied'), fail silently — user can re-auth from Backup tab
           }
         });
-        _silentClient.requestAccessToken({ prompt: '' });
-      } catch(e) { /* silent — user will see Sign In button if needed */ }
+        _silentClient.requestAccessToken({ prompt: 'none' });
+      } catch(e) { /* silent — user will see Sign In button in Backup tab if needed */ }
     }
   }
 
@@ -6195,7 +6225,8 @@ function addSignOutButton() {
       Signed in as <strong style="color:var(--text)">${authUser ? authUser.email : ''}</strong>
       &nbsp;·&nbsp; <span style="color:var(--teal)">${authUser ? authUser.plan : ''} license</span>
     </div>
-    <button class="btn btn-outline" onclick="authSignOut()">Sign Out</button>
+    <button class="btn btn-primary" onclick="saveAndSignOut()" id="save-signout-btn" style="margin-right:8px">💾 Save &amp; Sign Out</button>
+    <button class="btn btn-outline" onclick="authSignOut()">Sign Out Only</button>
   `;
   settingsPage.querySelector('.view')?.appendChild(card);
   // Append to the settings view's last child card instead
