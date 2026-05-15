@@ -2,108 +2,88 @@
 
 **Date:** 2026-05-15  
 **App version:** 8.3.0  
-**Auditor:** Independent principal engineer / security reviewer  
-**Prior status (2026-05-13):** NO-GO — 7 Critical XSS
+**Auditor:** Independent principal engineer / security reviewer
 
 ---
 
 ## Current Status: NO-GO
 
-**Reason:** 5 new High-severity XSS vectors discovered in code paths added or not covered in the prior audit (version banner, changelog modal, auth UI, cloud restore). The monthly P&L table shows wrong numbers in wrong columns for every user.
+---
+
+## Blocking Issues (must fix before any external user)
+
+| # | Issue | Why It Blocks |
+|---|---|---|
+| 1 | NEW-001: XSS in showUpdateBanner | Remote version.json can inject JS on page load |
+| 2 | NEW-002: XSS in openChangelog | Remote version.json can inject JS via modal |
+| 3 | NEW-003: XSS in showAuthSuccess | Supabase row data can inject JS on sign-in |
+| 4 | NEW-004: XSS in showAccessDenied | OAuth email can inject HTML in error panel |
+| 5 | NEW-005: XSS in auth-restore-details | Google Sheets name can inject JS on restore |
+| 6 | NEW-006: Monthly table column mismatch | Every user sees wrong numbers in wrong columns |
+| 7 | NEW-007: XLSX export formula injection | Exported Excel files can execute macros on open |
 
 ---
 
-## Blocking Issues
+## Conditions for Safe Limited Use (developer / internal only)
 
-| # | Issue ID | Description | Why It Blocks |
-|---|---|---|---|
-| 1 | NEW-001 | XSS in showUpdateBanner (version.json) | Executes on every page load for outdated users |
-| 2 | NEW-002 | XSS in openChangelog (version.json) | Executes whenever "What's New" is opened |
-| 3 | NEW-003 | XSS in showAuthSuccess (Supabase name/plan) | Executes on every sign-in |
-| 4 | NEW-004 | XSS in showAccessDenied (OAuth email) | Executes for every auth failure |
-| 5 | NEW-005 | XSS in auth-restore-details (Sheets name) | Executes during cross-device restore flow |
-| 6 | NEW-006 | Monthly table: 6 headers / 5 data columns | Every user sees Net Profit under "Gross Profit", Margin% under "Net Profit", "Margin %" always blank |
-| 7 | NEW-007 | XLSX export: no formula injection guard | Exported .xlsx opens with executable formulas in Excel |
-
----
-
-## Progress vs Prior Review
-
-| Metric | 2026-05-13 | 2026-05-15 | Change |
-|---|---|---|---|
-| Critical / High security issues | 7 | 5 (new) + 2 (carry-over) | Tier shifted |
-| Total active issues | 30 | 17 | −13 resolved |
-| Overall score | 59/100 | 65/100 | +6 |
-| Release status | NO-GO | NO-GO | Unchanged |
-
----
-
-## Conditions for Safe Personal / Developer Use Only
-
-The app is safe for a single developer with full awareness of the above issues if:
-- Google Auth / Supabase auth is disabled or the developer is the only Supabase user
-- The version check URL is the developer's own controlled endpoint
-- XLSX export is avoided for data containing formula-prefix characters (`=`, `+`, `-`, `@`)
-- Data stays under 10,000 rows (snapshot quota risk above that)
-- Monthly P&L figures are not relied on for actual business decisions until NEW-006 is fixed
+The app is safe for a single developer with no external auth, no Google Sheets sync, and no version-check if:
+- Google Auth is disabled or the user is the sole Supabase user
+- Version check is disabled
+- XLSX export is not used on data containing formula-prefix characters
+- Data volume stays under 10,000 rows (snapshot quota risk above that)
 
 ---
 
 ## Pre-Release Checklist
 
-### Security — Tier 1 blockers (all must be ✅ before release)
-- [ ] T1-1: `escapeHtml` wraps `data.latest_version` and `notes` in `showUpdateBanner` (line 4843)
-- [ ] T1-2: All 6 release-notes fields escaped in `openChangelog` (line 4880)
-- [ ] T1-3: `user.name` and `user.plan` escaped in `showAuthSuccess` (line 5207)
-- [ ] T1-4: `email` variable escaped in `showAccessDenied` — all 4 occurrences (lines 5190–5201)
-- [ ] T1-5: `sheetInfo.name` and `dateStr` escaped in `auth-restore-details` (line 5360)
-- [ ] T1-7: `csvSanitize` applied to Category and Description in `exportXLSX` (line 4720)
+### Security
+- [ ] T1-1: escapeHtml wraps data.latest_version and notes in showUpdateBanner
+- [ ] T1-2: All release_notes fields escaped in openChangelog  
+- [ ] T1-3: user.name and user.plan escaped in showAuthSuccess
+- [ ] T1-4: email variable escaped in showAccessDenied (all 4 occurrences)
+- [ ] T1-5: sheetInfo.name and dateStr escaped in auth-restore-details
+- [ ] T1-7: csvSanitize applied to Category and Description in exportXLSX
+- [ ] T2-1: CATEGORIES escaped in all option-building innerHTML
+- [ ] T2-2: name/savedFile escaped in sync-file-label renders
+- [ ] T2-3: remoteVerData.latest_version escaped in settings-update-status
 
-### Data integrity — Tier 1 blocker
-- [ ] T1-6: Monthly table column count fixed (6 headers matched to 6 data cols OR headers reduced to 5)
+### Data Integrity
+- [ ] T1-6: Monthly table column count fixed (6 headers matched to 6 data columns, OR headers reduced to 5)
+- [ ] T4-2: Dead `cogs` variable either used or removed
 
-### Security — Tier 2 (fix before broad distribution)
-- [ ] T2-1: `CATEGORIES` escaped in all `<option>` innerHTML (lines 6040, 6049)
-- [ ] T2-2: `name` / `savedFile` escaped in `sync-file-label` renders (lines 4688, 5743)
-- [ ] T2-3: `remoteVerData.latest_version` escaped in `settings-update-status` (line 4825)
+### Accessibility
+- [ ] T4-1: role="dialog" aria-modal aria-labelledby added to confirm-modal, changelog-modal, mapping-modal
 
 ### Config
-- [ ] T4-3: `service-worker.js` `CACHE_VERSION` updated to `pl-dashboard-v8.3.0` (currently `v8.5.0`)
+- [ ] T4-3: service-worker.js CACHE_VERSION updated to match APP_VERSION (8.3.0)
 
 ---
 
 ## Post-Fix Verification Checklist
 
-### Security smoke tests
-- [ ] Import CSV with `<img src=x onerror=alert(1)>` as description → no alert fires in any view
-- [ ] Create category named `"><img src=x onerror=alert(2)>` → displays escaped in all dropdowns
-- [ ] Open changelog modal → all text is plain text, no HTML executes
-- [ ] Trigger version-check banner → version string is plain text
-- [ ] Sign in successfully → welcome message is plain text
-- [ ] Trigger auth failure → error message is plain text
-- [ ] Export XLSX with `=HYPERLINK(...)` description → open in Excel, verify no formula executes
+### Security smoke test
+- [ ] Import CSV with `<script>alert(1)</script>` as description, category, date — verify no alert fires
+- [ ] Create category named `"><img src=x onerror=alert(1)>` — verify it displays escaped
+- [ ] Open changelog modal — verify release notes display as text, not executable HTML
+- [ ] Trigger version update banner — verify version string displays escaped
+- [ ] Sign in with Google — verify name/plan display as text
 
-### Data integrity smoke tests
-- [ ] Navigate to Monthly P&L with data → verify 6 data columns all show correct values under correct headers
-- [ ] Verify "Gross Profit" column shows Revenue − COGS (not Net Profit)
-- [ ] Verify "Margin %" column is not blank
-
-### Service worker test
-- [ ] DevTools → Application → Service Workers → confirm CACHE_VERSION matches APP_VERSION
+### Data integrity smoke test
+- [ ] Open Monthly P&L — verify 6 data columns align with 6 header columns
+- [ ] Export XLSX with a transaction whose description starts with `=` — open in Excel, verify no formula executes
 
 ### Accessibility smoke test
-- [ ] Open confirm modal → DevTools verify `role="dialog"` is present
-- [ ] Tab from outside the modal → confirm focus is trapped inside
-- [ ] Trigger toast → VoiceOver/NVDA announces it
+- [ ] Open confirm modal, check DevTools: role=dialog present?
+- [ ] Trigger a toast, check aria-live announces it in VoiceOver/NVDA
+
+### Performance smoke test
+- [ ] Import 1,000 rows via CSV, navigate to Revenue tab — time the render
+- [ ] Import 10,000 rows, navigate to Revenue tab — time the render (should stay < 2s)
 
 ---
 
-## Time-to-GO Estimate
+## Estimated Time to GO
 
-| Path | Time | What's included |
-|---|---|---|
-| Minimum viable (Tier 1 only) | ~80 min engineering + 30 min testing | 7 blockers fixed |
-| Recommended (Tier 1 + Tier 2) | ~2 hours engineering + 1 hour testing | All XSS + data issues |
-| Full production-ready | 1–2 days | All tiers including pagination refactor |
+With all quick wins applied (Tier 1 + T2-2 + T2-3): **~80 minutes of engineering + 30 minutes testing = same-day fix possible.**
 
-The app can reach GO status **same-day** if Tier 1 and Tier 2 quick wins are applied together.
+The remaining Medium/Low items can be tracked as follow-up work post-release.
