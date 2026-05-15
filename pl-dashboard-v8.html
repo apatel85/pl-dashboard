@@ -4418,17 +4418,21 @@ function selectCatPicker(value) {
   closeCatPicker();
 }
 
-// Close picker on outside click or scroll
+// Close picker on outside click
 document.addEventListener('click', (e) => {
   const picker = document.getElementById('qa-cat-picker');
   if (picker && !picker.contains(e.target)) closeCatPicker();
 });
-// Only close on outer page scroll, not on scrolls *inside* the popover itself
-window.addEventListener('scroll', (e) => {
+// Close on PAGE scroll (no capture — fires only when window itself scrolls, not child elements)
+window.addEventListener('scroll', () => { closeCatPicker(); }, { passive: true });
+// Close on outside touchstart (mobile) — touchstart on popover items should NOT close it
+document.addEventListener('touchstart', (e) => {
   const pop = document.getElementById('qa-cat-popover');
-  if (pop && (e.target === pop || pop.contains(e.target))) return;
+  if (!pop || pop.hidden) return;
+  const picker = document.getElementById('qa-cat-picker');
+  if ((picker && picker.contains(e.target)) || pop.contains(e.target)) return;
   closeCatPicker();
-}, true);
+}, { passive: true });
 
 // ═══════════════════════════════════════════════════════════════════
 //  PAGINATED TRANSACTION TABLE
