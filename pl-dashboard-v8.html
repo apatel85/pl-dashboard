@@ -1648,6 +1648,28 @@ tbody tr:hover { background: var(--surface2); }
 @media (max-width: 640px) {
   #rev-search, #exp-search,
   #transactions-view .search-bar .search-wrap { display: none !important; }
+  /* Compact All Transactions filter row on mobile */
+  #transactions-view .search-bar {
+    padding: 8px 10px !important;
+    gap: 6px !important;
+  }
+  #transactions-view .search-bar .page-size-select {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 12px !important;
+    padding: 6px 8px !important;
+    height: 34px;
+  }
+  #transactions-view .search-bar .btn-ghost {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
+    height: 34px;
+  }
+}
+/* Tighter filter row on desktop too */
+@media (min-width: 641px) {
+  #transactions-view .search-bar { padding: 10px 14px; gap: 8px; }
+  #transactions-view .search-bar .page-size-select { padding: 5px 10px; font-size: 12px; }
 }
 
 /* All Transactions: consistent editable cell sizing */
@@ -1890,7 +1912,7 @@ tbody tr:hover { background: var(--surface2); }
 
 <!-- ═══════════════ AUTH GATE ═══════════════ -->
 <div id="auth-gate" style="
-  display:flex; position:fixed; inset:0; z-index:9999;
+  display:none; position:fixed; inset:0; z-index:9999;
   background:#0a0d14;
   align-items:center; justify-content:center;
   font-family:'DM Sans',system-ui,sans-serif;
@@ -2327,7 +2349,7 @@ tbody tr:hover { background: var(--surface2); }
     <!-- ═══════════════ REVENUE ═══════════════ -->
     <div id="revenue-view" class="view">
       <div class="page-header">
-        <div class="page-title">Revenue <small>All revenue transactions</small></div>
+        <div class="page-title">Revenue</div>
       </div>
       <div class="table-card">
         <div class="table-header" style="flex-wrap:wrap;gap:10px">
@@ -2357,7 +2379,7 @@ tbody tr:hover { background: var(--surface2); }
     <!-- ═══════════════ EXPENSES ═══════════════ -->
     <div id="expenses-view" class="view">
       <div class="page-header">
-        <div class="page-title">Expenses <small>All expense transactions</small></div>
+        <div class="page-title">Expenses</div>
       </div>
       <div class="table-card">
         <div class="table-header" style="flex-wrap:wrap;gap:10px">
@@ -4401,7 +4423,12 @@ document.addEventListener('click', (e) => {
   const picker = document.getElementById('qa-cat-picker');
   if (picker && !picker.contains(e.target)) closeCatPicker();
 });
-window.addEventListener('scroll', closeCatPicker, true);
+// Only close on outer page scroll, not on scrolls *inside* the popover itself
+window.addEventListener('scroll', (e) => {
+  const pop = document.getElementById('qa-cat-popover');
+  if (pop && (e.target === pop || pop.contains(e.target))) return;
+  closeCatPicker();
+}, true);
 
 // ═══════════════════════════════════════════════════════════════════
 //  PAGINATED TRANSACTION TABLE
@@ -6636,7 +6663,8 @@ function addSignOutButton() {
     try { sessionStorage.setItem('pl-landing-dismissed', '1'); } catch(e) {}
   }
 
-  // On load, decide: cached session → straight to app; else → landing first
+  // On load, decide: cached session → straight to app; no session + first
+  // visit → landing; no session + already dismissed landing → show auth gate.
   (function decideLandingOrAuth() {
     function check() {
       let hasSession = false;
@@ -6647,8 +6675,13 @@ function addSignOutButton() {
           if (sess && sess.user && sess.user.email) hasSession = true;
         }
       } catch(e) {}
+      if (hasSession) return; // cached session — bootApp/unlockApp handles app
       const dismissed = sessionStorage.getItem('pl-landing-dismissed') === '1';
-      if (!hasSession && !dismissed) {
+      if (dismissed) {
+        // landing already seen this session, fall back to auth gate
+        const gate = document.getElementById('auth-gate');
+        if (gate) gate.style.display = 'flex';
+      } else {
         showLanding();
       }
     }
