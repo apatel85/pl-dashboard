@@ -1393,10 +1393,12 @@ tbody tr:hover { background: var(--surface2); }
   .table-wrap tr:hover { border-color: var(--teal); }
   .table-wrap td {
     border: 0;
-    padding: 4px 0 4px 44%;
+    padding: 5px 0 5px 44%;
     position: relative;
-    min-height: 24px;
+    min-height: 28px;
     font-size: 13px;
+    text-align: left !important;
+    line-height: 1.4;
   }
   .table-wrap td::before {
     content: attr(data-label);
@@ -1407,18 +1409,34 @@ tbody tr:hover { background: var(--surface2); }
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .05em;
-    line-height: 1.6;
-    padding-top: 2px;
+    line-height: 2;
+    padding-top: 1px;
+    text-align: left;
   }
   /* First td (checkbox) stays compact */
   .table-wrap td:first-child {
     padding-left: 0;
     position: absolute; top: 12px; right: 12px;
+    min-height: auto;
   }
   .table-wrap td:first-child::before { display: none; }
   /* Amount stands out */
   .table-wrap td.positive-val,
   .table-wrap td.negative-val { font-size: 15px; font-weight: 700; }
+
+  /* Revenue/Expense inline search bar: full-width, proper padding on mobile */
+  .table-header input[type="search"] {
+    flex: 1 1 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
+    font-size: 16px !important;
+    padding: 10px 12px !important;
+  }
+  .table-header { gap: 8px !important; }
+
+  /* Bulk action bar */
+  .bulk-bar { flex-wrap: wrap; gap: 6px; }
 
   /* Forms: 1-col on mobile */
   .form-grid { grid-template-columns: 1fr !important; }
@@ -1466,16 +1484,12 @@ tbody tr:hover { background: var(--surface2); }
 .cat-picker-arrow:hover { color: var(--teal); background: var(--surface2); }
 .cat-picker.open .cat-picker-arrow { transform: translateY(-50%) rotate(180deg); color: var(--teal); }
 .cat-picker-popover {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0; right: 0;
-  max-height: 260px;
+  /* position and dimensions set dynamically by JS (fixed, escape overflow:hidden) */
   overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow);
-  z-index: 50;
+  box-shadow: 0 8px 32px rgba(0,0,0,.25);
   padding: 4px;
 }
 .cat-picker-option {
@@ -3966,20 +3980,23 @@ function renderCatPicker(cats) {
 
 function openCatPicker(e) {
   if (e) e.stopPropagation();
-  const pop = document.getElementById('qa-cat-popover');
-  if (!pop) return;
-  // re-render with current full list (in case input has filter text)
-  const q = (document.getElementById('qa-category').value || '').toLowerCase().trim();
-  const all = window._catList || [];
-  const filtered = q ? all.filter(c => c.toLowerCase().includes(q)) : all;
-  renderCatPicker(filtered);
+  const input = document.getElementById('qa-category');
+  const pop   = document.getElementById('qa-cat-popover');
+  if (!pop || !input) return;
+  // Always show full list on open (not filtered by current value)
+  renderCatPicker(window._catList || []);
+  // Position fixed so parent overflow:hidden doesn't clip it
+  const rect = input.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom - 8;
+  const maxH = Math.min(260, spaceBelow > 120 ? spaceBelow : window.innerHeight * 0.4);
+  pop.style.cssText = `position:fixed;top:${rect.bottom + 4}px;left:${rect.left}px;width:${rect.width}px;max-height:${maxH}px;z-index:9999;`;
   pop.hidden = false;
   document.getElementById('qa-cat-picker').classList.add('open');
 }
 
 function closeCatPicker() {
   const pop = document.getElementById('qa-cat-popover');
-  if (pop) pop.hidden = true;
+  if (pop) { pop.hidden = true; pop.style.cssText = ''; }
   const pick = document.getElementById('qa-cat-picker');
   if (pick) pick.classList.remove('open');
 }
@@ -3997,12 +4014,19 @@ function toggleCatPicker(e) {
 }
 
 function filterCatPicker(value) {
-  const q = (value || '').toLowerCase().trim();
-  const all = window._catList || [];
+  const q       = (value || '').toLowerCase().trim();
+  const all     = window._catList || [];
   const filtered = q ? all.filter(c => c.toLowerCase().includes(q)) : all;
   renderCatPicker(filtered);
-  const pop = document.getElementById('qa-cat-popover');
-  if (pop) pop.hidden = false;
+  const pop   = document.getElementById('qa-cat-popover');
+  const input = document.getElementById('qa-category');
+  if (pop && input) {
+    const rect   = input.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const maxH   = Math.min(260, spaceBelow > 120 ? spaceBelow : window.innerHeight * 0.4);
+    pop.style.cssText = `position:fixed;top:${rect.bottom + 4}px;left:${rect.left}px;width:${rect.width}px;max-height:${maxH}px;z-index:9999;`;
+    pop.hidden = false;
+  }
   document.getElementById('qa-cat-picker').classList.add('open');
 }
 
@@ -4012,11 +4036,12 @@ function selectCatPicker(value) {
   closeCatPicker();
 }
 
-// Close picker on outside click
+// Close picker on outside click or scroll
 document.addEventListener('click', (e) => {
   const picker = document.getElementById('qa-cat-picker');
   if (picker && !picker.contains(e.target)) closeCatPicker();
 });
+window.addEventListener('scroll', closeCatPicker, true);
 
 // ═══════════════════════════════════════════════════════════════════
 //  PAGINATED TRANSACTION TABLE
