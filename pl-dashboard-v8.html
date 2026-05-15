@@ -11,7 +11,7 @@
 <link rel="canonical" href="https://apatel85.github.io/pl-dashboard/">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#0f1117">
+<meta name="theme-color" content="#0f1117" id="meta-theme-color">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="P&L Dash">
@@ -59,28 +59,67 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 </script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://apis.google.com/js/api.js" async defer></script>
+<script>
+  (function(){
+    var t=localStorage.getItem('pl-theme');
+    if(!t){t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}
+    document.documentElement.setAttribute('data-theme',t);
+  })();
+</script>
 <style>
 /* Google Fonts @import removed — offline build uses system fonts */
 
 :root {
-  --bg:       #0f1117;
-  --surface:  #181c27;
-  --surface2: #1f2435;
-  --border:   #2a3045;
-  --teal:     #0ecfbe;
-  --teal-dim: #0ecfbe22;
-  --amber:    #f5a623;
-  --amber-dim:#f5a62322;
-  --red:      #e74c3c;
-  --red-dim:  #e74c3c22;
-  --green:    #27ae60;
-  --green-dim:#27ae6022;
-  --text:     #e8eaf0;
-  --muted:    #6b7394;
-  --serif:    'Instrument Serif', Georgia, serif;
-  --sans:     'DM Sans', system-ui, sans-serif;
-  --radius:   10px;
-  --shadow:   0 4px 24px rgba(0,0,0,.45);
+  --serif:       'Instrument Serif', Georgia, serif;
+  --sans:        'DM Sans', system-ui, sans-serif;
+  --radius:      10px;
+  --radius-sm:   6px;
+  --tap:         44px;
+  --topbar-h:    58px;
+  --bottombar-h: 64px;
+  --easing:      cubic-bezier(.2,.7,.2,1);
+}
+
+:root[data-theme="dark"] {
+  --bg:        #0f1117;
+  --surface:   #181c27;
+  --surface2:  #1f2435;
+  --border:    #2a3045;
+  --border-strong: #3a4260;
+  --teal:      #0ecfbe;
+  --teal-dim:  #0ecfbe22;
+  --amber:     #f5a623;
+  --amber-dim: #f5a62322;
+  --red:       #e74c3c;
+  --red-dim:   #e74c3c22;
+  --green:     #27ae60;
+  --green-dim: #27ae6022;
+  --text:      #e8eaf0;
+  --muted:     #6b7394;
+  --shadow:    0 4px 24px rgba(0,0,0,.45);
+  --focus:     #6ea8ff;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg:        #f6f7fb;
+  --surface:   #ffffff;
+  --surface2:  #eef1f8;
+  --border:    #e2e6f0;
+  --border-strong: #cdd3e3;
+  --teal:      #0aa597;
+  --teal-dim:  #0aa59718;
+  --amber:     #c47a0a;
+  --amber-dim: #c47a0a18;
+  --red:       #d23a3a;
+  --red-dim:   #d23a3a18;
+  --green:     #1f9d57;
+  --green-dim: #1f9d5718;
+  --text:      #161a2c;
+  --muted:     #5a6280;
+  --shadow:    0 4px 18px rgba(20,28,60,.08);
+  --focus:     #2a6df4;
+  color-scheme: light;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -139,7 +178,7 @@ body {
   cursor: pointer; transition: all .15s; white-space: nowrap;
   display: inline-flex; align-items: center; gap: 6px;
 }
-.btn-primary { background: var(--teal); color: #0f1117; border-color: var(--teal); }
+.btn-primary { background: var(--teal); color: var(--bg); border-color: var(--teal); }
 .btn-primary:hover { filter: brightness(1.1); }
 .btn-outline { background: transparent; color: var(--text); border-color: var(--border); }
 .btn-outline:hover { border-color: var(--teal); color: var(--teal); }
@@ -1409,6 +1448,7 @@ tbody tr:hover { background: var(--surface2); }
     <button class="btn btn-outline" onclick="exportJSON()">⬇ Export JSON</button>
     <button class="btn btn-primary" onclick="showView('upload-view')">⬆ Import Data</button>
     <button class="btn btn-outline" onclick="openHelpDrawer()" aria-label="Help" title="Help &amp; Quick Start" style="padding:6px 10px;font-size:15px">?</button>
+    <button id="themeToggle" onclick="toggleTheme()" aria-label="Toggle light/dark theme" aria-pressed="false" title="Toggle theme" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;padding:5px 9px;font-size:16px;line-height:1;min-width:var(--tap);min-height:32px;display:flex;align-items:center;justify-content:center;transition:all .15s">☀️</button>
   </div>
 </div>
 
@@ -1442,6 +1482,38 @@ tbody tr:hover { background: var(--surface2); }
       <a href="https://github.com/apatel85/pl-dashboard/blob/main/USER_README.md" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:12px;text-decoration:none">📖 View Full Guide →</a>
     </div>
   </div>
+</div>
+
+<!-- Bottom tab bar (mobile only, shown via CSS) -->
+<nav id="bottombar" aria-label="Primary navigation">
+  <button class="bb-btn" id="bb-dashboard" onclick="showView('dashboard-view')" aria-label="Overview">
+    <span class="bb-icon">📊</span><span class="bb-label">Overview</span>
+  </button>
+  <button class="bb-btn" id="bb-revenue" onclick="showView('revenue-view')" aria-label="Revenue">
+    <span class="bb-icon">💰</span><span class="bb-label">Revenue</span>
+  </button>
+  <button class="bb-btn bb-fab" id="bb-add" onclick="showView('add-view')" aria-label="Add transaction">
+    <span class="bb-icon">＋</span>
+  </button>
+  <button class="bb-btn" id="bb-expenses" onclick="showView('expenses-view')" aria-label="Expenses">
+    <span class="bb-icon">📉</span><span class="bb-label">Expenses</span>
+  </button>
+  <button class="bb-btn" id="bb-more" onclick="openMoreDrawer()" aria-label="More">
+    <span class="bb-icon">☰</span><span class="bb-label">More</span>
+  </button>
+</nav>
+
+<!-- More drawer (mobile) -->
+<div id="more-overlay" onclick="closeMoreDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300"></div>
+<div id="more-drawer" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);border-radius:16px 16px 0 0;z-index:301;padding:8px 0 calc(16px + env(safe-area-inset-bottom));max-height:80vh;overflow-y:auto">
+  <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:8px auto 16px"></div>
+  <div onclick="showView('transactions-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">📋</span> All Transactions</div>
+  <div onclick="showView('monthly-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">📅</span> Monthly P&L</div>
+  <div onclick="showView('upload-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">⬆</span> Import CSV/Excel</div>
+  <div onclick="showView('categories-view');renderCategoryManager();closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">🏷</span> Categories</div>
+  <div onclick="showView('sync-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">🔄</span> File Sync</div>
+  <div onclick="showView('backup-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">🛡</span> Backup &amp; Restore</div>
+  <div onclick="showView('settings-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">⚙️</span> Settings</div>
 </div>
 
 <div id="app">
