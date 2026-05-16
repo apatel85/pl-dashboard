@@ -3331,7 +3331,15 @@ function openDB() {
   });
 }
 
+// ── In-memory read cache — invalidated by every write ─────────────────────
+// Eliminates the 20+ redundant dbGetAll() calls that each load 60 MB+ of
+// IndexedDB data for 100 k-row datasets. All read paths share one fetch per
+// write cycle; writes call _dbInvalidateCache() so stale data is never served.
+let _dbCache = null;
+function _dbInvalidateCache() { _dbCache = null; }
+
 function dbPut(txn) {
+  _dbInvalidateCache();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).put(txn).onsuccess = e => resolve(e.target.result);
@@ -3349,6 +3357,7 @@ function dbGet(id) {
 }
 
 function dbDelete(id) {
+  _dbInvalidateCache();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).delete(id).onsuccess = () => resolve();
@@ -3357,6 +3366,7 @@ function dbDelete(id) {
 }
 
 function dbBulkPut(txns, onProgress) {
+  _dbInvalidateCache();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
@@ -3379,9 +3389,10 @@ function dbCount() {
 }
 
 function dbGetAll() {
+  if (_dbCache) return Promise.resolve(_dbCache);
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
-    tx.objectStore(STORE_NAME).getAll().onsuccess = e => resolve(e.target.result);
+    tx.objectStore(STORE_NAME).getAll().onsuccess = e => { _dbCache = e.target.result; resolve(_dbCache); };
     tx.onerror = e => reject(e.target.error);
   });
 }
@@ -3429,6 +3440,7 @@ async function dbUpsertMerge(incoming) {
 }
 
 function dbClear() {
+  _dbInvalidateCache();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).clear().onsuccess = () => resolve();
@@ -4592,6 +4604,7 @@ function confirmDeleteFromModal() {
 }
 
 async function inlineEdit(id, field, value) {
+  _dbInvalidateCache();
   const tx=db.transaction(STORE_NAME,'readwrite');
   const req=tx.objectStore(STORE_NAME).get(id);
   req.onsuccess=e=>{
@@ -4647,25 +4660,29 @@ function clearBulkSelection(){
   updateBulkBar();
 }
 async function bulkDeleteSelected(){
-  const ids = [...bulkSelection];
-  if (!ids.length) return;
+  const ids = new Set([...bulkSelection]);
+  if (!ids.size) return;
   try {
-    const deleted = [];
-    for (const id of ids) {
-      // dbGet expects the original id type (number or string)
-      const all = await dbGetAll();
-      const matchedId = all.find(t => String(t.id) === id)?.id;
-      if (matchedId === undefined) continue;
-      const t = await dbGet(matchedId);
-      if (t) { await dbDelete(matchedId); deleted.push(t); }
-    }
+    // Resolve all matched records in a single dbGetAll() call, then delete
+    // them in one IndexedDB readwrite transaction — avoids O(n) full fetches.
+    const all = await dbGetAll();
+    const toDelete = all.filter(t => ids.has(String(t.id)));
+    if (!toDelete.length) { clearBulkSelection(); return; }
+    _dbInvalidateCache();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      toDelete.forEach(t => store.delete(t.id));
+      tx.oncomplete = () => resolve();
+      tx.onerror = e => reject(e.target.error);
+    });
     clearBulkSelection();
     scheduleSnapshot();
     renderRecentEntries();
     if (document.getElementById('revenue-view').classList.contains('active')) renderRevTable();
     if (document.getElementById('expenses-view').classList.contains('active')) renderExpTable();
     if (document.getElementById('dashboard-view').classList.contains('active')) refreshDashboard();
-    offerUndo(`${deleted.length} transaction${deleted.length===1?'':'s'} deleted`, deleted);
+    offerUndo(`${toDelete.length} transaction${toDelete.length===1?'':'s'} deleted`, toDelete);
   } catch(e) { toast('Bulk delete failed: '+e.message, 'error'); }
 }
 
@@ -5096,12 +5113,16 @@ async function applyMapping(){
   NATIVE_FIELDS.forEach(f=>{const v=document.getElementById('map-'+f.key).value;if(f.required&&v===''){toast(`"${f.label}" is required`,'error');err=true;return;}mapping[f.key]=v===''?null:parseInt(v);});
   if(err)return;
   const rows=parsedCSV.slice(1);const newTxns=[];let skipped=0;
+  let warnFuture=0, warnPast=0, warnUnknownDate=0;
+  const thisYear=new Date().getFullYear();
   rows.forEach((row,idx)=>{
     const dateVal=mapping.date!==null?row[mapping.date]:'';
     const amountRaw=mapping.amount!==null?row[mapping.amount]:'0';
     const typeRaw=mapping.type!==null?row[mapping.type]:'';
-    const catVal=mapping.category!==null?(row[mapping.category]||'Uncategorized'):'Uncategorized';
-    const descVal=mapping.description!==null?(row[mapping.description]||''):'';
+    // Normalize category: trim whitespace; preserve existing casing
+    const catRaw=mapping.category!==null?(row[mapping.category]||''):'';
+    const catVal=catRaw.trim()||'Uncategorized';
+    const descVal=mapping.description!==null?((row[mapping.description]||'').trim()):'';
     const _amtStr=String(amountRaw).trim();
     const _numFmt=document.getElementById('map-num-fmt')?document.getElementById('map-num-fmt').value:'auto';
     const _acct=/^\(([0-9.,]+)\)$/.exec(_amtStr);
@@ -5122,27 +5143,36 @@ async function applyMapping(){
     const date=(!parsed||isNaN(parsed))?dateVal:parsed.toISOString().split('T')[0];
     const month=(!parsed||isNaN(parsed))?'Unknown':MONTHS[parsed.getMonth()];
     const year=(!parsed||isNaN(parsed))?'':parsed.getFullYear();
+    // Track date quality issues for the post-import warning summary
+    if(!parsed||isNaN(parsed))warnUnknownDate++;
+    else if(parsed.getFullYear()>thisYear)warnFuture++;
+    else if(parsed.getFullYear()<2000)warnPast++;
     newTxns.push({id:Date.now()+idx+Math.random(),date,type,category:catVal,description:descVal,amount:Math.abs(amount),month,year});
   });
 
+  // Deduplicate within the import batch itself before comparing to existing.
+  // Without this, importing a file that already contains duplicate rows adds
+  // all of them to the DB and then the cross-DB check never fires.
+  const batchSeen=new Set();
+  const dedupedBatch=newTxns.filter(t=>{const h=txnHash(t);if(batchSeen.has(h))return false;batchSeen.add(h);return true;});
+  const withinBatchDupes=newTxns.length-dedupedBatch.length;
+
   // Duplicate detection: hash incoming rows against existing transactions.
-  // Same (date|amount|description|type) is treated as a duplicate. Use a
-  // native confirm so we don't have to retrofit the shared confirm modal.
   const existing = await dbGetAll();
   const existingHashes = new Set(existing.map(txnHash));
-  const dupes = newTxns.filter(t => existingHashes.has(txnHash(t)));
-  let finalTxns = newTxns;
+  const dupes = dedupedBatch.filter(t => existingHashes.has(txnHash(t)));
+  let finalTxns = dedupedBatch;
   if (dupes.length > 0) {
     const importAll = confirm(
-      `${dupes.length} of ${newTxns.length} rows look like duplicates of transactions you already have (same date, amount, description, and type).\n\n` +
+      `${dupes.length} of ${dedupedBatch.length} rows look like duplicates of transactions you already have (same date, amount, description, and type).\n\n` +
       `Click OK to import everything including duplicates.\n` +
       `Click Cancel to skip the duplicates (recommended).`
     );
     if (!importAll) {
-      finalTxns = newTxns.filter(t => !existingHashes.has(txnHash(t)));
+      finalTxns = dedupedBatch.filter(t => !existingHashes.has(txnHash(t)));
     }
   }
-  const skippedDupes = newTxns.length - finalTxns.length;
+  const skippedDupes = dedupedBatch.length - finalTxns.length;
 
   const prog=document.getElementById('import-progress'),bar=document.getElementById('import-progress-bar');
   if(prog)prog.style.display='block';
@@ -5152,9 +5182,16 @@ async function applyMapping(){
   closeMapping();
   scheduleSnapshot();
   const parts = [`✓ Imported ${finalTxns.length} transactions`];
-  if(skipped)parts.push(`${skipped} unparseable`);
+  if(skipped)parts.push(`${skipped} skipped (unparseable amount)`);
+  if(withinBatchDupes)parts.push(`${withinBatchDupes} in-file duplicates removed`);
   if(skippedDupes)parts.push(`${skippedDupes} duplicates skipped`);
   toast(parts.join(' · '),'success');
+  // Show data-quality warnings if the file had notable issues
+  const warnings=[];
+  if(warnFuture)warnings.push(`${warnFuture} future-dated rows (year > ${thisYear})`);
+  if(warnPast)warnings.push(`${warnPast} rows dated before 2000`);
+  if(warnUnknownDate)warnings.push(`${warnUnknownDate} rows with unrecognised date format (stored as-is)`);
+  if(warnings.length)setTimeout(()=>toast(`⚠ Data quality note: ${warnings.join('; ')}. Review the Transactions tab.`,'warning',{duration:8000}),1200);
   showView('dashboard-view');
 }
 
