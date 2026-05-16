@@ -1390,6 +1390,10 @@ tbody tr:hover { background: var(--surface2); }
 
   /* Page header stack */
   .page-header { flex-direction: column; gap: 10px; }
+  /* Tighter spacing between page-header and table-card on mobile */
+  #main { gap: 10px !important; }
+  .table-card { margin-top: 0 !important; }
+  #transactions-view .search-bar { padding-top: 8px !important; }
   .page-actions { width: 100%; }
   .page-actions .btn { flex: 1; justify-content: center; }
 
@@ -2568,7 +2572,7 @@ tbody tr:hover { background: var(--surface2); }
         </div>
 
         <!-- Table -->
-        <div class="txn-table-wrap">
+        <div class="table-wrap">
           <table class="txn-table">
             <thead><tr>
               <th onclick="sortTxnTable('date')"    id="th-date">Date</th>
@@ -3053,6 +3057,39 @@ tbody tr:hover { background: var(--surface2); }
       <button class="btn btn-primary" onclick="applyMapping()">✓ Apply &amp; Import</button>
       <button class="btn btn-outline" onclick="closeMapping()">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- Edit Transaction Modal (mobile tap-to-edit) -->
+<div id="edit-txn-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9500;align-items:center;justify-content:center;padding:16px;font-family:'DM Sans',system-ui,sans-serif" onclick="if(event.target===this)closeEditTxnModal()">
+  <div style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:14px;padding:20px;width:min(420px,100%);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="font-size:18px;font-weight:600;margin-bottom:16px">Edit Transaction</div>
+    <form id="edit-txn-form" onsubmit="event.preventDefault();saveEditTxnModal();">
+      <input type="hidden" id="edit-txn-id">
+      <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Date
+        <input type="date" id="edit-txn-date" required style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
+      </label>
+      <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Type
+        <select id="edit-txn-type" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
+          <option value="revenue">Revenue</option>
+          <option value="expense">Expense</option>
+        </select>
+      </label>
+      <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Category
+        <input type="text" id="edit-txn-category" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
+      </label>
+      <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Description
+        <input type="text" id="edit-txn-description" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
+      </label>
+      <label style="display:block;margin-bottom:16px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Amount
+        <input type="number" step="0.01" min="0" id="edit-txn-amount" required style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
+      </label>
+      <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap">
+        <button type="button" class="btn btn-outline" onclick="closeEditTxnModal()" style="flex:1;min-width:80px">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="confirmDeleteFromModal()" style="flex:1;min-width:80px">Delete</button>
+        <button type="submit" class="btn btn-primary" style="flex:1;min-width:80px">Save</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -4467,14 +4504,28 @@ async function renderTxnTable() {
   document.getElementById('txn-count-label').textContent = `${total.toLocaleString()} transaction${total!==1?'s':''}${search||type||month||year?' (filtered)':''}`;
   const tbody=document.getElementById('txn-tbody');
   if (!rows.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted)">No transactions match filters</td></tr>'; }
-  else tbody.innerHTML=rows.map(t=>`<tr>
-    <td data-label="Date"><input class="editable-cell" value="${t.date}" onchange="inlineEdit(${JSON.stringify(t.id)},'date',this.value)"></td>
-    <td data-label="Type"><select class="editable-cell" onchange="inlineEdit(${JSON.stringify(t.id)},'type',this.value)"><option value="revenue" ${t.type==='revenue'?'selected':''}>Revenue</option><option value="expense" ${t.type==='expense'?'selected':''}>Expense</option></select></td>
-    <td data-label="Category"><input class="editable-cell" value="${(t.category||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'category',this.value)"></td>
-    <td data-label="Description"><input class="editable-cell" value="${(t.description||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'description',this.value)"></td>
-    <td data-label="Amount" class="${t.type==='revenue'?'positive-val':'negative-val'}" style="text-align:right;font-weight:600">${fmt(t.amount)}</td>
-    <td data-label=""><button onclick="confirmDelete(${JSON.stringify(t.id)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'" aria-label="Delete">✕</button></td>
-  </tr>`).join('');
+  else {
+    const isMobile = window.innerWidth <= 640;
+    if (isMobile) {
+      tbody.innerHTML = rows.map(t => `<tr onclick="openEditTxnModal(${JSON.stringify(t.id)})" style="cursor:pointer">
+        <td data-label="Date">${escapeHtml(t.date||'')}</td>
+        <td data-label="Type">${t.type === 'revenue' ? 'Revenue' : 'Expense'}</td>
+        <td data-label="Category">${escapeHtml(t.category||'—')}</td>
+        <td data-label="Description">${escapeHtml(t.description||'—')}</td>
+        <td data-label="Amount" class="${t.type==='revenue'?'positive-val':'negative-val'}" style="text-align:right;font-weight:600">${fmt(t.amount)}</td>
+        <td data-label=""><button onclick="event.stopPropagation();confirmDelete(${JSON.stringify(t.id)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'" aria-label="Delete">✕</button></td>
+      </tr>`).join('');
+    } else {
+      tbody.innerHTML = rows.map(t => `<tr>
+        <td data-label="Date"><input class="editable-cell" value="${t.date}" onchange="inlineEdit(${JSON.stringify(t.id)},'date',this.value)"></td>
+        <td data-label="Type"><select class="editable-cell" onchange="inlineEdit(${JSON.stringify(t.id)},'type',this.value)"><option value="revenue" ${t.type==='revenue'?'selected':''}>Revenue</option><option value="expense" ${t.type==='expense'?'selected':''}>Expense</option></select></td>
+        <td data-label="Category"><input class="editable-cell" value="${(t.category||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'category',this.value)"></td>
+        <td data-label="Description"><input class="editable-cell" value="${(t.description||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'description',this.value)"></td>
+        <td data-label="Amount" class="${t.type==='revenue'?'positive-val':'negative-val'}" style="text-align:right;font-weight:600">${fmt(t.amount)}</td>
+        <td data-label=""><button onclick="confirmDelete(${JSON.stringify(t.id)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'" aria-label="Delete">✕</button></td>
+      </tr>`).join('');
+    }
+  }
   ['date','type','category','amount'].forEach(c=>{const th=document.getElementById('th-'+c);if(th)th.className=txnSort.col===c?'sorted-'+txnSort.dir:'';});
   document.getElementById('txn-page-info').textContent=total?`Showing ${((txnPage-1)*txnPageSize+1).toLocaleString()}–${Math.min(txnPage*txnPageSize,total).toLocaleString()} of ${total.toLocaleString()}`:'No results';
   document.getElementById('pg-first').disabled=txnPage<=1;
@@ -4492,6 +4543,53 @@ function goPageNum(n) { txnPage=n; renderTxnTable(); }
 function changePageSize() { txnPageSize=parseInt(document.getElementById('page-size-sel').value); txnPage=1; renderTxnTable(); }
 function debouncedSearch() { clearTimeout(searchTimer); searchTimer=setTimeout(()=>{txnPage=1;renderTxnTable();},250); }
 function clearTxnFilters() { ['txn-search','txn-type-filter','txn-month-filter','txn-year-filter'].forEach(id=>{document.getElementById(id).value='';}); txnPage=1; renderTxnTable(); }
+
+// Open Edit Transaction modal — mobile tap-to-edit
+function openEditTxnModal(id) {
+  if (!db) return;
+  const tx = db.transaction(STORE_NAME, 'readonly');
+  const req = tx.objectStore(STORE_NAME).get(id);
+  req.onsuccess = (e) => {
+    const t = e.target.result;
+    if (!t) return;
+    document.getElementById('edit-txn-id').value          = String(t.id);
+    document.getElementById('edit-txn-date').value        = t.date || '';
+    document.getElementById('edit-txn-type').value        = t.type || 'revenue';
+    document.getElementById('edit-txn-category').value    = t.category || '';
+    document.getElementById('edit-txn-description').value = t.description || '';
+    document.getElementById('edit-txn-amount').value      = t.amount || 0;
+    const modal = document.getElementById('edit-txn-modal');
+    modal.style.display = 'flex';
+  };
+}
+function closeEditTxnModal() {
+  const modal = document.getElementById('edit-txn-modal');
+  if (modal) modal.style.display = 'none';
+}
+async function saveEditTxnModal() {
+  const idStr = document.getElementById('edit-txn-id').value;
+  const id    = isNaN(Number(idStr)) ? idStr : Number(idStr);
+  const date  = document.getElementById('edit-txn-date').value;
+  const type  = document.getElementById('edit-txn-type').value;
+  const cat   = document.getElementById('edit-txn-category').value.trim();
+  const desc  = document.getElementById('edit-txn-description').value.trim();
+  const amt   = parseFloat(document.getElementById('edit-txn-amount').value);
+  if (!date || isNaN(amt)) { toast('Date and amount required', 'error'); return; }
+  await inlineEdit(id, 'date', date);
+  await inlineEdit(id, 'type', type);
+  await inlineEdit(id, 'category', cat);
+  await inlineEdit(id, 'description', desc);
+  await inlineEdit(id, 'amount', amt);
+  closeEditTxnModal();
+  renderTxnTable();
+  toast('Transaction updated', 'success');
+}
+function confirmDeleteFromModal() {
+  const idStr = document.getElementById('edit-txn-id').value;
+  const id    = isNaN(Number(idStr)) ? idStr : Number(idStr);
+  closeEditTxnModal();
+  confirmDelete(id);
+}
 
 async function inlineEdit(id, field, value) {
   const tx=db.transaction(STORE_NAME,'readwrite');
@@ -5600,6 +5698,7 @@ function showAccessDenied(email, reason) {
 }
 
 function showAuthSuccess(user) {
+  attemptGSheetsSilentReauth();
   document.getElementById('auth-signin-panel').style.display  = 'none';
   document.getElementById('auth-success-panel').style.display = 'block';
   document.getElementById('auth-success-msg').innerHTML =
@@ -6125,29 +6224,8 @@ async function bootApp() {
   const savedGToken = sessionStorage.getItem(GSHEETS_TOKEN_SESS_KEY);
   if (savedGToken) {
     gsheetsToken = savedGToken;
-  } else {
-    // Silent re-auth attempt if a sheet is linked — prompt:'none' fails silently rather than showing UI
-    const _gMeta = loadGSheetsMeta();
-    if (_gMeta && _gMeta.spreadsheetId && window.google && typeof google.accounts !== 'undefined') {
-      try {
-        const _silentClient = google.accounts.oauth2.initTokenClient({
-          client_id: GOOGLE_CLIENT_ID,
-          scope: GSHEETS_ALL_SCOPES,
-          prompt: 'none',
-          callback: (resp) => {
-            if (!resp.error && resp.access_token) {
-              gsheetsToken = resp.access_token;
-              sessionStorage.setItem(GSHEETS_TOKEN_SESS_KEY, gsheetsToken);
-              renderGSheetsPanel();
-              if (autoSyncEnabled) startAutoSync();
-            }
-            // On error (e.g. 'access_denied'), fail silently — user can re-auth from Backup tab
-          }
-        });
-        _silentClient.requestAccessToken({ prompt: 'none' });
-      } catch(e) { /* silent — user will see Sign In button in Backup tab if needed */ }
-    }
   }
+  // Note: silent re-auth lives in attemptGSheetsSilentReauth(), called from showAuthSuccess() — never on page load.
 
   // 3c. Start auto-sync if token is available and auto-sync is enabled
   if (gsheetsToken && autoSyncEnabled) startAutoSync();
@@ -6210,6 +6288,29 @@ async function bootApp() {
       showView('dashboard-view');
     }
   } catch(e) { showView('dashboard-view'); }
+}
+
+// Attempt silent Google Sheets re-auth — call ONLY after a user-initiated sign-in event.
+function attemptGSheetsSilentReauth() {
+  if (gsheetsToken) return;
+  const _gMeta = loadGSheetsMeta();
+  if (!_gMeta || !_gMeta.spreadsheetId || !window.google || typeof google.accounts === 'undefined') return;
+  try {
+    const _silentClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope:     GSHEETS_ALL_SCOPES,
+      prompt:    'none',
+      callback:  (resp) => {
+        if (!resp.error && resp.access_token) {
+          gsheetsToken = resp.access_token;
+          sessionStorage.setItem(GSHEETS_TOKEN_SESS_KEY, gsheetsToken);
+          renderGSheetsPanel();
+          if (autoSyncEnabled) startAutoSync();
+        }
+      }
+    });
+    _silentClient.requestAccessToken({ prompt: 'none' });
+  } catch(e) { /* user can re-auth from Backup tab */ }
 }
 
 // Inject sign-out button into the settings page
@@ -6698,6 +6799,16 @@ function addSignOutButton() {
     try { sessionStorage.setItem('pl-landing-dismissed', '1'); } catch(e) {}
   }
 
+  // Re-render All Transactions when crossing the mobile/desktop boundary so card vs inline mode swaps
+  let _txnResizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(_txnResizeTimer);
+    _txnResizeTimer = setTimeout(() => {
+      const view = document.getElementById('transactions-view');
+      if (view && view.classList.contains('active')) renderTxnTable();
+    }, 200);
+  });
+
   // On load, decide: cached session → straight to app; no session + first
   // visit → landing; no session + already dismissed landing → show auth gate.
   (function decideLandingOrAuth() {
@@ -6707,7 +6818,7 @@ function addSignOutButton() {
         const raw = localStorage.getItem('pl_auth_session_v1');
         if (raw) {
           const sess = JSON.parse(raw);
-          if (sess && sess.user && sess.user.email) hasSession = true;
+          if (sess && sess.email && sess.cachedAt && (Date.now() - sess.cachedAt) <= SESSION_TTL_MS) hasSession = true;
         }
       } catch(e) {}
       if (hasSession) return; // cached session — bootApp/unlockApp handles app
