@@ -1,55 +1,382 @@
 # Universal App Blueprint
 **Source:** Patterns proven in pl-dashboard-v8.3.0  
-**Purpose:** A domain-agnostic component library. Give this document to an AI or developer with a description of your new app's data and goals. They implement using these proven patterns — zero rewrites, zero guessing.
+**Purpose:** A reusable design system and infrastructure library. Works for any app, any data domain.
 
 ---
 
-## HOW TO USE THIS DOCUMENT
+## WHAT THIS DOCUMENT IS
 
-**You are building a new app.** This document contains 16 proven UI components and a complete foundation. Each component is domain-agnostic — the code patterns work for any kind of data (tasks, inventory, contacts, bookings, expenses, logs, etc.).
+This blueprint captures **how an app looks, behaves, and is wired together** — not what data it stores. The design system, navigation, auth, auto-save, backup, search, help, and security patterns here work for any app: task managers, CRMs, inventory tools, booking systems, logs, or anything else.
 
-**Step 1 — Define your app** using the Domain Adapter (Part 3).  
-**Step 2 — Select components** from the Feature Selection Matrix.  
-**Step 3 — Implement Foundation first** (always, no exceptions).  
-**Step 4 — Add components one at a time**, following each checklist.  
-**Step 5 — Run the Audit Plan** before shipping.
+**What is domain-specific (you define this yourself):**
+- Your data fields and record shape
+- Your table columns
+- Your KPI metrics and how they're computed
+- Your charts and what they visualize (optional — many apps don't need them)
 
-> **The P&L Dashboard** is referenced throughout as a working example. It uses every component in this document. Its source file (`pl-dashboard-v8.html`) is the verified reference implementation.
-
----
-
-## FEATURE SELECTION MATRIX
-
-| ID | Component | What It Does (Plain English) | Requires |
-|----|-----------|------------------------------|----------|
-| F0 | **Foundation** | Browser storage, settings, theme, security utilities, app shell | — always include |
-| C01 | **Navigation Layout** | Sidebar on desktop, bottom bar on mobile, view-switching system | F0 |
-| C02 | **KPI Summary Cards** | Row of metric boxes showing computed totals from your data | F0 |
-| C03 | **Charts** | Bar, line, and pie/doughnut charts auto-built from your records | F0 |
-| C04 | **Filterable Paginated Table** | Sortable, searchable, paginated table for any record type | F0 |
-| C05 | **Quick-Entry Form** | Fast single-record add form with autocomplete field | F0 |
-| C06 | **Bulk Select + Delete + Undo** | Checkboxes on table rows, delete many at once, 6-second undo | F0, C04 |
-| C07 | **CSV / Excel Import** | Upload any spreadsheet, map columns to your fields, bulk import | F0 |
-| C08 | **Tag / Label Management** | Create, rename, delete labels used to categorize records | F0 |
-| C09 | **Three-Layer Backup** | Auto-snapshots in browser + local file + Google Sheets cloud | F0 |
-| C10 | **Settings Panel** | App name, any scalar config values, data summary, sample data | F0 |
-| C11 | **Toast Notifications + Undo** | Dismissable pop-ups with optional Undo action | F0 |
-| C12 | **Auth Gate** | License key or Google sign-in screen (optional — skip if public app) | F0 |
-| C13 | **Theme Toggle** | Dark / light mode switch, remembered across sessions | F0 |
-| C14 | **Keyboard Shortcuts** | Key bindings for navigation and common actions | F0, C01 |
-| C15 | **PWA / Offline Support** | Works without internet, installable on phone or desktop | F0 |
-| C16 | **Data Export** | Download all records as CSV, Excel, or JSON | F0 |
+**What this blueprint gives you (proven, ready to use):**
+- Design tokens: colors, spacing, typography, component styles
+- App shell: header, sidebar, mobile bottom tabs, modal overlay system
+- Navigation: view switching, active state, URL shortcuts
+- Auth gate: login, session cache, sign-out
+- Auto-save indicator: visual feedback on every write
+- Three-layer backup: browser snapshots, local file, cloud sync
+- Search bar: debounced, full-text, resets pagination
+- Help system: slide-in FAQ drawer, keyboard shortcut reference
+- Security layer: XSS prevention, CSV injection prevention, CSP
+- Toast notifications + 6-second undo
+- Settings panel
+- CSV/file import with field mapping
+- Data export (CSV, JSON)
+- PWA shell for offline + mobile install
+- Keyboard shortcuts
+- Theme toggle (dark / light)
 
 ---
 
-## PART 1 — FOUNDATION (F0)
-### Always Required. Every other component depends on this.
+## COMPONENT SELECTION MATRIX
+
+| ID | Component | What It Does | Required? |
+|----|-----------|--------------|-----------|
+| **SHELL** | | | |
+| S1 | Design System | Colors, typography, spacing, all base component styles | Always |
+| S2 | App Shell | Header, sidebar, mobile tabs, view-switching engine | Always |
+| S3 | Modal System | Overlay dialogs, confirm, double-confirm, sheet | Always |
+| S4 | Toast + Undo | Notification pop-ups with 6-second undo window | Always |
+| **INFRASTRUCTURE** | | | |
+| I1 | Data Layer | IndexedDB engine — generic CRUD, query, paginate | Always |
+| I2 | Settings System | App config stored in localStorage | Always |
+| I3 | Auto-Save Indicator | "Saving…" / "All saved" dot in header | Recommended |
+| I4 | Security Layer | XSS guard, CSV injection guard, Content Security Policy | Always |
+| **FEATURES** | | | |
+| F1 | Auth Gate | Login screen, session cache (24h), sign-out | If access-controlled |
+| F2 | Three-Layer Backup | Snapshots + local file + Google Sheets | Recommended |
+| F3 | Search Bar | Debounced full-text search across any fields | Recommended |
+| F4 | Help System | Slide-in FAQ drawer, keyboard shortcut list | Recommended |
+| F5 | Navigation | Sidebar (desktop) + bottom tabs (mobile) + URL shortcuts | Always |
+| F6 | Quick-Entry Form | Fast single-record add, autocomplete field, Enter to save | If app has data entry |
+| F7 | Data Table | Paginated, sortable, filterable table with bulk-delete+undo | If app has lists |
+| F8 | CSV / File Import | Upload spreadsheet, map columns, bulk insert | If bulk import needed |
+| F9 | Tag Management | Create / rename / delete labels that categorize records | If records have tags |
+| F10 | Data Export | Download records as CSV or JSON | If users need their data |
+| F11 | Keyboard Shortcuts | Key bindings for navigation and common actions | Recommended |
+| F12 | PWA / Offline | Works without internet, installable on phone | Recommended |
+| **OPTIONAL DATA DISPLAY** | | | |
+| D1 | KPI Summary Cards | Metric boxes (you define what metrics to show) | Optional |
+| D2 | Charts | Charts (you define datasets and types) | Optional |
+| D3 | Summary Table | Grouped/aggregated view of records | Optional |
 
 ---
 
-### 1A. App Shell HTML
+## PART 1 — DESIGN SYSTEM (S1)
 
-The entire app lives in a single HTML file. No build step. No bundler. All CSS and JS are inline.
+### Color Tokens
+
+All colors live as CSS custom properties on `:root`. Components only reference variables — never hard-code hex values in components.
+
+```css
+/* ============================================================
+   DARK THEME (default)
+   Change the values here to match your brand.
+   Do not change the variable names — components reference them.
+   ============================================================ */
+:root,
+:root[data-theme="dark"] {
+
+  /* Backgrounds */
+  --bg:            #0f1117;   /* Page background */
+  --surface:       #181c27;   /* Card, sidebar, modal background */
+  --surface2:      #1f2435;   /* Hover state, input background, alt rows */
+
+  /* Borders */
+  --border:        #2a3045;   /* Default border */
+  --border-strong: #3a4260;   /* Emphasized border, active element outline */
+
+  /* Brand / Accent — CHANGE THIS to your app's primary color */
+  --primary:       #0ecfbe;   /* Primary buttons, active nav, links */
+  --primary-dim:   rgba(14, 207, 190, 0.12); /* Subtle tint for active bg */
+
+  /* Semantic colors — keep meanings, change values for your brand */
+  --success:       #27ae60;   /* Confirmations, positive states */
+  --warning:       #f5a623;   /* Caution, medium-risk states */
+  --danger:        #e74c3c;   /* Errors, destructive actions */
+  --info:          #3b82f6;   /* Informational, neutral alerts */
+
+  /* Text */
+  --text:          #e8eaf0;   /* Primary body text */
+  --muted:         #6b7394;   /* Labels, secondary text, placeholders */
+
+  /* Effects */
+  --shadow:        0 4px 24px rgba(0, 0, 0, 0.45);
+  --shadow-sm:     0 2px 8px  rgba(0, 0, 0, 0.30);
+  --radius:        10px;      /* Default border-radius for cards */
+  --radius-sm:     6px;       /* Smaller radius for buttons, inputs */
+  --focus:         #6ea8ff;   /* Keyboard focus ring color */
+}
+
+/* ============================================================
+   LIGHT THEME
+   ============================================================ */
+:root[data-theme="light"] {
+  --bg:            #f5f6fa;
+  --surface:       #ffffff;
+  --surface2:      #f0f2f8;
+  --border:        #d4d8e8;
+  --border-strong: #b0b8d0;
+  --primary:       #0aab9e;
+  --primary-dim:   rgba(10, 171, 158, 0.10);
+  --success:       #16a34a;
+  --warning:       #d97706;
+  --danger:        #dc2626;
+  --info:          #2563eb;
+  --text:          #1a1f35;
+  --muted:         #6b7394;
+  --shadow:        0 2px 12px rgba(0, 0, 0, 0.12);
+  --shadow-sm:     0 1px 4px  rgba(0, 0, 0, 0.08);
+  --radius:        10px;
+  --radius-sm:     6px;
+  --focus:         #2563eb;
+}
+```
+
+---
+
+### Typography
+
+```css
+/* Load fonts — or remove and use system fonts only (works offline) */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size:   15px;
+  line-height: 1.55;
+  color:       var(--text);
+  background:  var(--bg);
+}
+
+/* Heading scale */
+h1 { font-size: 24px; font-weight: 700; line-height: 1.2; }
+h2 { font-size: 20px; font-weight: 700; line-height: 1.3; }
+h3 { font-size: 16px; font-weight: 600; line-height: 1.4; }
+h4 { font-size: 14px; font-weight: 600; line-height: 1.4; }
+
+/* Page section title (used inside views) */
+.page-title   { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.page-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+/* Label above a form field or section */
+.label     { font-size: 13px; color: var(--muted); font-weight: 500; margin-bottom: 5px; display: block; }
+.label-sm  { font-size: 11px; color: var(--muted); font-weight: 600;
+             text-transform: uppercase; letter-spacing: .06em; }
+```
+
+---
+
+### Spacing Scale
+
+Use multiples of 4px. Don't use arbitrary values.
+
+```
+4px   — tight (icon gap, badge padding)
+8px   — small (between form label and input)
+12px  — medium-small (inside compact card)
+16px  — medium (standard gap between items)
+20px  — medium-large (card padding on mobile)
+24px  — large (between sections)
+28px  — standard desktop main padding
+32px  — desktop main content padding
+40px  — section breathing room, empty states
+```
+
+---
+
+### Base Component Styles
+
+```css
+/* ── RESET ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+button   { cursor: pointer; font-family: inherit; }
+input, select, textarea { font-family: inherit; font-size: 15px; }
+a        { color: var(--primary); text-decoration: none; }
+a:hover  { text-decoration: underline; }
+img, svg { display: block; }
+
+/* ── CARDS ──────────────────────────────────────────────── */
+.card {
+  background:    var(--surface);
+  border:        1px solid var(--border);
+  border-radius: var(--radius);
+  padding:       20px;
+}
+.card-sm { padding: 14px 16px; }
+.card-lg { padding: 28px 32px; }
+
+/* ── BUTTONS ────────────────────────────────────────────── */
+.btn {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             6px;
+  padding:         8px 18px;
+  border-radius:   var(--radius-sm);
+  border:          none;
+  font-size:       14px;
+  font-weight:     500;
+  line-height:     1.4;
+  transition:      opacity .15s, background .15s;
+  white-space:     nowrap;
+}
+.btn:hover        { opacity: .85; }
+.btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn:disabled     { opacity: .4; cursor: not-allowed; }
+
+.btn-primary { background: var(--primary);  color: #000; }
+.btn-danger  { background: var(--danger);   color: #fff; }
+.btn-outline { background: transparent;     color: var(--text);  border: 1px solid var(--border); }
+.btn-ghost   { background: transparent;     color: var(--muted); }
+.btn-sm      { padding: 5px 12px; font-size: 13px; }
+.btn-icon    { padding: 6px; border-radius: 6px; }  /* icon-only button */
+
+/* ── FORM CONTROLS ──────────────────────────────────────── */
+.input {
+  width:         100%;
+  padding:       9px 12px;
+  background:    var(--surface2);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color:         var(--text);
+  font-size:     15px;      /* 16px min on iOS prevents zoom; 15px is safe with viewport meta */
+  transition:    border-color .15s;
+}
+.input:focus        { outline: 2px solid var(--focus); border-color: transparent; }
+.input::placeholder { color: var(--muted); }
+
+select.input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7394' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+.form-row    { margin-bottom: 16px; }
+.form-error  { font-size: 13px; color: var(--danger); margin-top: 5px; }
+
+/* ── BADGES / CHIPS ─────────────────────────────────────── */
+.badge {
+  display:       inline-block;
+  padding:       2px 10px;
+  border-radius: 20px;
+  font-size:     12px;
+  font-weight:   500;
+  white-space:   nowrap;
+}
+.badge-primary { background: var(--primary-dim); color: var(--primary); }
+.badge-success { background: rgba(39,174,96,.15);  color: var(--success); }
+.badge-danger  { background: rgba(231,76,60,.15);  color: var(--danger);  }
+.badge-warning { background: rgba(245,166,35,.15); color: var(--warning); }
+.badge-neutral { background: var(--surface2);      color: var(--muted);   }
+
+/* Filter chips (for active/inactive toggle filters) */
+.chip          { padding: 4px 14px; border-radius: 20px; border: 1px solid var(--border);
+                 background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; }
+.chip.active   { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+
+/* ── TABLES ─────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+table       { width: 100%; border-collapse: collapse; font-size: 14px; }
+thead       { background: var(--surface2); }
+th          { text-align: left; padding: 10px 14px; color: var(--muted);
+              font-size: 11px; font-weight: 600; text-transform: uppercase;
+              letter-spacing: .05em; border-bottom: 1px solid var(--border);
+              white-space: nowrap; }
+td          { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td  { border-bottom: none; }
+tbody tr:hover td { background: var(--surface2); }
+th.sortable       { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--text); }
+
+/* ── DIVIDERS ───────────────────────────────────────────── */
+.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+/* ── ICONS (emoji-based — no external icon library needed) ─ */
+/*
+  Use system emoji for all icons. They render everywhere with no dependencies.
+  Recommended icon set used in the reference implementation:
+
+  Navigation:    🏠 📊 📋 📅 ➕ 📤 🏷 💾 ⚙️ ☰ ✕
+  Actions:       🗑 ✏️ 📋 💾 📥 📤 ↩ ✓ ⚠️
+  Status:        ✅ ❌ ⏳ 🔄 🔒 🔓
+  Feedback:      ☀️ 🌙 ❓ 🔍 🔔 ℹ️
+  Data:          📈 📉 💰 📊
+
+  To use a custom SVG icon instead, wrap in:
+  <span class="icon" aria-hidden="true"><!-- svg here --></span>
+*/
+.icon-btn {
+  padding:        6px 8px;
+  border-radius:  6px;
+  border:         none;
+  background:     transparent;
+  color:          var(--muted);
+  cursor:         pointer;
+  font-size:      16px;
+  line-height:    1;
+  transition:     background .15s, color .15s;
+  min-width:      32px;
+  min-height:     32px;   /* accessibility: 32px minimum tap target */
+  display:        inline-flex;
+  align-items:    center;
+  justify-content:center;
+}
+.icon-btn:hover { background: var(--surface2); color: var(--text); }
+
+/* ── EMPTY STATE ────────────────────────────────────────── */
+.empty-state {
+  text-align:  center;
+  padding:     60px 20px;
+  color:       var(--muted);
+}
+.empty-state h3  { font-size: 18px; margin-bottom: 8px; color: var(--text); }
+.empty-state p   { font-size: 14px; margin-bottom: 20px; }
+
+/* ── SCROLLBAR ──────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+```
+
+---
+
+## PART 2 — APP SHELL (S2)
+
+### Layout Structure
+
+```
+┌────────────────────────────── HEADER (58px, sticky) ───────────────────────────────┐
+│  [☰ Hamburger mobile]  App Name                  [Save Status]  [? Help]  [☀ Theme] │
+└────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────┬─────────────────────────────────────────────────────────────────────┐
+│              │                                                                     │
+│  SIDEBAR     │  MAIN CONTENT AREA                                                  │
+│  (220px)     │  (scrollable)                                                       │
+│              │                                                                     │
+│  Nav Section │  Page Header                                                        │
+│  ─ Item 1    │    Title + Subtitle                                                 │
+│  ─ Item 2    │    Action buttons / filter bar                                      │
+│  ─ Item 3    │                                                                     │
+│              │  View Content                                                       │
+│  Nav Section │    Cards / Table / Form / etc.                                      │
+│  ─ Item 4    │                                                                     │
+│  ─ Item 5    │                                                                     │
+│              │                                                                     │
+│  ─ ─ ─ ─ ─  │                                                                     │
+│  Danger Zone │                                                                     │
+└──────────────┴─────────────────────────────────────────────────────────────────────┘
+                                              (mobile only below)
+┌────────────────────────────── BOTTOM TAB BAR (60px, fixed) ────────────────────────┐
+│      [Tab 1]          [Tab 2]          [+ FAB]          [Tab 3]        [☰ More]   │
+└────────────────────────────────────────────────────────────────────────────────────┘
+┌─── TOAST STACK (fixed, bottom-center) ─────────────────────────────────────────────┐
+│    [✓ Saved]   [⚠ Warning]   [✕ Error]                                            │
+└────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### HTML Shell
 
 ```html
 <!DOCTYPE html>
@@ -57,278 +384,478 @@ The entire app lives in a single HTML file. No build step. No bundler. All CSS a
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-
-  <!-- SECURITY: Content Security Policy — adjust CDN domains as needed -->
+  <!-- S4: Content Security Policy (adjust allowed domains as needed) -->
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self';
-             script-src 'self' 'unsafe-inline' https://accounts.google.com;
-             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-             font-src 'self' https://fonts.gstatic.com;
+             script-src  'self' 'unsafe-inline' https://accounts.google.com;
+             style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
+             font-src    'self' https://fonts.gstatic.com;
              connect-src 'self' https://*.supabase.co https://sheets.googleapis.com https://www.googleapis.com;">
-
-  <title>YOUR_APP_NAME</title>
+  <title>APP NAME</title>
   <link rel="manifest" href="manifest.json">
-
-  <style>
-    /* === THEME VARIABLES — customize colors here === */
-    :root, :root[data-theme="dark"] {
-      --bg:           #0f1117;
-      --surface:      #181c27;
-      --surface2:     #1f2435;
-      --border:       #2a3045;
-      --border-strong:#3a4260;
-      --primary:      #0ecfbe;   /* main accent — change to your brand color */
-      --warning:      #f5a623;
-      --danger:       #e74c3c;
-      --success:      #27ae60;
-      --info:         #3b82f6;
-      --text:         #e8eaf0;
-      --muted:        #6b7394;
-      --shadow:       0 4px 24px rgba(0,0,0,.45);
-      --radius:       10px;
-      --focus:        #6ea8ff;
-    }
-    :root[data-theme="light"] {
-      --bg:           #f5f6fa;
-      --surface:      #ffffff;
-      --surface2:     #f0f2f8;
-      --border:       #d4d8e8;
-      --border-strong:#b0b8d0;
-      --primary:      #0aab9e;
-      --warning:      #d97706;
-      --danger:       #dc2626;
-      --success:      #16a34a;
-      --info:         #2563eb;
-      --text:         #1a1f35;
-      --muted:        #6b7394;
-      --shadow:       0 2px 12px rgba(0,0,0,.12);
-      --radius:       10px;
-      --focus:        #2563eb;
-    }
-
-    /* === RESET + BASE === */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--text);
-           font-size: 15px; line-height: 1.5; }
-    button { cursor: pointer; font-family: inherit; }
-    input, select, textarea { font-family: inherit; font-size: 15px; }
-
-    /* === LAYOUT === */
-    #topbar { height: 58px; background: var(--surface); border-bottom: 1px solid var(--border);
-              display: flex; align-items: center; justify-content: space-between;
-              padding: 0 20px; position: sticky; top: 0; z-index: 100; }
-    #app    { display: flex; height: calc(100vh - 58px); overflow: hidden; }
-    #sidebar { width: 220px; flex-shrink: 0; background: var(--surface);
-               border-right: 1px solid var(--border); overflow-y: auto; padding: 16px 0; }
-    #main   { flex: 1; overflow-y: auto; padding: 28px 32px; }
-
-    /* === NAVIGATION === */
-    .nav-label { font-size: 11px; font-weight: 600; text-transform: uppercase;
-                 letter-spacing: .08em; color: var(--muted); padding: 16px 16px 6px; }
-    .nav-item  { display: flex; align-items: center; gap: 10px; padding: 9px 16px;
-                 color: var(--muted); text-decoration: none; cursor: pointer;
-                 border-radius: 6px; margin: 1px 8px; font-size: 14px; transition: all .15s; }
-    .nav-item:hover  { background: var(--surface2); color: var(--text); }
-    .nav-item.active { background: rgba(14,207,190,.12); color: var(--primary); font-weight: 600; }
-
-    /* === VIEWS === */
-    .view { display: none; }
-    .view.active { display: block; }
-
-    /* === CARDS === */
-    .card { background: var(--surface); border: 1px solid var(--border);
-            border-radius: var(--radius); padding: 20px; }
-
-    /* === BUTTONS === */
-    .btn         { padding: 8px 18px; border-radius: 7px; border: none; font-size: 14px;
-                   font-weight: 500; transition: opacity .15s; }
-    .btn:hover   { opacity: .85; }
-    .btn-primary { background: var(--primary); color: #000; }
-    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-    .btn-danger  { background: var(--danger); color: #fff; }
-    .btn-ghost   { background: transparent; color: var(--muted); }
-
-    /* === FORMS === */
-    .form-input  { width: 100%; padding: 9px 12px; background: var(--surface2);
-                   border: 1px solid var(--border); border-radius: 7px; color: var(--text); }
-    .form-input:focus { outline: 2px solid var(--focus); border-color: transparent; }
-    .form-label  { font-size: 13px; color: var(--muted); margin-bottom: 5px; display: block; }
-
-    /* === TABLES === */
-    .table-wrap  { overflow-x: auto; }
-    table        { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th           { text-align: left; padding: 10px 12px; background: var(--surface2);
-                   color: var(--muted); font-weight: 600; font-size: 12px;
-                   text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); }
-    td           { padding: 11px 12px; border-bottom: 1px solid var(--border); }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td  { background: var(--surface2); }
-    th.sortable  { cursor: pointer; user-select: none; }
-    th.sortable:hover { color: var(--text); }
-
-    /* === BADGES === */
-    .badge       { display: inline-block; padding: 2px 10px; border-radius: 20px;
-                   font-size: 12px; font-weight: 500; }
-    .badge-primary { background: rgba(14,207,190,.15); color: var(--primary); }
-    .badge-danger  { background: rgba(231,76,60,.15);  color: var(--danger); }
-    .badge-warning { background: rgba(245,166,35,.15); color: var(--warning); }
-
-    /* === PAGINATION === */
-    .pagination  { display: flex; align-items: center; gap: 4px; padding: 14px 0; flex-wrap: wrap; }
-    .pagination button { padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border);
-                         background: var(--surface2); color: var(--text); font-size: 13px; }
-    .pagination button.active { background: var(--primary); color: #000; border-color: var(--primary); }
-    .pagination button:disabled { opacity: .4; cursor: not-allowed; }
-    .pg-info     { font-size: 13px; color: var(--muted); margin-right: 8px; }
-
-    /* === MOBILE === */
-    #bottombar   { display: none; }
-    @media (max-width: 640px) {
-      #sidebar   { display: none; }
-      #main      { padding: 16px; }
-      #bottombar { display: flex; position: fixed; bottom: 0; left: 0; right: 0;
-                   background: var(--surface); border-top: 1px solid var(--border);
-                   z-index: 100; }
-      #bottombar button { flex: 1; padding: 10px 0; background: none; border: none;
-                          color: var(--muted); font-size: 11px; display: flex;
-                          flex-direction: column; align-items: center; gap: 2px; }
-      #bottombar button.active { color: var(--primary); }
-      #app { height: calc(100vh - 58px - 60px); }
-    }
-    @media (min-width: 641px) { .mobile-only { display: none !important; } }
-  </style>
+  <style>/* Paste Design System CSS here */</style>
 </head>
 <body>
 
-  <header id="topbar">
-    <div style="display:flex;align-items:center;gap:12px">
-      <span style="font-weight:700;font-size:16px">YOUR_APP_NAME</span>
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<header id="topbar">
+  <div class="topbar-left">
+    <!-- Mobile sidebar toggle (hidden on desktop) -->
+    <button id="sidebar-toggle" class="icon-btn mobile-only" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+    <!-- App logo / name -->
+    <div class="app-brand">
+      <span class="app-name">APP NAME</span>
     </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <span id="save-status" style="font-size:12px;color:var(--muted)"></span>
-      <button id="theme-toggle" onclick="toggleTheme()" class="btn-ghost btn" style="padding:6px 10px">☀️</button>
-    </div>
-  </header>
-
-  <div id="app">
-    <nav id="sidebar">
-      <!-- Inject nav items here — see C01 -->
-    </nav>
-    <main id="main">
-      <!-- Each view is a div.view — only one shown at a time -->
-      <!-- <div id="YOUR_VIEW" class="view"> ... </div> -->
-    </main>
   </div>
+  <div class="topbar-right">
+    <!-- I3: Auto-save indicator -->
+    <span id="save-status" class="save-status" aria-live="polite"></span>
+    <!-- F3: Search (optional — some apps put this in each view instead) -->
+    <button class="icon-btn mobile-only" onclick="toggleMobileSearch()" aria-label="Search">🔍</button>
+    <!-- F4: Help -->
+    <button class="icon-btn" onclick="openHelp()" aria-label="Help">❓</button>
+    <!-- S1: Theme toggle -->
+    <button id="theme-toggle" class="icon-btn" onclick="toggleTheme()" aria-label="Toggle theme">☀️</button>
+    <!-- F1: User avatar / sign out (if auth enabled) -->
+    <div id="user-menu" style="display:none">
+      <button class="icon-btn" onclick="openUserMenu()" id="user-avatar" aria-label="Account">👤</button>
+    </div>
+  </div>
+</header>
 
-  <nav id="bottombar">
-    <!-- Mobile nav buttons — see C01 -->
+<!-- ═══════════════════ APP BODY ═══════════════════ -->
+<div id="app">
+
+  <!-- F5: Sidebar navigation (desktop) -->
+  <nav id="sidebar" aria-label="Main navigation">
+    <!-- Optional: app/user info at top of sidebar -->
+    <div id="sidebar-info" style="display:none; padding:14px 16px 8px; border-bottom:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:600" id="sidebar-app-name"></div>
+      <div style="font-size:11px;color:var(--muted)" id="sidebar-sub"></div>
+    </div>
+    <!-- Nav groups injected by buildNav() — see F5 -->
   </nav>
 
-  <div id="toast" role="status" aria-live="polite" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:center"></div>
+  <!-- Mobile sidebar overlay -->
+  <div id="sidebar-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:149" onclick="closeSidebar()"></div>
 
-  <!-- Inline Chart.js 4.4.1 here if using C03 -->
-  <!-- Inline XLSX.js 0.18.5 here if using C07 or C16 -->
+  <!-- Main content -->
+  <main id="main" role="main">
+    <!-- Views injected here — each is a div.view, only one visible at a time -->
+    <!-- Example: <div id="home-view"   class="view"> ... </div> -->
+    <!-- Example: <div id="list-view"   class="view"> ... </div> -->
+    <!-- Example: <div id="add-view"    class="view"> ... </div> -->
+  </main>
 
-  <script>
-    // All JavaScript goes here — see component sections below
-  </script>
+</div><!-- /#app -->
+
+<!-- F5: Mobile bottom tab bar -->
+<nav id="bottombar" aria-label="Tab bar"></nav>
+
+<!-- S3: Modal container (modals are appended here by JS) -->
+<div id="modal-root"></div>
+
+<!-- F4: Help drawer -->
+<div id="help-drawer" style="display:none">
+  <div id="help-backdrop"  onclick="closeHelp()"></div>
+  <div id="help-panel">
+    <div class="help-header">
+      <h2>Help</h2>
+      <button class="icon-btn" onclick="closeHelp()">✕</button>
+    </div>
+    <div id="help-content"><!-- Injected by openHelp() --></div>
+  </div>
+</div>
+
+<!-- S4: Toast notification container -->
+<div id="toast" role="status" aria-live="polite" aria-atomic="false"></div>
+
+<!-- F1: Auth gate (shown before login, hidden after) -->
+<div id="auth-gate" style="display:none"><!-- See F1 --></div>
+
+<script>/* All JavaScript below */</script>
 </body>
 </html>
 ```
 
----
+### Header CSS
 
-### 1B. Security Utilities — MANDATORY, Copy Verbatim
+```css
+#topbar {
+  height:          58px;
+  background:      var(--surface);
+  border-bottom:   1px solid var(--border);
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         0 20px;
+  position:        sticky;
+  top:             0;
+  z-index:         100;
+  gap:             12px;
+}
+.topbar-left  { display: flex; align-items: center; gap: 10px; }
+.topbar-right { display: flex; align-items: center; gap: 4px; }
 
-**These two functions must be applied everywhere user data touches the DOM or a file. No exceptions.**
+.app-brand    { display: flex; align-items: center; gap: 10px; }
+.app-name     { font-size: 16px; font-weight: 700; color: var(--text); }
 
-```javascript
-// RULE: Wrap EVERY user-sourced string before inserting into innerHTML.
-// Safe exceptions: fmt() output, boolean CSS class names, static strings you wrote.
-function escapeHtml(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c]));
+/* I3: Auto-save dot + text */
+.save-status  { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.save-dot     { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.save-dot.saving  { background: var(--warning); animation: pulse 1s infinite; }
+.save-dot.saved   { background: var(--success); }
+.save-dot.error   { background: var(--danger); }
+@keyframes pulse  { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+```
+
+### App Layout CSS
+
+```css
+#app {
+  display:   flex;
+  height:    calc(100vh - 58px);
+  overflow:  hidden;
 }
 
-// RULE: Wrap EVERY cell value before writing to a CSV or Excel export.
-// Prevents formula injection in Excel/Sheets (=SUM(...), +cmd, -cmd, @, tab, CR).
-function csvSanitize(v) {
-  const s = String(v == null ? '' : v);
-  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+/* ── Sidebar ── */
+#sidebar {
+  width:        220px;
+  flex-shrink:  0;
+  background:   var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y:   auto;
+  padding:      12px 0;
+  transition:   transform .25s;
+}
+
+.nav-section  { margin-bottom: 4px; }
+.nav-label    { font-size: 10px; font-weight: 700; text-transform: uppercase;
+                letter-spacing: .10em; color: var(--muted); padding: 14px 16px 5px; }
+.nav-item     { display: flex; align-items: center; gap: 10px; padding: 9px 16px;
+                margin: 1px 8px; border-radius: var(--radius-sm); color: var(--muted);
+                cursor: pointer; font-size: 14px; transition: all .12s; user-select: none; }
+.nav-item:hover  { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--primary-dim); color: var(--primary); font-weight: 600; }
+.nav-item .nav-icon { width: 18px; text-align: center; flex-shrink: 0; }
+.nav-item .nav-badge { margin-left: auto; background: var(--primary); color: #000;
+                       font-size: 10px; font-weight: 700; border-radius: 10px; padding: 1px 6px; }
+.nav-danger { color: var(--danger) !important; }
+.nav-danger:hover { background: rgba(231,76,60,.10) !important; }
+
+/* ── Main Content ── */
+#main {
+  flex:       1;
+  overflow-y: auto;
+  padding:    28px 32px;
+}
+
+.view { display: none; }
+.view.active { display: block; }
+
+/* Standard view page header */
+.view-header         { margin-bottom: 24px; }
+.view-header-row     { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.view-actions        { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── Bottom tab bar (mobile only) ── */
+#bottombar {
+  display:     none;
+  position:    fixed;
+  bottom:      0;
+  left:        0;
+  right:       0;
+  background:  var(--surface);
+  border-top:  1px solid var(--border);
+  z-index:     100;
+  /* safe-area-inset for notch phones */
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+#bottombar button {
+  flex:            1;
+  padding:         10px 0 6px;
+  background:      none;
+  border:          none;
+  color:           var(--muted);
+  font-size:       10px;
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  gap:             3px;
+  transition:      color .12s;
+}
+#bottombar button .tab-icon  { font-size: 20px; line-height: 1; }
+#bottombar button.active      { color: var(--primary); }
+/* FAB center button */
+#bottombar button.tab-fab    { color: var(--primary); }
+#bottombar button.tab-fab .tab-icon {
+  background:    var(--primary);
+  color:         #000;
+  border-radius: 50%;
+  width:         40px;
+  height:        40px;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  font-size:     22px;
+  font-weight:   700;
+  box-shadow:    0 2px 10px rgba(14,207,190,.4);
+}
+
+/* ── Responsive breakpoints ── */
+@media (max-width: 640px) {
+  #sidebar   { display: none; position: fixed; top: 58px; bottom: 0; left: 0;
+               z-index: 150; transform: translateX(-100%); }
+  #sidebar.open { display: block; transform: translateX(0); }
+  #main      { padding: 16px; padding-bottom: calc(72px + env(safe-area-inset-bottom, 0)); }
+  #bottombar { display: flex; }
+  #app       { height: calc(100vh - 58px); }
+  .mobile-only { display: flex !important; }
+  .desktop-only { display: none !important; }
+}
+@media (min-width: 641px) {
+  .mobile-only  { display: none !important; }
+  .desktop-only { display: flex !important; }
+}
+@media (max-width: 900px) {
+  #main { padding: 20px 20px; }
 }
 ```
 
-**When to use each:**
+---
 
-| Situation | Use |
-|-----------|-----|
-| `element.innerHTML = '...' + userValue + '...'` | `escapeHtml(userValue)` |
-| `element.textContent = userValue` | Safe — no escaping needed |
-| `element.value = userValue` (input) | Safe — no escaping needed |
-| Writing a cell to CSV/Excel file | `csvSanitize(value)` |
-| onclick attribute with string param: `onclick="fn('${val}')"` | `escapeHtml(val).replace(/'/g, "&#39;")` |
-| onclick attribute with numeric/ID param: `onclick="fn(${id})"` | `JSON.stringify(id)` |
+## PART 3 — MODAL SYSTEM (S3)
+
+### Standard Overlay Modal
+
+```javascript
+// Generic modal builder — use for any dialog in your app
+function showModal({ id, title, body, actions, width = '480px' }) {
+  const existing = document.getElementById(id);
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id    = id;
+  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,.65);
+    z-index:500;display:flex;align-items:center;justify-content:center;padding:16px`;
+
+  modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+      width:min(${width},100%);max-height:90vh;overflow-y:auto;padding:28px;box-shadow:var(--shadow)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px">
+        <h2 style="font-size:18px;font-weight:700">${escapeHtml(title)}</h2>
+        <button class="icon-btn" onclick="document.getElementById('${id}').remove()">✕</button>
+      </div>
+      <div id="${id}-body">${body}</div>
+      ${actions ? `<div style="display:flex;gap:8px;margin-top:24px;justify-content:flex-end">${actions}</div>` : ''}
+    </div>`;
+
+  // Click outside to close
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.getElementById('modal-root').appendChild(modal);
+  return modal;
+}
+
+// Single confirm dialog
+function showConfirm(title, message, onConfirm) {
+  showModal({
+    id:      'confirm-modal',
+    title,
+    body:    `<p style="color:var(--muted)">${escapeHtml(message)}</p>`,
+    actions: `
+      <button class="btn btn-outline" onclick="document.getElementById('confirm-modal').remove()">Cancel</button>
+      <button class="btn btn-danger" onclick="document.getElementById('confirm-modal').remove();(${onConfirm})()">Confirm</button>`
+  });
+}
+
+// Double-confirm — for destructive irreversible actions only (e.g. "Clear All Data")
+function showDoubleConfirm(title, message, onConfirmed) {
+  showConfirm(title, message, () => {
+    showConfirm(
+      'Are you absolutely sure?',
+      'This cannot be undone. Click Confirm to permanently delete all data.',
+      onConfirmed
+    );
+  });
+}
+
+// Close all open modals (e.g. on Escape key)
+function closeAllModals() {
+  document.querySelectorAll('[id$="-modal"]').forEach(m => m.remove());
+  closeHelp();
+}
+```
+
+### Modal CSS
+
+```css
+/* Bottom sheet on mobile (alternative to centered modal) */
+.bottom-sheet {
+  position:   fixed;
+  bottom:     0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding:    24px;
+  z-index:    500;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+  animation:  slideUp .2s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+```
 
 ---
 
-### 1C. Generic IndexedDB Engine
+## PART 4 — TOAST + UNDO SYSTEM (S4)
 
-**This is the data layer. Define your schema once; all CRUD functions below work for any record shape.**
+### Toast Component
 
 ```javascript
-// ── CONFIGURE THESE FOR YOUR APP ──────────────────────────────────────────
-const DB_NAME    = 'YOUR_APP_DB';     // e.g. 'TaskManager', 'InventoryApp'
-const DB_VERSION = 1;
-const STORE_NAME = 'records';         // e.g. 'tasks', 'items', 'contacts'
+// Use textContent (not innerHTML) for the message — toasts can include user-sourced text
+function toast(msg, type = 'info', opts = {}) {
+  const container = document.getElementById('toast');
+  const duration  = opts.duration || 3200;
 
-// Fields to index (enables fast filtering — add any field you filter/sort by)
+  const colors = {
+    success: 'background:var(--success);color:#fff',
+    error:   'background:var(--danger);color:#fff',
+    warning: 'background:var(--warning);color:#000',
+    info:    'background:var(--surface2);color:var(--text);border:1px solid var(--border)',
+  };
+
+  const el = document.createElement('div');
+  el.style.cssText = `padding:11px 18px;border-radius:8px;font-size:14px;cursor:pointer;
+    box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;max-width:380px;
+    ${colors[type] || colors.info}`;
+
+  el.appendChild(document.createTextNode(msg)); // safe: no innerHTML
+
+  if (opts.action) {
+    const btn = document.createElement('button');
+    btn.textContent = opts.action.label;
+    btn.style.cssText = 'background:rgba(255,255,255,.22);border:none;color:inherit;padding:2px 10px;border-radius:4px;cursor:pointer;font-weight:600;flex-shrink:0';
+    btn.onclick = e => { e.stopPropagation(); opts.action.onClick(); el.remove(); };
+    el.appendChild(btn);
+  }
+
+  el.addEventListener('click', () => el.remove());
+  container.appendChild(el);
+
+  const timer = setTimeout(() => {
+    el.style.transition = 'opacity .3s';
+    el.style.opacity    = '0';
+    setTimeout(() => el.remove(), 300);
+  }, duration);
+
+  el.dataset.timer = timer;
+}
+
+// Undo: 6-second window to restore a deleted set of records
+// Call AFTER dbDelete/dbBulkDelete, pass the full record objects
+function offerUndo(label, deletedRecords, onRestored) {
+  const saved = deletedRecords.map(r => ({ ...r })); // clone before any mutations
+
+  toast(label, 'info', {
+    duration: 6000,
+    action: {
+      label:   'Undo',
+      onClick: async () => {
+        await dbBulkPut(saved);
+        scheduleSnapshot();
+        if (onRestored) onRestored();
+        toast('Restored', 'success');
+      }
+    }
+  });
+}
+```
+
+### Toast CSS
+
+```css
+#toast {
+  position:        fixed;
+  bottom:          24px;
+  left:            50%;
+  transform:       translateX(-50%);
+  z-index:         9999;
+  display:         flex;
+  flex-direction:  column;
+  gap:             8px;
+  align-items:     center;
+  pointer-events:  none; /* container transparent to clicks */
+}
+#toast > * { pointer-events: all; }
+
+/* On mobile: sit above bottom tab bar */
+@media (max-width: 640px) {
+  #toast { bottom: calc(68px + env(safe-area-inset-bottom, 0)); }
+}
+```
+
+---
+
+## PART 5 — INFRASTRUCTURE LAYER
+
+### I1: Generic Data Layer (IndexedDB)
+
+```javascript
+// ── CONFIGURE THIS BLOCK FOR YOUR APP ────────────────────────────────────
+const DB_NAME    = 'YOUR_APP_NAME_DB';   // e.g. 'TaskManagerDB'
+const DB_VERSION = 1;
+const STORE_NAME = 'records';            // e.g. 'tasks', 'contacts', 'items'
+
+// Add an index for every field you filter or sort by in queries
+// Format: { name: 'indexName', keyPath: 'fieldName' }
 const DB_INDEXES = [
+  // Examples — uncomment what you need:
   // { name: 'date',     keyPath: 'date'     },
   // { name: 'status',   keyPath: 'status'   },
   // { name: 'category', keyPath: 'category' },
-  // { name: 'priority', keyPath: 'priority' },
-  // Add your own:
 ];
-// ── END CONFIG ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────
 
 let db = null;
 
 async function initDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-
     req.onupgradeneeded = e => {
       const d = e.target.result;
       if (!d.objectStoreNames.contains(STORE_NAME)) {
         const store = d.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        DB_INDEXES.forEach(idx => store.createIndex(idx.name, idx.keyPath, { unique: false }));
+        DB_INDEXES.forEach(i => store.createIndex(i.name, i.keyPath, { unique: false }));
       }
     };
-
     req.onsuccess = e => { db = e.target.result; resolve(db); };
-
-    req.onerror = e => {
-      // NEVER fail silently — show a visible error to the user
+    req.onerror   = () => {
+      // NEVER fail silently — always show a visible error to the user
       document.body.innerHTML = `
-        <div style="padding:40px;text-align:center;font-family:sans-serif;color:#e8eaf0;background:#0f1117;min-height:100vh">
-          <h2>Storage Unavailable</h2>
-          <p>This app needs browser storage to work.<br>Try a different browser, or disable private/incognito mode.</p>
-          <p style="color:#6b7394;font-size:12px;margin-top:16px">${e.target.error}</p>
+        <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;
+          font-family:sans-serif;background:#0f1117;color:#e8eaf0;text-align:center;padding:40px">
+          <div>
+            <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+            <h2>Storage Unavailable</h2>
+            <p style="color:#6b7394;margin-top:8px">
+              This app requires browser storage.<br>
+              Try Chrome or Edge, and disable private/incognito mode.
+            </p>
+          </div>
         </div>`;
-      reject(e.target.error);
+      reject(req.error);
     };
   });
 }
 
-// ── CRUD ──────────────────────────────────────────────────────────────────
+// ── CRUD ─────────────────────────────────────────────────────────────────
 
 function dbPut(record) {
   return new Promise((resolve, reject) => {
-    const tx  = db.transaction(STORE_NAME, 'readwrite');
-    const req = tx.objectStore(STORE_NAME).put(record);
-    req.onsuccess = () => resolve();
-    tx.onerror    = e => reject(e.target.error);
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put(record).onsuccess = () => resolve();
+    tx.onerror = e => reject(e.target.error);
   });
 }
 
@@ -363,14 +890,10 @@ function dbBulkPut(records, onProgress) {
     if (!records.length) { resolve(); return; }
     const tx    = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    let done = 0;
+    let done    = 0;
     records.forEach(r => {
-      const req   = store.put(r);
-      req.onsuccess = () => {
-        done++;
-        if (onProgress) onProgress(done, records.length);
-        if (done === records.length) resolve();
-      };
+      const req = store.put(r);
+      req.onsuccess = () => { done++; if (onProgress) onProgress(done, records.length); if (done === records.length) resolve(); };
     });
     tx.onerror = e => reject(e.target.error);
   });
@@ -393,11 +916,13 @@ function dbCount() {
   });
 }
 
-// Advanced query: filter, search, sort, paginate — all in memory after dbGetAll()
-// Customize the 'search' function to match your field names.
+// Unique ID — always use this, never sequential counters
+function newId() { return Date.now() + Math.random(); }
+
+// Advanced in-memory query (filter, sort, paginate after dbGetAll)
 async function dbQuery({
   search   = '',
-  filters  = {},    // { fieldName: 'value' } — any number of exact-match filters
+  filters  = {},       // e.g. { status: 'active', category: 'Work' }
   sort     = 'id',
   dir      = 'desc',
   page     = 1,
@@ -405,12 +930,12 @@ async function dbQuery({
 } = {}) {
   let rows = await dbGetAll();
 
-  // Apply exact-match filters (e.g. { status: 'active', category: 'Work' })
+  // Exact-match filters
   Object.entries(filters).forEach(([key, val]) => {
     if (val !== '' && val != null) rows = rows.filter(r => String(r[key]) === String(val));
   });
 
-  // Full-text search across SEARCH_FIELDS — customize this array for your app
+  // Full-text search across SEARCH_FIELDS (configure this for your app)
   if (search.trim()) {
     const q = search.trim().toLowerCase();
     rows = rows.filter(r =>
@@ -418,10 +943,10 @@ async function dbQuery({
     );
   }
 
-  // Sort — handles strings and numbers correctly
+  // Sort (handles strings and numbers)
   rows.sort((a, b) => {
     let av = a[sort] ?? '', bv = b[sort] ?? '';
-    if (typeof av === 'number' || !isNaN(+av)) { av = +av; bv = +bv; }
+    if (!isNaN(+av) && !isNaN(+bv)) { av = +av; bv = +bv; }
     if (av < bv) return dir === 'asc' ? -1 : 1;
     if (av > bv) return dir === 'asc' ?  1 : -1;
     return 0;
@@ -432,44 +957,26 @@ async function dbQuery({
   return { rows: rows.slice(start, start + pageSize), total };
 }
 
-// ── CONFIGURE: which fields to search across ──────────────────────────────
-// Replace with your record's text fields
-const SEARCH_FIELDS = ['name', 'description', 'category', 'notes'];
+// ── CONFIGURE: fields included in full-text search ────────────────────────
+const SEARCH_FIELDS = ['name', 'description', 'category'];
 // ─────────────────────────────────────────────────────────────────────────
 ```
 
 ---
 
-### 1D. Record ID Generation
+### I2: Settings System
 
 ```javascript
-// RULE: Always use this pattern. Never use sequential integers.
-// Sequential IDs break if the user clears and reimports data (collisions).
-// This float ID is unique per session and safe for IndexedDB keyPath.
-function newId() {
-  return Date.now() + Math.random();
-}
-
-// When passing an ID into an HTML onclick attribute:
-//   CORRECT:   onclick="deleteRecord(${JSON.stringify(record.id)})"
-//   INCORRECT: onclick="deleteRecord(${record.id})"   ← float may render as "1.234e+15"
-```
-
----
-
-### 1E. Settings System
-
-```javascript
-// ── CONFIGURE: define your app's settings ────────────────────────────────
+// ── CONFIGURE ─────────────────────────────────────────────────────────────
 const SETTINGS_KEY = 'YOUR_APP_settings_v1';
 
-// Default values — add/remove fields for your app
+// Define your app's scalar settings here (all values are strings or numbers)
 let settings = {
-  appName:  '',        // shown in sidebar / header
-  // Add your own scalar config here, e.g.:
-  // timezone: 'UTC',
+  appName:     '',      // Displayed in sidebar info section
+  // Add your own:
   // defaultView: 'list',
   // itemsPerPage: 25,
+  // timezone:  'UTC',
 };
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -482,1142 +989,362 @@ function loadSettings() {
 
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
-```
-
----
-
-### 1F. App Initialization — Required Order
-
-```javascript
-// Run in this exact order. Changing order causes blank screens or missing data.
-async function initApp() {
-  loadSettings();       // 1. Settings first — formatters depend on settings
-  loadTags();           // 2. Load labels/tags (if using C08)
-  applyTheme();         // 3. Theme before any rendering — prevents flash
-  await initDB();       // 4. Open IndexedDB — must succeed before any data operation
-  checkAuthSession();   // 5. Auth check (skip if no auth gate)
-  showView(DEFAULT_VIEW); // 6. Show initial view
-  scheduleVersionCheck(); // 7. Non-blocking update check
+  updateSidebarInfo(); // reflect in UI immediately
 }
 
-window.addEventListener('DOMContentLoaded', initApp);
-```
-
----
-
-## PART 2 — UI COMPONENTS
-
----
-
-### C01 — Navigation Layout
-
-**What it does:** Sidebar navigation on desktop, bottom tab bar on mobile. One function (`showView`) switches between views and updates active state everywhere.
-
-**Customization points:** Define your views and nav items.
-
-```javascript
-// ── CONFIGURE: your app's views ───────────────────────────────────────────
-const DEFAULT_VIEW = 'YOUR_MAIN_VIEW';  // e.g. 'dashboard', 'list-view'
-
-// Map view ID → render function to call when switching to it
-const VIEW_RENDERERS = {
-  'YOUR_MAIN_VIEW':   renderMainView,
-  'YOUR_LIST_VIEW':   () => renderTable({ page: 1 }),
-  'YOUR_ADD_VIEW':    initAddForm,
-  'YOUR_SETTINGS':    loadSettingsForm,
-  // Add your views here
-};
-
-// Fields used to build mobile bottom bar (max 5 items)
-const MOBILE_NAV = [
-  { view: 'YOUR_MAIN_VIEW',  label: 'Home',   icon: '🏠' },
-  { view: 'YOUR_LIST_VIEW',  label: 'List',   icon: '📋' },
-  { view: 'YOUR_ADD_VIEW',   label: 'Add',    icon: '+',  fab: true },
-  { view: 'YOUR_SETTINGS',   label: 'Settings', icon: '⚙️' },
-];
-// ─────────────────────────────────────────────────────────────────────────
-
-function showView(viewId) {
-  // Hide all views
-  document.querySelectorAll('.view').forEach(v => {
-    v.style.display = 'none';
-    v.classList.remove('active');
-  });
-
-  // Show target view
-  const target = document.getElementById(viewId);
-  if (!target) { console.warn('View not found:', viewId); return; }
-  target.style.display = 'block';
-  target.classList.add('active');
-
-  // Update sidebar active state
-  document.querySelectorAll('.nav-item[data-view]').forEach(a => {
-    a.classList.toggle('active', a.dataset.view === viewId);
-  });
-
-  // Update mobile bottom bar active state
-  document.querySelectorAll('#bottombar button[data-view]').forEach(b => {
-    b.classList.toggle('active', b.dataset.view === viewId);
-  });
-
-  // Run the view's render function
-  const renderer = VIEW_RENDERERS[viewId];
-  if (renderer) renderer();
-}
-
-// Build mobile bottom bar from MOBILE_NAV config
-function buildMobileNav() {
-  const bar = document.getElementById('bottombar');
-  bar.innerHTML = MOBILE_NAV.map(item => `
-    <button data-view="${item.view}" onclick="showView('${item.view}')"
-            ${item.fab ? 'style="font-size:24px;font-weight:700;color:var(--primary)"' : ''}>
-      <span>${item.icon}</span>
-      <span>${item.fab ? '' : item.label}</span>
-    </button>
-  `).join('');
-}
-```
-
-**HTML for sidebar nav items:**
-```html
-<nav id="sidebar">
-  <div class="nav-label">SECTION NAME</div>
-  <a class="nav-item" data-view="YOUR_VIEW_ID" onclick="showView('YOUR_VIEW_ID')">
-    🏠 View Name
-  </a>
-  <!-- repeat for each view -->
-</nav>
-```
-
-**Known bugs to avoid:**
-- Always call `showView()` for navigation — never toggle `display` directly, it skips the renderer and active-state updates.
-- If a view renders a chart, only call `renderChart()` inside its VIEW_RENDERER — not on load — or the canvas will be 0px height.
-
----
-
-### C02 — KPI Summary Cards
-
-**What it does:** A row of metric boxes showing totals, counts, averages, or any computed number from your records.
-
-**Customization points:** Define what metrics to show and how to compute them.
-
-```javascript
-// ── CONFIGURE: define your KPI metrics ───────────────────────────────────
-// Each metric: { id, label, compute(records) → value, format(value) → string, colorFn(value) → css-color-var }
-const KPI_METRICS = [
-  {
-    id:      'kpi-total',
-    label:   'Total Records',
-    compute: records => records.length,
-    format:  v => v.toLocaleString(),
-    color:   () => 'var(--primary)',
-  },
-  {
-    id:      'kpi-active',
-    label:   'Active',
-    compute: records => records.filter(r => r.status === 'active').length,
-    format:  v => v.toLocaleString(),
-    color:   v => v > 0 ? 'var(--success)' : 'var(--muted)',
-  },
-  // Add your own metrics here...
-];
-// ─────────────────────────────────────────────────────────────────────────
-
-async function renderKPICards() {
-  const records = await dbGetAll();
-  // Apply any active filters (e.g. date range) before passing to compute
-  const filtered = applyGlobalFilter(records); // define this for your app
-
-  KPI_METRICS.forEach(metric => {
-    const el = document.getElementById(metric.id);
-    if (!el) return;
-    const value = metric.compute(filtered);
-    el.textContent = metric.format(value);
-    el.style.color = metric.color(value);
-  });
-}
-```
-
-**HTML template (repeat per metric):**
-```html
-<div class="kpi-grid">
-  <!-- Generated from KPI_METRICS config -->
-  <div class="card kpi-card">
-    <div class="kpi-label">LABEL</div>
-    <div class="kpi-value" id="kpi-METRICID" style="font-size:26px;font-weight:700">—</div>
-    <div class="kpi-sub" id="kpi-METRICID-sub" style="font-size:12px;color:var(--muted)"></div>
-  </div>
-</div>
-```
-
-**CSS:**
-```css
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.kpi-card { padding: 20px; }
-.kpi-label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
-```
-
-**Known bugs to avoid:**
-- Always guard divide-by-zero: `denominator > 0 ? numerator / denominator : 0`
-- Use `Math.round(value * 100) / 100` for any decimal before display — prevents `0.30000000000000004`
-
-**P&L Dashboard example:** 6 KPIs: Total Revenue, Expenses, Net Profit, Gross Profit, Margin %, Avg Monthly Revenue.
-
----
-
-### C03 — Charts
-
-**What it does:** Bar, line, and pie/doughnut charts that visualize your record data.
-
-**Dependency:** Chart.js 4.4.1 (inline the library in your HTML — no CDN at runtime, for offline support).
-
-```javascript
-// ── CONFIGURE: define your charts ────────────────────────────────────────
-// Chart instances stored here so they can be destroyed before recreating
-const charts = {};
-
-// Read CSS variables at render time (not at init) so theme changes work
-function themeColors() {
-  const s = getComputedStyle(document.documentElement);
-  return {
-    text:    s.getPropertyValue('--text').trim(),
-    muted:   s.getPropertyValue('--muted').trim(),
-    surface: s.getPropertyValue('--surface').trim(),
-    border:  s.getPropertyValue('--border').trim(),
-    primary: s.getPropertyValue('--primary').trim(),
-    warning: s.getPropertyValue('--warning').trim(),
-    danger:  s.getPropertyValue('--danger').trim(),
-  };
-}
-// ─────────────────────────────────────────────────────────────────────────
-
-// RULE: Always destroy before recreating. Chart.js throws if canvas is reused.
-function destroyChart(key) {
-  if (charts[key]) { try { charts[key].destroy(); } catch(e) {} delete charts[key]; }
-}
-
-// Shared chart base options (reuse for all chart types)
-function baseChartOptions(tc) {
-  return {
-    responsive:          true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { labels: { color: tc.text, font: { size: 12 } } },
-    },
-    scales: {
-      x: { ticks: { color: tc.muted }, grid: { color: tc.border + '55' } },
-      y: { ticks: { color: tc.muted }, grid: { color: tc.border + '55' } },
-    }
-  };
-}
-
-// ── EXAMPLE: Bar chart (adapt GROUP_BY and VALUE_FIELD for your data) ─────
-async function renderBarChart() {
-  const records = await dbGetAll();
-  const tc      = themeColors();
-
-  // Group records by a field (e.g. month, status, category)
-  const grouped = {};
-  records.forEach(r => {
-    const key = r.YOUR_GROUP_BY_FIELD || 'Other'; // e.g. r.month, r.status
-    grouped[key] = (grouped[key] || 0) + (r.YOUR_NUMERIC_FIELD || 0);
-  });
-
-  const labels = Object.keys(grouped);
-  const data   = Object.values(grouped);
-
-  // Guard: don't create empty chart
-  if (!data.length) return;
-
-  destroyChart('bar');
-  charts.bar = new Chart(document.getElementById('chart-bar'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{ label: 'YOUR_LABEL', data, backgroundColor: tc.primary + '99' }]
-    },
-    options: baseChartOptions(tc)
-  });
-}
-
-// ── EXAMPLE: Pie/doughnut chart ───────────────────────────────────────────
-const CHART_COLORS = ['#0ecfbe','#3b82f6','#f5a623','#e74c3c','#8b5cf6','#10b981','#f59e0b','#6366f1','#ec4899','#14b8a6','#a855f7','#ef4444'];
-
-async function renderPieChart() {
-  const records = await dbGetAll();
-  const tc      = themeColors();
-
-  const grouped = {};
-  records.forEach(r => {
-    const key = r.YOUR_CATEGORY_FIELD || 'Uncategorized';
-    grouped[key] = (grouped[key] || 0) + 1; // or + r.YOUR_NUMERIC_FIELD
-  });
-
-  const labels = Object.keys(grouped);
-  const data   = Object.values(grouped);
-  if (!data.length) return;
-
-  destroyChart('pie');
-  charts.pie = new Chart(document.getElementById('chart-pie'), {
-    type: 'doughnut',
-    data: { labels, datasets: [{ data, backgroundColor: CHART_COLORS.slice(0, labels.length) }] },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'right', labels: { color: tc.text, font: { size: 11 }, boxWidth: 12 } }
-      }
-    }
-  });
-}
-
-// Call after theme toggle (destroy + recreate is simpler than patching colors)
-function retintCharts() {
-  // Re-call each render function — they destroy and recreate
-  renderBarChart();
-  renderPieChart();
-}
-```
-
-**HTML canvases:**
-```html
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-  <div class="card"><h3>YOUR CHART TITLE</h3>
-    <div style="position:relative;height:240px"><canvas id="chart-bar"></canvas></div>
-  </div>
-  <div class="card"><h3>YOUR PIE TITLE</h3>
-    <div style="position:relative;height:240px"><canvas id="chart-pie"></canvas></div>
-  </div>
-</div>
-```
-
-**Known bugs to avoid:**
-- `destroyChart(key)` before every `new Chart()` — without this the second render throws.
-- Read `themeColors()` inside the render function, not at module load — otherwise theme toggle won't update chart colors.
-- If data is empty, skip chart creation. Chart.js renders a broken empty circle otherwise.
-
----
-
-### C04 — Filterable Paginated Table
-
-**What it does:** A sortable, searchable, paginated table. Works for any record type.
-
-**Customization points:** Define columns, default sort, filter fields.
-
-```javascript
-// ── CONFIGURE: define your table columns ─────────────────────────────────
-const TABLE_COLUMNS = [
-  // { key: fieldName, label: 'Header Text', sortable: true, render: (record) => htmlString }
-  { key: 'name',        label: 'Name',        sortable: true,
-    render: r => escapeHtml(r.name || '—') },
-  { key: 'status',      label: 'Status',      sortable: true,
-    render: r => `<span class="badge badge-primary">${escapeHtml(r.status || '')}</span>` },
-  { key: 'created_at',  label: 'Created',     sortable: true,
-    render: r => escapeHtml(r.created_at || '') },
-  // Add your columns here. ALWAYS use escapeHtml() in render functions.
-  { key: '_actions',    label: '',             sortable: false,
-    render: r => `<button class="btn btn-ghost" onclick="deleteRecord(${JSON.stringify(r.id)})">🗑</button>` },
-];
-
-// Filter fields — dropdowns above the table
-// Each: { key: fieldName, label: 'Label', options: [] or 'dynamic' }
-const TABLE_FILTERS = [
-  { key: 'status',   label: 'Status',   options: ['active','inactive','pending'] },
-  { key: 'category', label: 'Category', options: 'dynamic' }, // populated from data
-];
-// ─────────────────────────────────────────────────────────────────────────
-
-// Table state (module-level)
-let tableState = {
-  page:     1,
-  pageSize: 25,
-  sort:     TABLE_COLUMNS.find(c => c.sortable)?.key || 'id',
-  dir:      'desc',
-  search:   '',
-  filters:  {},
-};
-
-async function renderTable(overrides = {}) {
-  Object.assign(tableState, overrides);
-
-  const { rows, total } = await dbQuery({
-    search:   tableState.search,
-    filters:  tableState.filters,
-    sort:     tableState.sort,
-    dir:      tableState.dir,
-    page:     tableState.page,
-    pageSize: tableState.pageSize,
-  });
-
-  const tbody = document.getElementById('main-tbody');
-
-  if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="${TABLE_COLUMNS.length}" style="text-align:center;padding:40px;color:var(--muted)">
-      No records found.
-    </td></tr>`;
+function updateSidebarInfo() {
+  const nameEl = document.getElementById('sidebar-app-name');
+  const subEl  = document.getElementById('sidebar-sub');
+  const infoEl = document.getElementById('sidebar-info');
+  if (!nameEl) return;
+  if (settings.appName) {
+    nameEl.textContent = settings.appName;
+    if (subEl && settings.subLabel) subEl.textContent = settings.subLabel;
+    if (infoEl) infoEl.style.display = 'block';
   } else {
-    // BUG: escapeHtml is applied inside each column's render() — never skip it
-    tbody.innerHTML = rows.map(r =>
-      `<tr>${TABLE_COLUMNS.map(col => `<td>${col.render(r)}</td>`).join('')}</tr>`
-    ).join('');
+    if (infoEl) infoEl.style.display = 'none';
   }
-
-  // Update count label
-  const countEl = document.getElementById('table-count');
-  if (countEl) countEl.textContent = `${total.toLocaleString()} records`;
-
-  // Render pagination
-  renderPagination('table-pagination', tableState.page, total, tableState.pageSize, p => {
-    tableState.page = p;
-    renderTable();
-  });
-
-  // Update sort indicators on headers
-  document.querySelectorAll('th[data-sort]').forEach(th => {
-    const isActive = th.dataset.sort === tableState.sort;
-    th.textContent = th.dataset.label + (isActive ? (tableState.dir === 'asc' ? ' ↑' : ' ↓') : '');
-  });
 }
+```
 
-function sortTable(col) {
-  if (tableState.sort === col) {
-    tableState.dir = tableState.dir === 'asc' ? 'desc' : 'asc';
-  } else {
-    tableState.sort = col;
-    tableState.dir  = 'asc';
-  }
-  tableState.page = 1;
-  renderTable();
-}
+---
 
-// Shared pagination renderer (reuse for every table in the app)
-function renderPagination(containerId, currentPage, total, pageSize, onPageChange) {
-  const totalPages = Math.ceil(total / pageSize);
-  const el = document.getElementById(containerId);
+### I3: Auto-Save Indicator
+
+```javascript
+// Shows a pulsing dot + "Saving..." when data is being written,
+// then "All saved" when complete, then fades out after 3s.
+function setSaveStatus(state) {
+  const el = document.getElementById('save-status');
   if (!el) return;
-  if (totalPages <= 1) { el.innerHTML = ''; return; }
 
-  const start = (currentPage - 1) * pageSize + 1;
-  const end   = Math.min(currentPage * pageSize, total);
-
-  // Build page number array with ellipsis
-  const pageNums = [];
-  for (let i = 1; i <= totalPages; i++) {
-    if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) pageNums.push(i);
-  }
-  const withGaps = [];
-  pageNums.forEach((p, i) => {
-    if (i > 0 && p - pageNums[i-1] > 1) withGaps.push('…');
-    withGaps.push(p);
-  });
-
-  el.innerHTML = `
-    <span class="pg-info">Showing ${start}–${end} of ${total}</span>
-    <button onclick="(${onPageChange})(1)"               ${currentPage===1?'disabled':''}>«</button>
-    <button onclick="(${onPageChange})(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>
-    ${withGaps.map(p => p === '…'
-      ? `<span style="padding:0 4px;color:var(--muted)">…</span>`
-      : `<button class="${p===currentPage?'active':''}" onclick="(${onPageChange})(${p})">${p}</button>`
-    ).join('')}
-    <button onclick="(${onPageChange})(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>
-    <button onclick="(${onPageChange})(${totalPages})"     ${currentPage===totalPages?'disabled':''}>»</button>`;
-}
-
-// Debounced search (prevents DB query on every keypress)
-let _searchTimer;
-function onTableSearch(value) {
-  clearTimeout(_searchTimer);
-  _searchTimer = setTimeout(() => {
-    tableState.search = value;
-    tableState.page   = 1; // RULE: reset to page 1 on new search
-    renderTable();
-  }, 250);
-}
-
-// Filter dropdown change
-function onTableFilter(field, value) {
-  tableState.filters[field] = value;
-  tableState.page = 1; // RULE: reset to page 1 on filter change
-  renderTable();
-}
-```
-
-**HTML structure:**
-```html
-<div id="YOUR_LIST_VIEW" class="view">
-  <!-- Toolbar: search + filter dropdowns -->
-  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-    <input type="search" placeholder="Search..." oninput="onTableSearch(this.value)"
-           style="flex:1;min-width:200px" class="form-input">
-    <!-- Repeat per TABLE_FILTERS entry: -->
-    <select class="form-input" style="width:auto" onchange="onTableFilter('status', this.value)">
-      <option value="">All Status</option>
-      <option value="active">Active</option>
-    </select>
-    <span id="table-count" style="color:var(--muted);font-size:13px;align-self:center"></span>
-  </div>
-
-  <!-- Table -->
-  <div class="card table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <!-- Generated from TABLE_COLUMNS config — mark sortable ones -->
-          <th class="sortable" data-sort="name" data-label="Name" onclick="sortTable('name')">Name ↓</th>
-          <th>Status</th>
-          <th>Created</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="main-tbody"></tbody>
-    </table>
-  </div>
-  <div id="table-pagination" class="pagination"></div>
-</div>
-```
-
-**Known bugs to avoid:**
-- Search timer must reset `tableState.page = 1` — otherwise you stay on page 5 with 0 results.
-- Every column `render()` function must use `escapeHtml()` on user data. Forgetting one column is all XSS needs.
-- Sort direction must persist across page changes — never reset `tableState.sort/dir` in `renderTable()`.
-
----
-
-### C05 — Quick-Entry Form
-
-**What it does:** A fast single-record add form. Includes an autocomplete field, keyboard-first flow (Enter to submit), and a "recently added" preview below the form.
-
-**Customization points:** Define your form fields and validation rules.
-
-```javascript
-// ── CONFIGURE: define your form fields ───────────────────────────────────
-const FORM_FIELDS = [
-  // { id: 'htmlInputId', key: 'recordFieldName', required: true, transform: fn }
-  { id: 'f-name',        key: 'name',        required: true,  transform: v => v.trim() },
-  { id: 'f-category',    key: 'category',    required: false, transform: v => v.trim() || 'Uncategorized' },
-  { id: 'f-amount',      key: 'amount',      required: true,  transform: v => Math.abs(parseFloat(v)) },
-  { id: 'f-date',        key: 'date',        required: true,  transform: v => v },
-  { id: 'f-description', key: 'description', required: false, transform: v => v.trim() },
-];
-
-// Validation rules: return error string or null
-const FORM_VALIDATORS = [
-  ({ amount }) => (!amount || amount <= 0) ? 'Amount must be a positive number' : null,
-  ({ date })   => (!date) ? 'Date is required' : null,
-  ({ name })   => (!name) ? 'Name is required' : null,
-];
-
-// Fields to show in the "recently added" preview table
-const RECENT_COLUMNS = [
-  { key: 'date',     label: 'Date',     render: r => escapeHtml(r.date || '') },
-  { key: 'name',     label: 'Name',     render: r => escapeHtml(r.name || '') },
-  { key: 'category', label: 'Category', render: r => `<span class="badge badge-primary">${escapeHtml(r.category || '')}</span>` },
-];
-// ─────────────────────────────────────────────────────────────────────────
-
-function initAddForm() {
-  // Set date to today (UTC-safe)
-  const todayInput = document.getElementById('f-date');
-  if (todayInput && !todayInput.value) {
-    todayInput.value = new Date().toISOString().slice(0, 10);
-  }
-  updateAutocompleteList(); // Populate datalist for autocomplete field (see below)
-  renderRecentEntries();
-}
-
-async function submitAddForm(e) {
-  if (e) e.preventDefault();
-
-  // Clear previous error
-  const errEl = document.getElementById('form-error');
-  if (errEl) errEl.textContent = '';
-
-  // Read + transform all fields
-  const raw = {};
-  FORM_FIELDS.forEach(f => {
-    const el = document.getElementById(f.id);
-    raw[f.key] = el ? f.transform(el.value) : '';
-  });
-
-  // Validate
-  for (const validator of FORM_VALIDATORS) {
-    const err = validator(raw);
-    if (err) {
-      if (errEl) errEl.textContent = err;
-      return;
-    }
-  }
-
-  // Build record — add any derived fields here
-  const record = {
-    id: newId(),
-    ...raw,
-    created_at: new Date().toISOString(),
-    // Add your derived fields:
-    // month: getMonthFromDate(raw.date),
-    // year:  getYearFromDate(raw.date),
+  const states = {
+    saving: { dot: 'saving', text: 'Saving…' },
+    saved:  { dot: 'saved',  text: 'All saved' },
+    error:  { dot: 'error',  text: 'Save error' },
   };
 
-  await dbPut(record);
-  scheduleSnapshot();
+  const s = states[state];
+  if (!s) { el.innerHTML = ''; return; }
 
-  // Clear amount + description, keep date/category for rapid entry
-  ['f-amount', 'f-description', 'f-name'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
+  el.innerHTML = `<span class="save-dot ${s.dot}"></span>${s.dot === 'saving' ? s.text : ''}`;
 
-  // Refocus first required field for rapid re-entry
-  document.getElementById('f-name')?.focus();
-
-  toast('Record added', 'success');
-  renderRecentEntries();
+  if (state === 'saved') {
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => { el.innerHTML = ''; }, 3000);
+  }
 }
 
-async function renderRecentEntries() {
-  const all    = await dbGetAll();
-  const recent = all.sort((a, b) => b.id - a.id).slice(0, 5);
-  const tbody  = document.getElementById('recent-tbody');
-  if (!tbody) return;
+// Wrap every dbPut / dbBulkPut call with these two lines:
+// setSaveStatus('saving');
+// await dbPut(record);
+// setSaveStatus('saved');
 
-  tbody.innerHTML = recent.length
-    ? recent.map(r =>
-        `<tr>${RECENT_COLUMNS.map(col => `<td>${col.render(r)}</td>`).join('')}</tr>`
-      ).join('')
-    : `<tr><td colspan="${RECENT_COLUMNS.length}" style="color:var(--muted);text-align:center;padding:20px">No records yet</td></tr>`;
-}
-
-// Autocomplete datalist — populate from existing records + static tags
-async function updateAutocompleteList() {
-  const all    = await dbGetAll();
-  // Extract unique values from your autocomplete field (e.g. category)
-  const values = [...new Set(all.map(r => r.category).filter(Boolean)), ...TAGS];
-  const list   = document.getElementById('autocomplete-list');
-  if (list) list.innerHTML = values.map(v => `<option value="${escapeHtml(v)}">`).join('');
+// Or use this wrapper so you never forget:
+async function dbPutWithStatus(record) {
+  setSaveStatus('saving');
+  try {
+    await dbPut(record);
+    setSaveStatus('saved');
+    scheduleSnapshot();
+  } catch (e) {
+    setSaveStatus('error');
+    toast('Could not save: ' + e.message, 'error');
+    throw e;
+  }
 }
 ```
-
-**HTML:**
-```html
-<div id="YOUR_ADD_VIEW" class="view">
-  <form onsubmit="submitAddForm(event)" style="max-width:520px">
-    <div id="form-error" style="color:var(--danger);font-size:13px;margin-bottom:10px"></div>
-
-    <div style="margin-bottom:14px">
-      <label class="form-label">Name *</label>
-      <input id="f-name" type="text" class="form-input" required>
-    </div>
-
-    <div style="margin-bottom:14px">
-      <label class="form-label">Category</label>
-      <input id="f-category" type="text" class="form-input" list="autocomplete-list" autocomplete="off">
-      <datalist id="autocomplete-list"></datalist>
-    </div>
-
-    <div style="margin-bottom:14px">
-      <label class="form-label">Date *</label>
-      <input id="f-date" type="date" class="form-input" required>
-    </div>
-
-    <div style="margin-bottom:20px">
-      <label class="form-label">Notes</label>
-      <input id="f-description" type="text" class="form-input">
-    </div>
-
-    <button type="submit" class="btn btn-primary">Add Record</button>
-  </form>
-
-  <!-- Recently added preview -->
-  <div style="margin-top:32px">
-    <h3 style="font-size:15px;margin-bottom:12px">Recently Added</h3>
-    <div class="card table-wrap">
-      <table><thead><tr>
-        <!-- Match RECENT_COLUMNS -->
-        <th>Date</th><th>Name</th><th>Category</th>
-      </tr></thead>
-      <tbody id="recent-tbody"></tbody></table>
-    </div>
-  </div>
-</div>
-```
-
-**Known bugs to avoid:**
-- `new Date().toISOString().slice(0,10)` for today — never `new Date().toLocaleDateString()` (locale-dependent format).
-- `Math.abs(parseFloat(v))` for numeric fields — prevents negative storage, NaN.
-- Clear the error element at the start of every submit — stale errors confuse users.
-- `newId()` = `Date.now() + Math.random()` — never a sequential counter that resets on page reload.
 
 ---
 
-### C06 — Bulk Select + Delete + Undo
-
-**What it does:** Adds checkboxes to table rows. When rows are selected, a floating action bar appears. Deleting shows a 6-second Undo toast before the action becomes permanent.
+### I4: Security Layer
 
 ```javascript
-// Module-level selection set — stores String(record.id)
-const selectedIds = new Set();
-
-// Call after rendering each table row to wire up checkboxes
-function onRowCheck(checkbox) {
-  const id = checkbox.value; // stored as string
-  if (checkbox.checked) selectedIds.add(id);
-  else                  selectedIds.delete(id);
-  updateBulkBar();
+// ── RULE 1: XSS Prevention ───────────────────────────────────────────────
+// Wrap EVERY user-sourced value before inserting into innerHTML.
+// When to use:  element.innerHTML = '...' + escapeHtml(userValue) + '...'
+// When NOT needed: element.textContent = value  (DOM text node, always safe)
+//                  input.value = value           (DOM property, always safe)
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
 }
 
-function toggleSelectAll(masterCheckbox) {
-  document.querySelectorAll('.row-checkbox').forEach(cb => {
-    cb.checked = masterCheckbox.checked;
-    onRowCheck(cb);
-  });
+// ── RULE 2: CSV / Excel Injection Prevention ──────────────────────────────
+// Wrap EVERY cell value before writing to a CSV or Excel file.
+// Why: Excel executes cells starting with =, +, -, @, TAB, CR as formulas.
+function csvSanitize(v) {
+  const s = String(v == null ? '' : v);
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
 }
 
-function updateBulkBar() {
-  const bar   = document.getElementById('bulk-bar');
-  const count = document.getElementById('bulk-count');
-  if (!bar) return;
-  bar.style.display = selectedIds.size > 0 ? 'flex' : 'none';
-  if (count) count.textContent = `${selectedIds.size} selected`;
-}
+// ── RULE 3: onclick with string parameters ────────────────────────────────
+// For numeric/ID values in onclick:  onclick="fn(${JSON.stringify(r.id)})"
+// For string values in onclick:      onclick="fn('${escapeHtml(val).replace(/'/g,"&#39;")}')"
+// NEVER:                             onclick="fn(${val})"   ← injection risk
 
-async function deleteBulkSelected() {
-  if (!selectedIds.size) return;
-  const ids = [...selectedIds];
+// ── RULE 4: Content Security Policy (in <head>) ───────────────────────────
+// Already included in the HTML shell above.
+// Do NOT add 'unsafe-eval' — never needed with this architecture.
 
-  // Load records BEFORE deleting (for undo)
-  const deleted = (await Promise.all(ids.map(id => dbGet(+id || id)))).filter(Boolean);
-
-  if (!confirm(`Delete ${ids.length} record(s)?`)) return;
-
-  await Promise.all(ids.map(id => dbDelete(+id || id)));
-  selectedIds.clear();
-  updateBulkBar();
-  renderTable();
-  offerUndo(`Deleted ${deleted.length} record(s)`, deleted);
-}
-
-// Delete a single record with undo
-async function deleteRecord(id) {
-  const record = await dbGet(id);
-  if (!record) return;
-  await dbDelete(id);
-  renderTable();
-  offerUndo('Record deleted', [record]);
-}
+// ── SECURITY CHECKLIST — verify before every release ─────────────────────
+/*
+  [ ] Every innerHTML assignment: all user values wrapped in escapeHtml()
+  [ ] toast() always uses document.createTextNode (never innerHTML) for message
+  [ ] Every CSV/Excel export: all cell values wrapped in csvSanitize()
+  [ ] onclick attributes with string params: escapeHtml().replace(/'/g,"&#39;")
+  [ ] onclick attributes with ID params: JSON.stringify(id)
+  [ ] <meta CSP> tag present in <head>
+  [ ] IndexedDB onerror shows user-visible message (not just console.error)
+*/
 ```
-
-**Add to table rows (inside your column render or tbody HTML):**
-```html
-<!-- Header row -->
-<th><input type="checkbox" id="check-all" onchange="toggleSelectAll(this)"></th>
-
-<!-- Data rows (in render function) -->
-<td><input type="checkbox" class="row-checkbox" value="${JSON.stringify(r.id)}" onchange="onRowCheck(this)"></td>
-```
-
-**Bulk action bar (floating, shown when selection > 0):**
-```html
-<div id="bulk-bar" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
-  background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 20px;
-  box-shadow:var(--shadow);gap:14px;align-items:center;z-index:200">
-  <span id="bulk-count">0 selected</span>
-  <button class="btn btn-danger" onclick="deleteBulkSelected()">Delete Selected</button>
-  <button class="btn btn-ghost" onclick="selectedIds.clear();updateBulkBar();renderTable()">Cancel</button>
-</div>
-```
-
-**Known bugs to avoid:**
-- Store IDs as `String(record.id)` in the Set — floats compare unreliably as object keys.
-- When deleting, convert back: `dbDelete(+id || id)` handles both float and string IDs.
-- Fetch records for undo BEFORE calling `dbDelete` — after deletion, `dbGet` returns undefined.
-- Clear `selectedIds` after every bulk delete and after switching views.
 
 ---
 
-### C07 — CSV / Excel Import with Field Mapping
-
-**What it does:** User uploads any CSV or XLSX file. A mapping modal lets them connect each file column to a record field. Large files use a Web Worker so the UI stays responsive.
-
-```javascript
-// ── CONFIGURE: define your importable fields ──────────────────────────────
-const IMPORT_FIELDS = [
-  // { key: 'recordField', label: 'Display Name', required: true }
-  { key: 'name',        label: 'Name',        required: true  },
-  { key: 'date',        label: 'Date',        required: true  },
-  { key: 'category',    label: 'Category',    required: false },
-  { key: 'description', label: 'Description', required: false },
-  // { key: 'amount', label: 'Amount', required: true, numeric: true },
-  // Add your fields here
-];
-
-// Keywords that auto-guess column mapping from CSV headers
-const IMPORT_GUESS_KEYWORDS = {
-  name:        ['name', 'title', 'item', 'product'],
-  date:        ['date', 'time', 'period', 'created'],
-  category:    ['category', 'cat', 'type', 'class', 'group'],
-  description: ['description', 'desc', 'note', 'memo', 'detail'],
-  amount:      ['amount', 'total', 'value', 'price', 'cost', 'sum'],
-};
-// ─────────────────────────────────────────────────────────────────────────
-
-let _csvRows = []; // module-level: rows[][] from parsed file
-
-// RFC 4180 compliant CSV parser — handles quoted fields, embedded commas, escaped quotes
-function parseCSV(text) {
-  text = text.replace(/^﻿/, ''); // strip BOM
-  const rows = [];
-  let field = '', row = [], inQ = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inQ) {
-      if (ch === '"') {
-        if (text[i+1] === '"') { field += '"'; i++; } // escaped quote
-        else inQ = false;
-      } else field += ch;
-    } else {
-      if (ch === '"')  inQ = true;
-      else if (ch === ',') { row.push(field); field = ''; }
-      else if (ch === '\n' || (ch === '\r' && text[i+1] !== '\n')) {
-        row.push(field); if (row.some(c => c !== '')) rows.push(row); row = []; field = '';
-      } else if (ch !== '\r') field += ch;
-    }
-  }
-  if (field || row.length) { row.push(field); if (row.some(c => c !== '')) rows.push(row); }
-  return rows;
-}
-
-// Web Worker source for large files (> 500KB)
-const CSV_WORKER = `
-  self.onmessage = function(e) {
-    const text = e.data;
-    text.replace(/^\\uFEFF/, '');
-    const rows = [];
-    let field='', row=[], inQ=false;
-    for (let i=0; i<text.length; i++) {
-      const ch=text[i];
-      if(inQ){if(ch==='"'){if(text[i+1]==='"'){field+='"';i++;}else inQ=false;}else field+=ch;}
-      else{if(ch==='"')inQ=true;else if(ch===','){row.push(field);field='';}
-      else if(ch==='\\n'||(ch==='\\r'&&text[i+1]!=='\\n')){row.push(field);if(row.some(c=>c!==''))rows.push(row);row=[];field='';}
-      else if(ch!=='\\r')field+=ch;}
-    }
-    if(field||row.length){row.push(field);if(row.some(c=>c!==''))rows.push(row);}
-    self.postMessage(rows);
-  };
-`;
-
-async function handleFileSelect(file) {
-  const text = await file.text();
-  let rows;
-
-  if (text.length > 500_000 && typeof Worker !== 'undefined') {
-    rows = await new Promise(resolve => {
-      const blob   = new Blob([CSV_WORKER], { type: 'application/javascript' });
-      const worker = new Worker(URL.createObjectURL(blob));
-      worker.onmessage = e => { worker.terminate(); resolve(e.data); };
-      worker.postMessage(text);
-    });
-  } else {
-    rows = parseCSV(text);
-  }
-
-  if (rows.length < 2) { toast('File is empty or has only headers', 'error'); return; }
-  openMappingModal(rows, file.name);
-}
-
-function openMappingModal(rows, filename) {
-  _csvRows = rows;
-  const headers  = rows[0] || [];
-  const preview  = rows.slice(1, 4);
-
-  // Auto-guess field mapping
-  const guessed = {};
-  headers.forEach((h, i) => {
-    const low = (h || '').toLowerCase().trim();
-    Object.entries(IMPORT_GUESS_KEYWORDS).forEach(([field, keywords]) => {
-      if (keywords.some(k => low.includes(k)) && guessed[field] == null) guessed[field] = i;
-    });
-  });
-
-  // Build mapping modal HTML
-  const modal = document.getElementById('import-modal');
-  document.getElementById('import-preview-thead').innerHTML =
-    `<tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`;
-  document.getElementById('import-preview-tbody').innerHTML =
-    preview.map(row => `<tr>${row.map(c => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
-
-  document.getElementById('import-field-map').innerHTML = IMPORT_FIELDS.map(f => `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-      <label style="width:120px;font-size:13px">${f.label}${f.required ? ' *' : ''}</label>
-      <select id="map-${f.key}" class="form-input" style="flex:1">
-        <option value="-1">— skip —</option>
-        ${headers.map((h, i) => `<option value="${i}" ${guessed[f.key]===i?'selected':''}>${escapeHtml(h)}</option>`).join('')}
-      </select>
-    </div>
-  `).join('');
-
-  modal.style.display = 'flex';
-}
-
-async function applyImport() {
-  const headers  = _csvRows[0] || [];
-  const dataRows = _csvRows.slice(1);
-
-  // Read column mapping
-  const map = {};
-  IMPORT_FIELDS.forEach(f => {
-    map[f.key] = +document.getElementById(`map-${f.key}`).value;
-  });
-
-  // Validate required fields are mapped
-  const missing = IMPORT_FIELDS.filter(f => f.required && map[f.key] < 0).map(f => f.label);
-  if (missing.length) { toast(`Map required fields: ${missing.join(', ')}`, 'error'); return; }
-
-  const imported = [], skipped = [];
-
-  dataRows.forEach((row, i) => {
-    const raw = {};
-    IMPORT_FIELDS.forEach(f => {
-      raw[f.key] = map[f.key] >= 0 ? (row[map[f.key]] || '').trim() : '';
-    });
-
-    // Validate required fields have values
-    if (IMPORT_FIELDS.filter(f => f.required).some(f => !raw[f.key])) {
-      skipped.push(i + 2); return;
-    }
-
-    imported.push({
-      id: newId(),
-      ...raw,
-      // Add derived fields for your app here, e.g.:
-      // year: getYearFromDate(raw.date),
-    });
-  });
-
-  if (!imported.length) { toast('No valid rows found — check column mapping', 'error'); return; }
-
-  await dbBulkPut(imported);
-  scheduleSnapshot();
-  document.getElementById('import-modal').style.display = 'none';
-  toast(`Imported ${imported.length} records${skipped.length ? ` (${skipped.length} skipped)` : ''}`, 'success');
-  renderTable();
-}
-```
-
-**HTML for import modal:**
-```html
-<!-- Import trigger -->
-<button class="btn btn-outline" onclick="document.getElementById('file-input').click()">Import CSV</button>
-<input id="file-input" type="file" accept=".csv,.xlsx" style="display:none"
-       onchange="handleFileSelect(this.files[0]);this.value=''">
-
-<!-- Mapping Modal -->
-<div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
-  z-index:500;align-items:center;justify-content:center">
-  <div class="card" style="width:min(700px,95vw);max-height:85vh;overflow-y:auto">
-    <h3 style="margin-bottom:16px">Map CSV Columns</h3>
-
-    <!-- Preview -->
-    <div class="table-wrap" style="margin-bottom:20px;max-height:150px;overflow:auto">
-      <table><thead id="import-preview-thead"></thead><tbody id="import-preview-tbody"></tbody></table>
-    </div>
-
-    <!-- Field mapping -->
-    <div id="import-field-map"></div>
-
-    <div style="display:flex;gap:10px;margin-top:20px">
-      <button class="btn btn-primary" onclick="applyImport()">Import</button>
-      <button class="btn btn-outline" onclick="document.getElementById('import-modal').style.display='none'">Cancel</button>
-    </div>
-  </div>
-</div>
-```
-
-**Known bugs to avoid:**
-- RFC 4180: `""` inside quoted fields = literal `"`. Must handle in parser or imports with quotes in text corrupt silently.
-- Strip BOM (`﻿`) from CSV text before parsing — Excel-exported CSVs have it and it breaks header detection.
-- `this.value = ''` after reading file input — allows re-selecting the same file.
-- Large file web worker must inline the CSV parser (it can't import external scripts).
+## PART 6 — FEATURE MODULES
 
 ---
 
-### C08 — Tag / Label Management
+### F1: Auth Gate
 
-**What it does:** Users create, rename, and delete labels used to categorize records. Renaming propagates to all existing records automatically.
+**What it is:** A full-screen overlay that blocks the app until the user signs in. Stores the session for 24 hours so they don't log in every time. Provides a sign-out action in the header or settings.
 
 ```javascript
 // ── CONFIGURE ─────────────────────────────────────────────────────────────
-const TAGS_KEY = 'YOUR_APP_tags_v1';
-
-// Default tags for a fresh install
-const DEFAULT_TAGS = [
-  'General', 'Work', 'Personal', 'Urgent',
-  // Add your defaults here
-];
-
-let TAGS = [...DEFAULT_TAGS];
-
-function loadTags() {
-  try {
-    const raw = localStorage.getItem(TAGS_KEY);
-    if (raw) TAGS = JSON.parse(raw);
-  } catch { TAGS = [...DEFAULT_TAGS]; }
-}
-
-function saveTags() {
-  localStorage.setItem(TAGS_KEY, JSON.stringify(TAGS));
-}
+const AUTH_KEY    = 'YOUR_APP_auth_v1';
+const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
 // ─────────────────────────────────────────────────────────────────────────
 
-function renderTagManager() {
-  const container = document.getElementById('tag-list');
-  if (!container) return;
-  // BUG: always escapeHtml on tag name — user-supplied string in innerHTML
-  container.innerHTML = TAGS.map((tag, i) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span style="flex:1">${escapeHtml(tag)}</span>
-      <button class="btn btn-ghost" onclick="openRenameTag(${i})">✏️</button>
-      <button class="btn btn-ghost" onclick="deleteTag(${i})">🗑</button>
-    </div>
-  `).join('');
+let authUser = null;
+
+// Called during app init — checks cached session first
+function checkAuthSession() {
+  try {
+    const raw  = localStorage.getItem(AUTH_KEY);
+    if (!raw) { showAuthGate(); return; }
+    const sess = JSON.parse(raw);
+    if (Date.now() - sess.ts > SESSION_TTL) { showAuthGate(); return; }
+    authUser = sess;
+    bootApp();  // session valid — go directly to app
+  } catch { showAuthGate(); }
 }
 
-function addTag(name) {
-  name = name.trim();
-  if (!name) { toast('Tag name required', 'error'); return; }
-  // Case-insensitive duplicate check
-  if (TAGS.some(t => t.toLowerCase() === name.toLowerCase())) {
-    toast('Tag already exists', 'error'); return;
-  }
-  TAGS.push(name);
-  saveTags();
-  renderTagManager();
-  updateAutocompleteList();
-  toast(`Tag "${name}" added`, 'success');
+function cacheSession(user) {
+  authUser = { ...user, ts: Date.now() };
+  localStorage.setItem(AUTH_KEY, JSON.stringify(authUser));
 }
 
-async function renameTag(index, newName) {
-  newName = newName.trim();
-  if (!newName) { toast('Name required', 'error'); return; }
-  if (TAGS.some((t, i) => i !== index && t.toLowerCase() === newName.toLowerCase())) {
-    toast('Name already in use', 'error'); return;
-  }
-
-  const oldName = TAGS[index];
-
-  // Propagate rename to all records — update the field that holds tags
-  const all      = await dbGetAll();
-  const toUpdate = all.filter(r => r.category === oldName); // change 'category' to your tag field
-  await Promise.all(toUpdate.map(r => dbPut({ ...r, category: newName })));
-
-  TAGS[index] = newName;
-  saveTags();
-  renderTagManager();
-  updateAutocompleteList();
-  toast(`Renamed to "${newName}" — ${toUpdate.length} records updated`, 'success');
+function showAuthGate() {
+  document.getElementById('app').style.visibility      = 'hidden';
+  document.getElementById('auth-gate').style.display   = 'flex';
+  document.getElementById('bottombar').style.display   = 'none';
 }
 
-async function deleteTag(index) {
-  const name = TAGS[index];
-  if (!confirm(`Delete tag "${name}"? Records using it will be set to "Uncategorized".`)) return;
+function bootApp() {
+  document.getElementById('auth-gate').style.display   = 'none';
+  document.getElementById('app').style.visibility      = 'visible';
+  document.getElementById('bottombar').style.display   = '';
+  showView(DEFAULT_VIEW);
+  updateUserMenuUI();
+}
 
-  const all      = await dbGetAll();
-  const toUpdate = all.filter(r => r.category === name);
-  await Promise.all(toUpdate.map(r => dbPut({ ...r, category: 'Uncategorized' })));
+function signOut() {
+  localStorage.removeItem(AUTH_KEY);
+  authUser = null;
+  showAuthGate();
+}
 
-  TAGS.splice(index, 1);
-  saveTags();
-  renderTagManager();
-  updateAutocompleteList();
-  toast(`Deleted "${name}" — ${toUpdate.length} records updated`, 'success');
+// Updates header user avatar / sign-out visibility
+function updateUserMenuUI() {
+  const menu = document.getElementById('user-menu');
+  if (menu) menu.style.display = authUser ? 'block' : 'none';
 }
 ```
 
-**Known bugs to avoid:**
-- `escapeHtml(tag)` in `renderTagManager` — tag names are user-supplied and will be in `innerHTML`.
-- Rename: check for duplicates at `idx !== index` — otherwise it flags the tag being renamed as a duplicate of itself.
-- After rename/delete, call `updateAutocompleteList()` to keep the add form datalist in sync.
+**Auth gate HTML:**
+```html
+<div id="auth-gate" style="display:none;position:fixed;inset:0;background:var(--bg);
+  z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:20px">
+
+  <div style="text-align:center;margin-bottom:12px">
+    <div style="font-size:48px;margin-bottom:10px">🔒</div>
+    <h1 style="font-size:24px">Welcome to APP NAME</h1>
+    <p style="color:var(--muted);margin-top:6px">Sign in to continue</p>
+  </div>
+
+  <!-- Option A: Google OAuth -->
+  <button class="btn btn-primary" onclick="signInWithGoogle()" style="width:280px;justify-content:center;gap:10px">
+    <span>G</span> Continue with Google
+  </button>
+
+  <!-- Option B: License key form -->
+  <div style="width:280px">
+    <div class="form-row">
+      <label class="label">Email</label>
+      <input id="auth-email" type="email" class="input" placeholder="you@example.com">
+    </div>
+    <div class="form-row">
+      <label class="label">License Key</label>
+      <input id="auth-key" type="text" class="input" placeholder="XXXX-XXXX-XXXX">
+    </div>
+    <div id="auth-error" class="form-error"></div>
+    <button class="btn btn-primary" onclick="signInWithKey()" style="width:100%;justify-content:center;margin-top:8px">
+      Sign In
+    </button>
+  </div>
+</div>
+```
+
+**Sign-out in settings or header user menu:**
+```html
+<!-- User menu dropdown (appears in header when logged in) -->
+<div id="user-dropdown" style="display:none;position:absolute;top:54px;right:12px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px;min-width:200px;box-shadow:var(--shadow);z-index:200">
+  <div style="font-size:13px;color:var(--muted);padding-bottom:10px;border-bottom:1px solid var(--border)" id="user-email-display"></div>
+  <button class="nav-item nav-danger" style="width:100%;margin:8px 0 0" onclick="signOut()">
+    <span class="nav-icon">🚪</span> Sign Out
+  </button>
+</div>
+```
 
 ---
 
-### C09 — Three-Layer Backup System
+### F2: Three-Layer Backup
 
-**What it does:**
-- **Layer 1** — Auto-saves a browser snapshot every 3 seconds after any data change (up to 5 kept in localStorage).
-- **Layer 2** — Links a file on your computer; auto-saves to it every 30 minutes (Chrome/Edge/Brave only).
-- **Layer 3** — OAuth sign-in to sync with Google Sheets in the cloud.
+**What it is:** Three overlapping safety nets so data is never lost. Layer 1 is automatic and requires no user action.
 
+```
+Layer 1 — Browser Snapshots (automatic, always on)
+  Saves a snapshot to localStorage after every data change (3-second debounce).
+  Keeps the last 5 snapshots. Restore any snapshot from the Backup view.
+  No user setup required.
+
+Layer 2 — Local File (Chrome/Edge/Brave only)
+  User links a file on their computer. App auto-saves to it every 30 minutes.
+  Also fires when the tab is hidden or closed (before the user leaves).
+  Re-link required after page reload (browser security limitation).
+
+Layer 3 — Cloud Sync (requires Google OAuth + Sheets API setup)
+  Signs in with Google. Creates or links a Google Sheet.
+  Pushes all records on every change. Pulls to sync across devices.
+  Optional — skip entirely for local-only apps.
+```
+
+**Protection Score Banner:**
 ```javascript
-// ── Layer 1: Browser Snapshots ────────────────────────────────────────────
-const SNAPSHOTS_KEY  = 'YOUR_APP_snapshots_v1';
-const MAX_SNAPSHOTS  = 5;
-let   _snapTimer     = null;
+// Shows in header or backup view — 0/3 to 3/3 layers active
+function getProtectionScore() {
+  let score = 0;
+  if (loadSnapshots().length > 0) score++;  // Layer 1: has snapshots
+  if (_autoFileHandle)             score++;  // Layer 2: file linked
+  if (authUser && gsheetsSheetId) score++;  // Layer 3: sheet linked
+  return score; // 0, 1, 2, or 3
+}
 
-// Call this after EVERY data mutation (dbPut, dbDelete, dbBulkPut, dbClear)
+function renderProtectionBanner() {
+  const score  = getProtectionScore();
+  const banner = document.getElementById('protection-banner');
+  if (!banner) return;
+  const colors = ['var(--danger)', 'var(--warning)', 'var(--warning)', 'var(--success)'];
+  const labels = ['No backup active', '1 of 3 layers active', '2 of 3 layers active', 'Fully protected'];
+  banner.style.color     = colors[score];
+  banner.textContent     = `🛡 ${labels[score]}`;
+}
+```
+
+**Layer 1 — Browser Snapshots:**
+```javascript
+const SNAPSHOTS_KEY = 'YOUR_APP_snapshots_v1';
+const MAX_SNAPSHOTS = 5;
+let   _snapTimer    = null;
+
+// Call this after EVERY data mutation
 function scheduleSnapshot() {
   clearTimeout(_snapTimer);
-  _snapTimer = setTimeout(takeSnapshot, 3000); // debounce 3 seconds
+  _snapTimer = setTimeout(takeSnapshot, 3000); // 3s debounce
 }
 
 async function takeSnapshot() {
-  const all  = await dbGetAll();
+  const all   = await dbGetAll();
   let   snaps = loadSnapshots();
-
   snaps.unshift({ ts: Date.now(), count: all.length, data: all });
   snaps = snaps.slice(0, MAX_SNAPSHOTS);
-
   try {
     localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snaps));
   } catch (e) {
     if (e.name === 'QuotaExceededError') {
-      // Trim further and retry
       try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snaps.slice(0, 2))); } catch {}
-      toast('Storage nearly full — older snapshots trimmed', 'warning');
+      toast('Storage nearly full — oldest snapshots trimmed', 'warning');
     }
   }
 }
 
 function loadSnapshots() {
-  try { return JSON.parse(localStorage.getItem(SNAPSHOTS_KEY) || '[]'); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(SNAPSHOTS_KEY) || '[]'); }
+  catch { return []; }
 }
 
 async function restoreSnapshot(ts) {
-  const snaps = loadSnapshots();
-  const snap  = snaps.find(s => s.ts === ts);
+  const snap    = loadSnapshots().find(s => s.ts === ts);
   if (!snap) { toast('Snapshot not found', 'error'); return; }
-
   const current = await dbCount();
-  if (!confirm(`Restore ${snap.count} records? This replaces your current ${current} records.`)) return;
-
-  await dbClear();
-  await dbBulkPut(snap.data);
-  toast(`Restored ${snap.count} records`, 'success');
-  showView(DEFAULT_VIEW);
+  showConfirm(
+    'Restore Snapshot',
+    `Replace your current ${current} records with ${snap.count} records from this snapshot?`,
+    async () => {
+      await dbClear();
+      await dbBulkPut(snap.data);
+      toast(`Restored ${snap.count} records`, 'success');
+      showView(DEFAULT_VIEW);
+    }
+  );
 }
 
-// ── Layer 2: Local File Auto-Backup ───────────────────────────────────────
-let   _autoFileHandle = null;
+function renderSnapshotList() {
+  const snaps = loadSnapshots();
+  const el    = document.getElementById('snapshot-list');
+  if (!el) return;
+  el.innerHTML = snaps.length
+    ? snaps.map(s => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="flex:1">
+            <div style="font-size:13px">${new Date(s.ts).toLocaleString()}</div>
+            <div style="font-size:12px;color:var(--muted)">${s.count} records</div>
+          </div>
+          <button class="btn btn-sm btn-outline" onclick="restoreSnapshot(${JSON.stringify(s.ts)})">Restore</button>
+          <button class="btn btn-sm btn-ghost"   onclick="downloadSnapshot(${JSON.stringify(s.ts)})">↓</button>
+        </div>`).join('')
+    : `<p style="color:var(--muted);font-size:13px">No snapshots yet — add a record to create one.</p>`;
+}
+```
+
+**Layer 2 — Local File:**
+```javascript
+let   _autoFileHandle  = null;
 let   _autoBackupTimer = null;
-const L2_META_KEY      = 'YOUR_APP_l2_v1';
+const L2_META_KEY       = 'YOUR_APP_l2_v1';
 
 function isFileSystemSupported() { return typeof window.showSaveFilePicker === 'function'; }
 
 async function linkBackupFile() {
   if (!isFileSystemSupported()) {
-    toast('File backup requires Chrome, Edge, or Brave', 'error'); return;
+    toast('File backup requires Chrome, Edge, or Brave', 'warning'); return;
   }
   try {
     _autoFileHandle = await window.showSaveFilePicker({
       suggestedName: 'YOUR_APP_backup.json',
-      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+      types: [{ description: 'JSON backup', accept: { 'application/json': ['.json'] } }]
     });
-    localStorage.setItem(L2_META_KEY, JSON.stringify({ fileName: _autoFileHandle.name, lastBackup: null }));
     clearInterval(_autoBackupTimer);
     _autoBackupTimer = setInterval(runFileBackup, 30 * 60 * 1000);
     await runFileBackup();
-    toast(`Linked to ${_autoFileHandle.name}`, 'success');
+    localStorage.setItem(L2_META_KEY, JSON.stringify({ fileName: _autoFileHandle.name }));
+    toast(`Backup linked to ${_autoFileHandle.name}`, 'success');
+    renderProtectionBanner();
   } catch (e) {
-    if (e.name !== 'AbortError') toast('Could not link file: ' + e.message, 'error');
+    if (e.name !== 'AbortError') toast('Could not link file', 'error'); // AbortError = user cancelled
   }
 }
 
@@ -1628,264 +1355,506 @@ async function runFileBackup() {
     const json = JSON.stringify({ settings, records: all, backedUpAt: Date.now() }, null, 2);
     const w    = await _autoFileHandle.createWritable();
     await w.write(json); await w.close();
-    const meta = JSON.parse(localStorage.getItem(L2_META_KEY) || '{}');
-    meta.lastBackup = Date.now();
-    localStorage.setItem(L2_META_KEY, JSON.stringify(meta));
+    setSaveStatus('saved');
   } catch (e) {
-    toast('Auto-backup failed: ' + e.message, 'error');
+    toast('File backup failed: ' + e.message, 'error');
   }
 }
 
-function unlinkBackupFile() {
-  _autoFileHandle = null;
-  clearInterval(_autoBackupTimer);
-  localStorage.removeItem(L2_META_KEY);
-  toast('File backup unlinked', 'info');
-}
-```
-
-**Known bugs to avoid:**
-- `AbortError` when user cancels the file picker dialog — catch and ignore, don't show an error toast.
-- File handle does NOT persist across page reloads — store only the filename string (for UI) in localStorage.
-- `clearInterval(_autoBackupTimer)` on unlink — otherwise the old timer keeps firing.
-- Layer 1 `QuotaExceededError` — always catch, always trim further, never let it crash the app silently.
-
----
-
-### C10 — Settings Panel
-
-**What it does:** A form to configure scalar app settings (names, display options). Includes a sample data loader, a "clear all data" destructive action, and storage info.
-
-```javascript
-function loadSettingsForm() {
-  // Populate form from settings object
-  Object.keys(settings).forEach(key => {
-    const el = document.getElementById(`setting-${key}`);
-    if (el) el.value = settings[key] ?? '';
-  });
-  updateStorageInfo();
-}
-
-function saveSettingsForm(e) {
-  if (e) e.preventDefault();
-  Object.keys(settings).forEach(key => {
-    const el = document.getElementById(`setting-${key}`);
-    if (el) settings[key] = el.value.trim();
-  });
-  saveSettings();
-  toast('Settings saved', 'success');
-  // Apply any immediate effects (e.g., update header title)
-  document.querySelector('#topbar span').textContent = settings.appName || 'YOUR_APP_NAME';
-}
-
-async function updateStorageInfo() {
-  const count = await dbCount();
-  const el    = document.getElementById('storage-info');
-  if (el) el.textContent = `${count.toLocaleString()} records stored`;
-}
-
-// Double-confirm for destructive clear — NEVER use single confirm for this
-function confirmClearAll() {
-  if (!confirm('Delete ALL data? This cannot be undone.')) return;
-  if (!confirm('Are you absolutely sure? Type OK to confirm.')) return;
-  dbClear().then(() => {
-    scheduleSnapshot();
-    toast('All data cleared', 'info');
-    showView(DEFAULT_VIEW);
-  });
-}
-
-// Sample data loader — marks records with _sample: true so they can be cleared separately
-async function loadSampleData(sampleRecords) {
-  const tagged = sampleRecords.map(r => ({ ...r, id: newId(), _sample: true }));
-  await dbBulkPut(tagged);
-  scheduleSnapshot();
-  toast(`Loaded ${tagged.length} sample records`, 'success');
-  showView(DEFAULT_VIEW);
-}
-
-async function clearSampleData() {
-  const all      = await dbGetAll();
-  const toDelete = all.filter(r => r._sample);
-  await Promise.all(toDelete.map(r => dbDelete(r.id)));
-  scheduleSnapshot();
-  toast(`Removed ${toDelete.length} sample records`, 'success');
-}
+// Fire immediately when user hides tab (before they close it)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && _autoFileHandle) runFileBackup();
+});
 ```
 
 ---
 
-### C11 — Toast Notifications + Undo
+### F3: Search Bar
 
-**What it does:** Dismissable notification pop-ups. Supports an optional Undo action (6-second window to restore deleted records).
+**What it is:** A single text input that filters any table. Debounced so it doesn't fire on every keystroke.
 
 ```javascript
-function toast(msg, type = 'info', opts = {}) {
-  const container = document.getElementById('toast');
-  const duration  = opts.duration || 3200;
+let _searchTimer = null;
 
-  const el = document.createElement('div');
-  el.style.cssText = `padding:12px 18px;border-radius:8px;font-size:14px;cursor:pointer;
-    box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;max-width:360px;
-    ${type==='success' ? 'background:var(--success);color:#fff' :
-      type==='error'   ? 'background:var(--danger);color:#fff'  :
-      type==='warning' ? 'background:var(--warning);color:#000' :
-                         'background:var(--surface2);color:var(--text);border:1px solid var(--border)'}`;
-
-  // Use textContent (not innerHTML) — toast messages may contain user data
-  const msgNode = document.createTextNode(msg);
-  el.appendChild(msgNode);
-
-  if (opts.action) {
-    const btn = document.createElement('button');
-    btn.textContent = opts.action.label;
-    btn.style.cssText = 'background:rgba(255,255,255,.25);border:none;color:inherit;padding:2px 10px;border-radius:4px;cursor:pointer;font-weight:600;margin-left:4px';
-    btn.onclick = () => { opts.action.onClick(); el.remove(); };
-    el.appendChild(btn);
-  }
-
-  el.addEventListener('click', () => el.remove());
-  container.appendChild(el);
-
-  setTimeout(() => {
-    el.style.opacity = '0';
-    el.style.transition = 'opacity .3s';
-    setTimeout(() => el.remove(), 300);
-  }, duration);
+function onSearch(value, renderFn) {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => {
+    tableState.search = value;
+    tableState.page   = 1; // always reset to page 1 on new search
+    renderFn();
+  }, 250);
 }
+```
 
-// Undo system — 6-second window to restore deleted records
-function offerUndo(label, deletedRecords) {
-  // Clone before async operations can modify the originals
-  const saved = deletedRecords.map(r => ({ ...r }));
+**HTML (place in view header or topbar):**
+```html
+<div class="search-wrap">
+  <span class="search-icon">🔍</span>
+  <input id="search-input" type="search" class="input search-input"
+         placeholder="Search…" oninput="onSearch(this.value, renderTable)"
+         autocomplete="off" aria-label="Search records">
+  <button class="search-clear" onclick="clearSearch()" id="search-clear-btn" style="display:none">✕</button>
+</div>
+```
 
-  toast(label, 'info', {
-    duration: 6000,
-    action: {
-      label:   'Undo',
-      onClick: async () => {
-        await dbBulkPut(saved);
-        scheduleSnapshot();
-        renderTable();
-        toast('Restored', 'success');
-      }
-    }
-  });
-}
+**CSS:**
+```css
+.search-wrap  { position: relative; display: flex; align-items: center; max-width: 320px; flex: 1; }
+.search-icon  { position: absolute; left: 10px; color: var(--muted); pointer-events: none; font-size: 14px; }
+.search-input { padding-left: 32px; padding-right: 28px; }
+.search-clear { position: absolute; right: 8px; background: none; border: none;
+                color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px; }
+.search-clear:hover { color: var(--text); }
 ```
 
 ---
 
-### C12 — Auth Gate (Optional)
+### F4: Help System
 
-**What it does:** A sign-in screen that blocks access until the user authenticates. Skip entirely for public or personal apps.
+**What it is:** A slide-in panel from the right side showing FAQs and keyboard shortcuts. Press `?` or click the `❓` button to open it.
 
 ```javascript
-const AUTH_KEY     = 'YOUR_APP_auth_v1';
-const SESSION_TTL  = 24 * 60 * 60 * 1000; // 24 hours
-let   authUser     = null;
+// ── CONFIGURE: define your FAQ content ───────────────────────────────────
+const HELP_FAQS = [
+  {
+    question: 'How do I add a record?',
+    answer:   'Click the ➕ button in the sidebar or press the N key.'
+  },
+  {
+    question: 'Will my data be lost if I close the browser?',
+    answer:   'No. All data is saved in your browser automatically. Enable the File Backup in the Backup section for extra protection.'
+  },
+  {
+    question: 'How do I import data from a spreadsheet?',
+    answer:   'Go to Import, upload your CSV file, then map the columns to the right fields.'
+  },
+  // Add your own FAQs here
+];
 
-function checkAuthSession() {
-  try {
-    const raw  = localStorage.getItem(AUTH_KEY);
-    if (!raw) { showAuthGate(); return; }
-    const sess = JSON.parse(raw);
-    if (Date.now() - sess.ts > SESSION_TTL) { showAuthGate(); return; }
-    authUser = sess;
-    bootApp();
-  } catch { showAuthGate(); }
+const HELP_SHORTCUTS = [
+  { key: 'N',       action: 'New record' },
+  { key: '/',       action: 'Focus search' },
+  { key: '?',       action: 'Open this help panel' },
+  { key: 'Escape',  action: 'Close any open dialog' },
+  { key: 'G then H', action: 'Go to Home' },
+  // Add your shortcuts here
+];
+// ─────────────────────────────────────────────────────────────────────────
+
+function openHelp() {
+  const drawer  = document.getElementById('help-drawer');
+  const content = document.getElementById('help-content');
+
+  content.innerHTML = `
+    <div style="padding:0 20px 20px">
+      <h3 style="font-size:15px;margin-bottom:14px">Frequently Asked Questions</h3>
+      <div id="faq-list">
+        ${HELP_FAQS.map((f, i) => `
+          <div class="faq-item" style="border-bottom:1px solid var(--border)">
+            <button class="faq-q" onclick="toggleFAQ(${i})" style="width:100%;text-align:left;
+              padding:12px 0;background:none;border:none;color:var(--text);font-size:14px;
+              display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+              ${escapeHtml(f.question)}
+              <span id="faq-arrow-${i}" style="color:var(--muted)">›</span>
+            </button>
+            <div id="faq-body-${i}" style="display:none;padding:0 0 12px;font-size:13px;color:var(--muted);line-height:1.6">
+              ${escapeHtml(f.answer)}
+            </div>
+          </div>`).join('')}
+      </div>
+
+      <h3 style="font-size:15px;margin:24px 0 12px">Keyboard Shortcuts</h3>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${HELP_SHORTCUTS.map(s => `
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+            <span style="color:var(--muted)">${escapeHtml(s.action)}</span>
+            <kbd style="background:var(--surface2);border:1px solid var(--border);
+              border-radius:4px;padding:1px 7px;font-family:monospace;font-size:12px">${escapeHtml(s.key)}</kbd>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  drawer.style.display = 'block';
 }
 
-function cacheSession(user) {
-  authUser = { ...user, ts: Date.now() };
-  localStorage.setItem(AUTH_KEY, JSON.stringify(authUser));
+function closeHelp() {
+  document.getElementById('help-drawer').style.display = 'none';
 }
 
-function signOut() {
-  localStorage.removeItem(AUTH_KEY);
-  authUser = null;
-  showAuthGate();
+function toggleFAQ(i) {
+  const body  = document.getElementById(`faq-body-${i}`);
+  const arrow = document.getElementById(`faq-arrow-${i}`);
+  const open  = body.style.display === 'none';
+  body.style.display  = open ? 'block' : 'none';
+  arrow.textContent   = open ? '∨' : '›';
 }
+```
 
-function showAuthGate() {
-  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
-  document.getElementById('auth-gate').style.display = 'flex';
-}
-
-function bootApp() {
-  document.getElementById('auth-gate').style.display = 'none';
-  showView(DEFAULT_VIEW);
-}
-
-// Verify against Supabase (or your own API)
-async function verifyCredentials(email, key) {
-  const SUPA_URL = 'https://YOUR_PROJECT.supabase.co';
-  const SUPA_KEY = 'YOUR_ANON_KEY'; // protected by RLS
-
-  const res = await fetch(
-    `${SUPA_URL}/rest/v1/YOUR_USERS_TABLE?email=eq.${encodeURIComponent(email)}&select=*`,
-    { headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` } }
-  );
-  if (!res.ok) throw new Error('Cannot connect to auth server');
-  const rows = await res.json();
-  if (!rows.length) throw new Error('No account found for this email');
-  const user = rows[0];
-  if (user.license_key !== key) throw new Error('Invalid license key');
-  return user;
-}
+**Help Drawer CSS:**
+```css
+#help-drawer   { position: fixed; inset: 0; z-index: 400; display: none; }
+#help-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.5); }
+#help-panel    { position: absolute; right: 0; top: 0; bottom: 0;
+                 width: min(400px, 95vw); background: var(--surface);
+                 border-left: 1px solid var(--border); overflow-y: auto;
+                 animation: slideInRight .2s ease; }
+.help-header   { display: flex; align-items: center; justify-content: space-between;
+                 padding: 18px 20px; border-bottom: 1px solid var(--border);
+                 position: sticky; top: 0; background: var(--surface); z-index: 1; }
+@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
 ```
 
 ---
 
-### C13 — Theme Toggle
+### F5: Navigation System
 
 ```javascript
-const THEME_KEY = 'YOUR_APP_theme';
+// ── CONFIGURE: define your app's views ───────────────────────────────────
+const DEFAULT_VIEW = 'YOUR_DEFAULT_VIEW';  // first view shown after login
 
-function applyTheme() {
-  const saved = localStorage.getItem(THEME_KEY) || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  const btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
-}
-
-function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme') || 'dark';
-  const next    = current === 'dark' ? 'light' : 'dark';
-  localStorage.setItem(THEME_KEY, next);
-  document.documentElement.setAttribute('data-theme', next);
-  const btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
-  if (typeof retintCharts === 'function') retintCharts(); // update charts if C03 included
-}
-```
-
----
-
-### C14 — Keyboard Shortcuts
-
-```javascript
-// ── CONFIGURE: define your shortcuts ─────────────────────────────────────
-const SHORTCUTS = {
-  'n': () => showView('YOUR_ADD_VIEW'),   // n = new record
-  '/': () => document.getElementById('search-input')?.focus(),
-  '?': toggleShortcutsHelp,
+// Map each view ID to the function that renders it
+const VIEW_RENDERERS = {
+  // 'view-id': renderFunction
+  // Example:
+  // 'home-view':     renderHome,
+  // 'list-view':     () => renderTable({ page: 1 }),
+  // 'add-view':      initAddForm,
+  // 'backup-view':   renderBackupView,
+  // 'settings-view': loadSettingsForm,
 };
 
-// Two-key shortcuts (press g then a key)
+// Desktop sidebar nav structure
+// Each group has a label + array of items
+const NAV_GROUPS = [
+  {
+    label: 'SECTION NAME',   // e.g. 'Overview', 'Data', 'Settings'
+    items: [
+      // { view: 'view-id', icon: '🏠', label: 'Home' },
+    ]
+  },
+  // Add more groups
+];
+
+// Mobile bottom tab bar (max 5 items; use 'fab:true' for the center + button)
+const MOBILE_TABS = [
+  // { view: 'view-id', icon: '🏠', label: 'Home' },
+  // { view: 'add-view', icon: '+', label: '', fab: true },
+];
+// ─────────────────────────────────────────────────────────────────────────
+
+function buildNav() {
+  // Build sidebar
+  const sidebar = document.getElementById('sidebar');
+  const navHtml = NAV_GROUPS.map(group => `
+    <div class="nav-section">
+      <div class="nav-label">${escapeHtml(group.label)}</div>
+      ${group.items.map(item => `
+        <div class="nav-item" data-view="${item.view}" onclick="showView('${item.view}')" role="button" tabindex="0">
+          <span class="nav-icon">${item.icon}</span>
+          <span>${escapeHtml(item.label)}</span>
+          ${item.badge ? `<span class="nav-badge" id="nav-badge-${item.view}"></span>` : ''}
+        </div>`).join('')}
+    </div>`).join('');
+
+  // Find existing nav HTML and append (preserve sidebar-info section)
+  const infoEl = document.getElementById('sidebar-info');
+  sidebar.innerHTML = (infoEl ? infoEl.outerHTML : '') + navHtml;
+
+  // Build bottom tab bar
+  const bar = document.getElementById('bottombar');
+  bar.innerHTML = MOBILE_TABS.map(tab => `
+    <button data-view="${tab.view || ''}" onclick="${tab.view ? `showView('${tab.view}')` : tab.onclick || ''}"
+            class="${tab.fab ? 'tab-fab' : ''}" ${tab.view ? '' : ''}>
+      <span class="tab-icon">${tab.icon}</span>
+      ${tab.label ? `<span>${escapeHtml(tab.label)}</span>` : ''}
+    </button>`).join('');
+}
+
+function showView(viewId) {
+  // Hide all views
+  document.querySelectorAll('.view').forEach(v => {
+    v.style.display = 'none';
+    v.classList.remove('active');
+  });
+
+  // Show target
+  const target = document.getElementById(viewId);
+  if (!target) { console.warn('showView: no element with id', viewId); return; }
+  target.style.display = 'block';
+  target.classList.add('active');
+
+  // Update sidebar active state
+  document.querySelectorAll('.nav-item[data-view]').forEach(el =>
+    el.classList.toggle('active', el.dataset.view === viewId));
+
+  // Update mobile tab bar active state
+  document.querySelectorAll('#bottombar button[data-view]').forEach(el =>
+    el.classList.toggle('active', el.dataset.view === viewId));
+
+  // Scroll main content to top
+  const main = document.getElementById('main');
+  if (main) main.scrollTop = 0;
+
+  // Run the view's render function
+  const renderer = VIEW_RENDERERS[viewId];
+  if (renderer) renderer();
+}
+
+// Mobile sidebar
+function toggleSidebar() {
+  const sidebar  = document.getElementById('sidebar');
+  const overlay  = document.getElementById('sidebar-overlay');
+  const isOpen   = sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', !isOpen);
+  overlay.style.display = isOpen ? 'none' : 'block';
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').style.display = 'none';
+}
+```
+
+---
+
+### F6: Quick-Entry Form
+
+The form UI pattern for adding a single record fast. Domain-agnostic skeleton:
+
+```javascript
+// ── CONFIGURE: map HTML input IDs to your record fields ──────────────────
+const FORM_CONFIG = {
+  fields: [
+    // { id: 'input-element-id', key: 'record-field-name', required: true, transform: fn }
+    // Examples:
+    // { id: 'f-name',   key: 'name',   required: true,  transform: v => v.trim()            },
+    // { id: 'f-date',   key: 'date',   required: true,  transform: v => v                   },
+    // { id: 'f-tag',    key: 'category', required: false, transform: v => v.trim() || 'None' },
+    // { id: 'f-amount', key: 'amount', required: true,  transform: v => Math.abs(parseFloat(v)) },
+    // { id: 'f-notes',  key: 'notes',  required: false, transform: v => v.trim()            },
+  ],
+  validators: [
+    // fn receives the transformed record object, returns error string or null
+    // Example: r => (!r.name) ? 'Name is required' : null,
+    // Example: r => (!r.amount || r.amount <= 0) ? 'Amount must be positive' : null,
+  ],
+  onSuccess: null, // function to call after successful save (e.g. renderTable)
+  keepAfterSubmit: ['f-date', 'f-tag'], // these inputs keep their value (rapid-entry UX)
+  focusAfterSubmit: 'f-name',           // which input to focus after submit
+};
+// ─────────────────────────────────────────────────────────────────────────
+
+function initAddForm() {
+  // Default date to today
+  const dateInput = document.querySelector('#add-view [type="date"]');
+  if (dateInput && !dateInput.value) {
+    dateInput.value = new Date().toISOString().slice(0, 10);
+  }
+  // Clear error
+  const errEl = document.getElementById('form-error');
+  if (errEl) errEl.textContent = '';
+  // Update autocomplete list
+  updateTagDatalist();
+  renderRecentEntries();
+}
+
+async function submitForm(e) {
+  if (e) e.preventDefault();
+
+  const errEl = document.getElementById('form-error');
+  if (errEl) errEl.textContent = '';
+
+  // Read + transform all fields
+  const raw = {};
+  FORM_CONFIG.fields.forEach(f => {
+    const el = document.getElementById(f.id);
+    raw[f.key] = el ? f.transform(el.value) : (f.required ? '' : undefined);
+  });
+
+  // Validate
+  for (const validator of FORM_CONFIG.validators) {
+    const err = validator(raw);
+    if (err) { if (errEl) errEl.textContent = err; return; }
+  }
+
+  // Build full record
+  const record = { id: newId(), ...raw, created_at: new Date().toISOString() };
+
+  await dbPutWithStatus(record);
+
+  // Reset fields (keep some for rapid entry)
+  FORM_CONFIG.fields.forEach(f => {
+    if (!FORM_CONFIG.keepAfterSubmit.includes(f.id)) {
+      const el = document.getElementById(f.id);
+      if (el) el.value = '';
+    }
+  });
+
+  // Focus the first input for rapid re-entry
+  document.getElementById(FORM_CONFIG.focusAfterSubmit)?.focus();
+
+  toast('Record added', 'success');
+  renderRecentEntries();
+  if (FORM_CONFIG.onSuccess) FORM_CONFIG.onSuccess();
+}
+```
+
+---
+
+### F7: Paginated Data Table
+
+**Shared pagination renderer** (use for every table in the app — one function, zero duplication):
+
+```javascript
+function renderPagination(containerId, currentPage, total, pageSize, onPageChange) {
+  const totalPages = Math.ceil(total / pageSize);
+  const el = document.getElementById(containerId);
+  if (!el || totalPages <= 1) { if (el) el.innerHTML = ''; return; }
+
+  const start = (currentPage - 1) * pageSize + 1;
+  const end   = Math.min(currentPage * pageSize, total);
+
+  // Page number array with gaps for large page counts
+  const nums = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) nums.push(i);
+  }
+  const withGaps = [];
+  nums.forEach((p, i) => { if (i > 0 && p - nums[i-1] > 1) withGaps.push('…'); withGaps.push(p); });
+
+  el.innerHTML = `
+    <span class="pg-info">Showing ${start}–${end} of ${total}</span>
+    <button onclick="(${onPageChange})(1)"                ${currentPage===1?'disabled':''}>«</button>
+    <button onclick="(${onPageChange})(${currentPage-1})"  ${currentPage===1?'disabled':''}>‹</button>
+    ${withGaps.map(p => p === '…'
+      ? `<span style="padding:0 4px;color:var(--muted)">…</span>`
+      : `<button class="${p===currentPage?'active':''}" onclick="(${onPageChange})(${p})">${p}</button>`
+    ).join('')}
+    <button onclick="(${onPageChange})(${currentPage+1})"  ${currentPage===totalPages?'disabled':''}>›</button>
+    <button onclick="(${onPageChange})(${totalPages})"      ${currentPage===totalPages?'disabled':''}>»</button>`;
+}
+```
+
+**Pagination CSS:**
+```css
+.pagination             { display: flex; align-items: center; gap: 4px; padding: 14px 0; flex-wrap: wrap; }
+.pagination button      { padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border);
+                          background: var(--surface2); color: var(--text); font-size: 13px; }
+.pagination button.active  { background: var(--primary); color: #000; border-color: var(--primary); }
+.pagination button:disabled { opacity: .4; cursor: not-allowed; }
+.pg-info                { font-size: 13px; color: var(--muted); margin-right: 8px; }
+```
+
+---
+
+### F8: CSV Import
+
+See the full implementation in Part 2 — Component C07 of this document. The RFC 4180 parser, Web Worker, and field mapping modal are domain-agnostic. Only the `IMPORT_FIELDS` config array changes per app.
+
+---
+
+### F9: Tag / Label Management
+
+See Part 2 — Component C08. Only the `DEFAULT_TAGS` array and the field name used to store the tag (`r.category` in the P&L example — change to `r.tag`, `r.label`, `r.type`, etc.) change per app.
+
+---
+
+### F10: Data Export
+
+```javascript
+// Export records as CSV — configure CSV_COLUMNS for your fields
+async function exportCSV() {
+  const records = await dbGetAll();
+  if (!records.length) { toast('Nothing to export', 'info'); return; }
+
+  // ── CONFIGURE ────────────────────────────────────────────────────────────
+  const CSV_COLUMNS = [
+    // { header: 'Column Header', value: record => record.fieldName }
+    // Example:
+    // { header: 'Name',        value: r => r.name        || '' },
+    // { header: 'Date',        value: r => r.date        || '' },
+    // { header: 'Category',    value: r => r.category    || '' },
+    // { header: 'Description', value: r => r.description || '' },
+  ];
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const lines = [
+    CSV_COLUMNS.map(c => `"${c.header}"`).join(','),
+    ...records.map(r =>
+      CSV_COLUMNS.map(c => `"${String(csvSanitize(c.value(r))).replace(/"/g, '""')}"`).join(',')
+    )
+  ];
+  downloadFile(lines.join('\n'), `export_${Date.now()}.csv`, 'text/csv;charset=utf-8;');
+  toast('CSV downloaded', 'success');
+}
+
+async function exportJSON() {
+  const records = await dbGetAll();
+  const payload = JSON.stringify({ settings, records, exportedAt: new Date().toISOString() }, null, 2);
+  downloadFile(payload, `backup_${Date.now()}.json`, 'application/json');
+  toast('JSON backup downloaded', 'success');
+}
+
+async function importJSONBackup(file) {
+  try {
+    const data = JSON.parse(await file.text());
+    if (!Array.isArray(data.records)) { toast('Invalid backup file', 'error'); return; }
+    showConfirm(
+      'Import Backup',
+      `Add ${data.records.length} records? Existing records with the same ID will be skipped.`,
+      async () => {
+        const existing  = new Set((await dbGetAll()).map(r => r.id));
+        const toImport  = data.records.filter(r => !existing.has(r.id));
+        await dbBulkPut(toImport);
+        scheduleSnapshot();
+        toast(`Imported ${toImport.length} new records`, 'success');
+        showView(DEFAULT_VIEW);
+      }
+    );
+  } catch { toast('Could not read backup file', 'error'); }
+}
+
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+```
+
+---
+
+### F11: Keyboard Shortcuts
+
+```javascript
+// ── CONFIGURE ─────────────────────────────────────────────────────────────
+const SHORTCUTS = {
+  // key (lowercase) → function
+  'n': () => showView(ADD_VIEW_ID),
+  '/': () => document.getElementById('search-input')?.focus(),
+  '?': openHelp,
+  // Add your own single-key shortcuts
+};
+
+// Two-key shortcuts — press 'g' then a letter
 const G_SHORTCUTS = {
-  'h': () => showView('YOUR_MAIN_VIEW'),
-  'l': () => showView('YOUR_LIST_VIEW'),
-  's': () => showView('YOUR_SETTINGS'),
-  // Add your views here
+  // 'h': () => showView('home-view'),
+  // 'l': () => showView('list-view'),
+  // 's': () => showView('settings-view'),
+  // 'b': () => showView('backup-view'),
+  // Add your view shortcuts
 };
 // ─────────────────────────────────────────────────────────────────────────
 
 let _gKeyActive = false;
+let _gTimer     = null;
 
 document.addEventListener('keydown', e => {
-  // Skip when typing in inputs
-  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  // Skip when typing in any input, textarea, or select
+  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
   const key = e.key.toLowerCase();
@@ -1894,501 +1863,524 @@ document.addEventListener('keydown', e => {
 
   if (_gKeyActive) {
     _gKeyActive = false;
-    if (G_SHORTCUTS[key]) { G_SHORTCUTS[key](); }
+    clearTimeout(_gTimer);
+    if (G_SHORTCUTS[key]) G_SHORTCUTS[key]();
     return;
   }
 
-  if (key === 'g') { _gKeyActive = true; return; }
+  if (key === 'g') {
+    _gKeyActive = true;
+    _gTimer = setTimeout(() => { _gKeyActive = false; }, 1500); // reset g-prefix after 1.5s
+    return;
+  }
+
   if (SHORTCUTS[key]) SHORTCUTS[key]();
 });
-
-function closeAllModals() {
-  document.querySelectorAll('[id$="-modal"]').forEach(m => m.style.display = 'none');
-}
 ```
 
 ---
 
-### C15 — PWA / Offline Support
+### F12: PWA / Offline Support
 
-**manifest.json** — place in your project root:
+**manifest.json:**
 ```json
 {
-  "name": "YOUR APP NAME",
-  "short_name": "YOUR APP",
-  "start_url": "/",
-  "display": "standalone",
-  "theme_color": "#0f1117",
+  "name":             "YOUR APP NAME",
+  "short_name":       "APP",
+  "start_url":        "/",
+  "display":          "standalone",
+  "orientation":      "any",
+  "theme_color":      "#0f1117",
   "background_color": "#0f1117",
+  "description":      "ONE LINE DESCRIPTION OF YOUR APP",
+  "categories":       ["productivity", "utilities"],
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ],
   "shortcuts": [
-    { "name": "Add Record",  "url": "/?action=add",  "description": "Quickly add a new record" },
-    { "name": "View All",    "url": "/?action=list", "description": "See all records"           }
+    { "name": "Add Record", "url": "/?action=add",  "description": "Quickly add a new record" },
+    { "name": "View List",  "url": "/?action=list", "description": "Open the full list" }
   ]
 }
 ```
 
-**service-worker.js** — handles URL shortcut actions and offline caching:
+**service-worker.js:**
 ```javascript
-const CACHE = 'YOUR_APP_v1';
-const CORE  = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+const CACHE_NAME  = 'YOUR_APP_v1';
+const CORE_ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
-self.addEventListener('install',  e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE))); self.skipWaiting(); });
-self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });
-self.addEventListener('fetch', e => {
-  // Bypass API calls — never cache network requests to external services
-  if (e.request.url.includes('supabase.co') || e.request.url.includes('googleapis.com')) return;
-  e.respondWith(caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
-    if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-    return res;
-  })));
+self.addEventListener('install',  e => {
+  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(CORE_ASSETS)));
+  self.skipWaiting();
 });
-```
 
-**Register in app HTML:**
-```javascript
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js'));
-}
-
-// Handle PWA shortcuts (?action=add, ?action=list, etc.)
-window.addEventListener('DOMContentLoaded', () => {
-  const params = new URLSearchParams(location.search);
-  const action = params.get('action');
-  if (action === 'add')  showView('YOUR_ADD_VIEW');
-  if (action === 'list') showView('YOUR_LIST_VIEW');
-});
-```
-
----
-
-### C16 — Data Export
-
-```javascript
-// Export all records as CSV
-async function exportCSV(filename = 'export') {
-  const records = await dbGetAll();
-  if (!records.length) { toast('No records to export', 'info'); return; }
-
-  // ── CONFIGURE: define your CSV columns ──────────────────────────────────
-  const CSV_COLUMNS = [
-    { header: 'Name',        value: r => r.name        || '' },
-    { header: 'Category',    value: r => r.category    || '' },
-    { header: 'Date',        value: r => r.date        || '' },
-    { header: 'Description', value: r => r.description || '' },
-    // Add your columns here
-  ];
-  // ────────────────────────────────────────────────────────────────────────
-
-  const lines = [
-    CSV_COLUMNS.map(c => `"${c.header}"`).join(','),
-    ...records.map(r =>
-      CSV_COLUMNS.map(c => `"${String(csvSanitize(c.value(r))).replace(/"/g, '""')}"`).join(',')
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
     )
-  ];
+  );
+  self.clients.claim();
+});
 
-  downloadBlob(lines.join('\n'), `${filename}_${Date.now()}.csv`, 'text/csv;charset=utf-8;');
+self.addEventListener('fetch', e => {
+  // Pass through all API calls — never cache third-party network requests
+  if (/supabase\.co|googleapis\.com|accounts\.google\.com/.test(e.request.url)) return;
+
+  e.respondWith(
+    caches.match(e.request).then(cached =>
+      cached || fetch(e.request).then(res => {
+        if (res.ok) caches.open(CACHE_NAME).then(c => c.put(e.request, res.clone()));
+        return res;
+      })
+    )
+  );
+});
+```
+
+**Registration + URL shortcut handling:**
+```javascript
+// Register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () =>
+    navigator.serviceWorker.register('/service-worker.js')
+      .catch(err => console.warn('SW not registered:', err))
+  );
 }
 
-// Export all records as JSON backup
-async function exportJSON(filename = 'backup') {
+// Handle PWA shortcut URLs (?action=add, ?action=list, etc.)
+// Call this inside initApp() after bootApp()
+function handleURLActions() {
+  const action = new URLSearchParams(location.search).get('action');
+  if (action === 'add')  showView(ADD_VIEW_ID);
+  if (action === 'list') showView(LIST_VIEW_ID);
+  // Add your own action handlers here
+}
+```
+
+---
+
+## PART 7 — OPTIONAL DATA DISPLAY (D1, D2, D3)
+
+> These three components are **optional**. Many apps don't need charts or aggregated summaries.
+> The design and data are entirely defined by you — this section provides the proven structural pattern, not P&L-specific metrics.
+
+---
+
+### D1: KPI Summary Cards
+
+**What it is:** A grid of metric boxes. You define what each card measures and how to format it.
+
+```javascript
+// ── YOU DEFINE THIS — what metrics your app shows ─────────────────────────
+// Each entry: { id, label, compute(records[]) → value, format(value) → string, color(value) → CSSvar }
+const MY_KPI_METRICS = [
+  // Example for a task app:
+  // { id:'kpi-total',   label:'Total',     compute: r => r.length,                               format: v=>v,  color:()=>'var(--text)' },
+  // { id:'kpi-open',    label:'Open',      compute: r => r.filter(t=>t.status==='open').length,   format: v=>v,  color: v=>v>0?'var(--warning)':'var(--muted)' },
+  // { id:'kpi-done',    label:'Complete',  compute: r => r.filter(t=>t.status==='done').length,   format: v=>v,  color: v=>v>0?'var(--success)':'var(--muted)' },
+];
+// ─────────────────────────────────────────────────────────────────────────
+
+async function renderKPIs() {
   const records = await dbGetAll();
-  const payload = JSON.stringify({ settings, records, exportedAt: new Date().toISOString() }, null, 2);
-  downloadBlob(payload, `${filename}_${Date.now()}.json`, 'application/json');
-}
-
-// Import JSON backup
-async function importJSON(file) {
-  try {
-    const data = JSON.parse(await file.text());
-    if (!Array.isArray(data.records)) { toast('Invalid backup file', 'error'); return; }
-    if (!confirm(`Import ${data.records.length} records? Duplicates (same ID) will be skipped.`)) return;
-    const existingIds = new Set((await dbGetAll()).map(r => r.id));
-    const toImport    = data.records.filter(r => !existingIds.has(r.id));
-    await dbBulkPut(toImport);
-    scheduleSnapshot();
-    toast(`Imported ${toImport.length} new records`, 'success');
-    renderTable();
-  } catch { toast('Could not read backup file', 'error'); }
-}
-
-function downloadBlob(content, filename, type) {
-  const blob = new Blob([content], { type });
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
-  a.click();
-  URL.revokeObjectURL(url);
+  MY_KPI_METRICS.forEach(m => {
+    const el = document.getElementById(m.id);
+    if (!el) return;
+    const val = m.compute(records);
+    el.textContent  = m.format(val);
+    el.style.color  = m.color(val);
+  });
 }
 ```
 
+**HTML template (repeat once per metric, or generate from MY_KPI_METRICS):**
+```html
+<div class="kpi-grid">
+  <div class="card">
+    <div class="label">YOUR LABEL</div>
+    <div class="kpi-value" id="kpi-YOUR_ID">—</div>
+  </div>
+</div>
+```
+
+**CSS:**
+```css
+.kpi-grid  { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.kpi-value { font-size: 28px; font-weight: 700; margin-top: 6px; }
+```
+
 ---
 
-## PART 3 — DOMAIN ADAPTATION GUIDE
+### D2: Charts (Optional)
 
-**How to apply this blueprint to any new app in 6 steps:**
+**What it is:** Chart.js-powered charts. You define the datasets. The structural boilerplate (destroy-before-recreate, theme colors, responsive container) is what you reuse — not the chart content.
+
+**Required one-time setup:**
+- Inline Chart.js 4.4.1 in your HTML (do not load from CDN — breaks offline)
+- One canvas element per chart
+
+**Structural boilerplate (copy verbatim, use for every chart):**
+```javascript
+const charts = {}; // track all Chart.js instances
+
+function themeColors() {
+  const s = getComputedStyle(document.documentElement);
+  return {
+    text:    s.getPropertyValue('--text').trim(),
+    muted:   s.getPropertyValue('--muted').trim(),
+    border:  s.getPropertyValue('--border').trim(),
+    primary: s.getPropertyValue('--primary').trim(),
+    success: s.getPropertyValue('--success').trim(),
+    danger:  s.getPropertyValue('--danger').trim(),
+    warning: s.getPropertyValue('--warning').trim(),
+  };
+}
+
+// ALWAYS call before new Chart() — never skip
+function destroyChart(key) {
+  if (charts[key]) { try { charts[key].destroy(); } catch(e){} delete charts[key]; }
+}
+
+// Base options shared by bar / line charts — adjust as needed
+function baseChartOptions(tc, tooltipFormat) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: tc.text, font: { size: 12 } } },
+      tooltip: { callbacks: { label: tooltipFormat || (ctx => ctx.parsed.y) } },
+    },
+    scales: {
+      x: { ticks: { color: tc.muted }, grid: { color: tc.border + '44' } },
+      y: { ticks: { color: tc.muted }, grid: { color: tc.border + '44' } },
+    }
+  };
+}
+
+// Re-render all charts on theme toggle
+function retintCharts() {
+  // Destroy and re-call each render function — simpler than patching existing instances
+  Object.keys(charts).forEach(k => destroyChart(k));
+  renderAllCharts(); // YOUR function that calls each individual renderXChart()
+}
+```
+
+**Canvas HTML template:**
+```html
+<div class="card">
+  <div class="card-header">YOUR CHART TITLE</div>
+  <!-- chart-wrap must have an explicit height for Chart.js responsive sizing -->
+  <div style="position:relative;height:260px">
+    <canvas id="chart-YOUR_KEY"></canvas>
+  </div>
+</div>
+```
 
 ---
 
-### Step 1 — Define Your Record
+### D3: Summary / Aggregated Table (Optional)
 
-Replace the P&L `Transaction` with your own shape. Every record **must** have `id`. Everything else is your choice.
+**What it is:** A read-only table that groups records by a field and shows aggregated totals. Not paginated — the number of groups is bounded.
 
 ```javascript
-// EXAMPLES for different app types:
+// ── YOU DEFINE THIS ───────────────────────────────────────────────────────
+// GROUP_BY_FIELD: the field to group records by (e.g. 'status', 'category', 'month')
+// AGGREGATE_FNS:  what to compute per group
+// ─────────────────────────────────────────────────────────────────────────
 
-// Task Manager
-const Record = { id, title, status, priority, due_date, assignee, tags, created_at };
+async function renderSummaryTable(groupByField, aggregateFns, tbodyId) {
+  const records = await dbGetAll();
 
-// Inventory Tracker
-const Record = { id, sku, name, quantity, unit_price, category, location, last_updated };
+  // Group records
+  const groups = {};
+  records.forEach(r => {
+    const key = r[groupByField] || 'Unknown';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
 
-// Client CRM
-const Record = { id, name, email, company, status, next_followup, notes, created_at };
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
 
-// Event Logger
-const Record = { id, event_type, description, severity, source, timestamp };
+  const keys = Object.keys(groups).sort();
+  if (!keys.length) {
+    tbody.innerHTML = `<tr><td colspan="${aggregateFns.length + 1}" class="empty-state">No data yet</td></tr>`;
+    return;
+  }
 
-// Recipe Book
-const Record = { id, name, cuisine, prep_time, difficulty, ingredients, instructions };
+  tbody.innerHTML = keys.map(key =>
+    `<tr>
+      <td>${escapeHtml(key)}</td>
+      ${aggregateFns.map(fn => `<td>${fn.format(fn.compute(groups[key]))}</td>`).join('')}
+    </tr>`
+  ).join('');
+}
+
+// Example usage — task app grouping by status:
+// renderSummaryTable('status', [
+//   { compute: rows => rows.length,                              format: v => v },
+//   { compute: rows => rows.filter(r=>r.priority==='high').length, format: v => v + ' high-priority' },
+// ], 'summary-tbody');
 ```
-
-**Rules for any record shape:**
-- `id` = always `newId()` (float: `Date.now() + Math.random()`)
-- Date fields = always `"YYYY-MM-DD"` strings (ISO format)
-- Numeric fields = always store as numbers, always positive (use a separate field for sign if needed)
-- Text fields = stored raw in DB; `escapeHtml()` applied at render time
 
 ---
 
-### Step 2 — Configure the DB Schema
+## PART 8 — APP INITIALIZATION
 
 ```javascript
-// Change these at the top of your script
-const DB_NAME    = 'TaskManagerDB';
-const STORE_NAME = 'tasks';
-const DB_INDEXES = [
-  { name: 'status',   keyPath: 'status'   },
-  { name: 'due_date', keyPath: 'due_date' },
-  { name: 'priority', keyPath: 'priority' },
-];
+// Exact order matters — changing the order causes blank screens or missing data
+async function initApp() {
+  loadSettings();          // 1. Load settings first (other functions depend on settings values)
+  loadTags();              // 2. Load tags/labels from localStorage
+  applyTheme();            // 3. Apply theme BEFORE rendering anything (prevents flash)
+  await initDB();          // 4. Open IndexedDB — must succeed before any data read/write
+  buildNav();              // 5. Build sidebar + bottom tab bar from config
+  checkAuthSession();      // 6. Auth: show gate or boot app (boot calls showView)
+  //  showView(DEFAULT_VIEW);  // ← skip this line if using auth; checkAuthSession calls bootApp which calls showView
+  handleURLActions();      // 7. Handle PWA shortcut URLs
+}
 
-// Configure search fields (what gets searched when user types in the search box)
-const SEARCH_FIELDS = ['title', 'assignee', 'tags', 'description'];
+window.addEventListener('DOMContentLoaded', initApp);
 ```
 
 ---
 
-### Step 3 — Configure the Table
+## PART 9 — AUDIT CHECKLIST
 
-```javascript
-const TABLE_COLUMNS = [
-  { key: 'title',    label: 'Task',     sortable: true,  render: r => escapeHtml(r.title) },
-  { key: 'status',   label: 'Status',   sortable: true,  render: r => `<span class="badge badge-primary">${escapeHtml(r.status)}</span>` },
-  { key: 'priority', label: 'Priority', sortable: true,  render: r => escapeHtml(r.priority) },
-  { key: 'due_date', label: 'Due',      sortable: true,  render: r => escapeHtml(r.due_date) },
-  { key: '_actions', label: '',         sortable: false, render: r => `<button onclick="deleteRecord(${JSON.stringify(r.id)})">🗑</button>` },
-];
+Run this checklist before releasing any new app built from this blueprint.
 
-const TABLE_FILTERS = [
-  { key: 'status',   label: 'Status',   options: ['open', 'in-progress', 'done'] },
-  { key: 'priority', label: 'Priority', options: ['low', 'medium', 'high']       },
-];
+### Foundation Checks
 ```
-
----
-
-### Step 4 — Configure the Add Form
-
-```javascript
-const FORM_FIELDS = [
-  { id: 'f-title',    key: 'title',    required: true,  transform: v => v.trim()       },
-  { id: 'f-status',   key: 'status',   required: false, transform: v => v || 'open'    },
-  { id: 'f-priority', key: 'priority', required: false, transform: v => v || 'medium'  },
-  { id: 'f-due',      key: 'due_date', required: false, transform: v => v              },
-  { id: 'f-notes',    key: 'description', required: false, transform: v => v.trim()    },
-];
-
-const FORM_VALIDATORS = [
-  ({ title }) => !title ? 'Title is required' : null,
-];
-```
-
----
-
-### Step 5 — Configure KPI Cards
-
-```javascript
-const KPI_METRICS = [
-  { id: 'kpi-total',    label: 'Total Tasks',   compute: r => r.length,                               format: v => v, color: () => 'var(--text)' },
-  { id: 'kpi-open',     label: 'Open',          compute: r => r.filter(t => t.status==='open').length, format: v => v, color: v => v>0?'var(--warning)':'var(--muted)' },
-  { id: 'kpi-done',     label: 'Completed',     compute: r => r.filter(t => t.status==='done').length, format: v => v, color: v => v>0?'var(--success)':'var(--muted)' },
-  { id: 'kpi-overdue',  label: 'Overdue',       compute: r => r.filter(t => t.due_date && t.due_date < new Date().toISOString().slice(0,10) && t.status!=='done').length, format: v => v, color: v => v>0?'var(--danger)':'var(--muted)' },
-];
-```
-
----
-
-### Step 6 — Configure Navigation
-
-```javascript
-const DEFAULT_VIEW = 'dashboard';
-
-const VIEW_RENDERERS = {
-  'dashboard':  () => { renderKPICards(); renderBarChart(); },
-  'task-list':  () => renderTable({ page: 1 }),
-  'add-task':   initAddForm,
-  'settings':   loadSettingsForm,
-};
-
-const MOBILE_NAV = [
-  { view: 'dashboard', label: 'Home',  icon: '🏠' },
-  { view: 'task-list', label: 'Tasks', icon: '📋' },
-  { view: 'add-task',  label: 'Add',   icon: '+',  fab: true },
-  { view: 'settings',  label: 'Setup', icon: '⚙️' },
-];
-```
-
----
-
-## PART 4 — AUDIT PLAN
-
-### Foundation Audit (run first, on every new app)
-
-```
-[ ] App loads in Chrome without console errors
-[ ] App loads in Firefox without console errors  
-[ ] App loads in Safari without console errors
-[ ] Reload after adding a record — record persists (IndexedDB working)
-[ ] Open in private/incognito — shows "Storage Unavailable" message (not blank)
-[ ] Settings save and reload correctly after page refresh
-[ ] Theme preference persists after reload (dark/light)
+[ ] App loads in Chrome — no console errors
+[ ] App loads in Firefox — no console errors
+[ ] App loads in Safari — no console errors
+[ ] Reload after adding a record → record persists (IndexedDB works)
+[ ] Open in private/incognito → shows storage error UI (not a blank page)
 [ ] escapeHtml('<script>alert(1)</script>') returns '&lt;script&gt;alert(1)&lt;/script&gt;'
 [ ] csvSanitize('=SUM(A1)') returns "'=SUM(A1)"
-[ ] newId() called 1000 times produces 1000 unique values (verify with Set)
+[ ] newId() called 1000 times → 1000 unique values (check with new Set)
+[ ] Settings save and reload after page refresh
+[ ] Theme preference (dark/light) persists after page refresh
 ```
 
-### Component Audits
-
-**C02 KPI Cards:**
+### Design System
 ```
-[ ] Cards show correct values (verify manually with known test data)
-[ ] No divide-by-zero when denominator is 0 (e.g. no records → 0%, not NaN%)
-[ ] Cards update after adding a record and navigating back
-[ ] Cards with color logic show correct color (e.g. red when overdue)
-```
-
-**C03 Charts:**
-```
-[ ] All charts render without JS errors on first load
-[ ] Charts update after adding data and revisiting the view
-[ ] Toggle theme dark→light → charts re-render with correct colors
-[ ] No chart created when data array is empty (no broken empty circle)
-[ ] Chart tooltips show formatted values
+[ ] Both dark and light themes render correctly (no invisible text)
+[ ] All buttons have a visible focus ring when tabbed to (accessibility)
+[ ] All icon buttons are at least 32×32px (minimum tap target)
+[ ] Mobile layout (375px viewport): bottom tab bar visible, no content cut off
+[ ] Tablet layout (768px): sidebar visible, content readable
+[ ] Desktop layout (1440px): content doesn't stretch awkwardly wide
+[ ] Toast messages appear above bottom tab bar on mobile
+[ ] All modals close when clicking outside them
+[ ] All modals close when pressing Escape
 ```
 
-**C04 Table:**
+### Auto-Save Indicator (I3)
 ```
-[ ] Search "xyz" → only matching rows shown
-[ ] Clear search → all rows return
-[ ] Pagination: "Showing 1–25 of 100" is accurate
-[ ] Next/Prev/First/Last buttons work correctly
-[ ] Last page: Next and Last buttons are disabled
-[ ] Click column header → sorts ascending; click again → descending
-[ ] Sort persists when changing page
-[ ] Filter dropdown → shows only matching records
-[ ] XSS test: add record with name "<script>alert(1)</script>" → renders as text, no alert
+[ ] Add a record → "Saving…" dot appears in header
+[ ] After save completes → dot turns green "All saved"
+[ ] After 3 seconds → dot disappears
+[ ] On save error → red dot + error toast shown
 ```
 
-**C05 Add Form:**
+### Auth Gate (F1)
 ```
-[ ] Submit empty form → shows validation error
-[ ] Submit with required field missing → specific error shown
-[ ] Submit valid data → record appears in table, form resets
-[ ] Date field defaults to today
-[ ] Press Enter in a form field → submits (if wired up)
-[ ] Recently added list updates after submit
-[ ] Rapid entry: add 10 records quickly → all 10 saved (no ID collisions)
+[ ] App blocked before login — no data accessible
+[ ] Reload after login → stays logged in (session cache)
+[ ] Session expires after 24h → redirected to login
+[ ] Sign-out → immediately shows auth gate
+[ ] Sign-out → cached session cleared (sign back in required)
 ```
 
-**C06 Bulk Select + Undo:**
+### Three-Layer Backup (F2)
 ```
-[ ] Select 3 checkboxes → bulk bar shows "3 selected"
-[ ] Select all → all visible rows selected
-[ ] Delete selected → rows removed from DB (not just hidden in UI)
-[ ] Undo toast appears for 6 seconds
-[ ] Click Undo within 6s → rows restored and visible
-[ ] Let Undo expire (7s) → rows not restored
-[ ] Selection cleared after bulk delete
-[ ] Selection cleared after switching views
+Layer 1:
+[ ] Add record → snapshot auto-created after ~3 seconds
+[ ] Maximum 5 snapshots stored (older ones discarded)
+[ ] Restore snapshot → confirmation modal shown with record counts
+[ ] Restore → database replaced with snapshot records
+[ ] Fill localStorage to capacity → app doesn't crash (graceful trim)
+
+Layer 2:
+[ ] Firefox: shows "requires Chrome/Edge/Brave" — not a JS error
+[ ] Chrome: link file dialog opens
+[ ] Cancel file dialog → no error toast
+[ ] Link file → file created immediately, backup timer starts
+[ ] Hide tab → backup fires before tab goes background
+[ ] Unlink → timer stopped, file no longer updated
+[ ] Reload → file handle gone; UI shows "previously linked: [name]"
+
+Layer 3 (if implemented):
+[ ] Google OAuth flow completes without errors
+[ ] Records push to Google Sheet after linking
+[ ] Pull from sheet merges records without duplicating
 ```
 
-**C07 CSV Import:**
+### Search (F3)
 ```
-[ ] Upload CSV with 10 rows → mapping modal opens with preview
-[ ] Auto-guess detects column headers correctly
+[ ] Search shows only matching records
+[ ] Search resets table to page 1
+[ ] Clear search → all records return
+[ ] Search "xyz" with no matches → empty state shown (not an error)
+[ ] Search debounced: typing quickly doesn't fire for every character
+```
+
+### Help System (F4)
+```
+[ ] ❓ button opens help drawer
+[ ] Press ? key opens help drawer
+[ ] Click backdrop closes help drawer
+[ ] All FAQ items expand and collapse
+[ ] Keyboard shortcut list visible in help drawer
+[ ] Help drawer slides in from right (not a jarring jump)
+```
+
+### Navigation (F5)
+```
+[ ] Clicking each nav item shows the correct view
+[ ] Active nav item highlighted in sidebar
+[ ] Mobile: active tab highlighted in bottom bar
+[ ] Mobile: sidebar opens and closes with hamburger button
+[ ] Mobile: tapping backdrop closes mobile sidebar
+[ ] View's render function fires when navigating to it
+[ ] Navigating to a view scrolls main content back to top
+[ ] PWA shortcut URL (?action=add) navigates to correct view
+```
+
+### Quick-Entry Form (F6)
+```
+[ ] Date defaults to today
+[ ] Submit with missing required field → error shown (not a crash)
+[ ] Submit valid data → success toast, correct fields cleared
+[ ] Submit valid data → record in "recently added" list
+[ ] Rapid entry: add 10 records without any ID collisions
+[ ] Autocomplete list populated with existing tag values
+```
+
+### Data Table (F7)
+```
+[ ] Correct records shown (matching any active filters)
+[ ] Search filters records, resets to page 1
+[ ] Pagination "Showing X–Y of Z" is accurate
+[ ] Prev/Next/First/Last buttons navigate correctly
+[ ] Prev button disabled on page 1; Next button disabled on last page
+[ ] Sort ascending then descending works on each sortable column
+[ ] Sort persists when navigating between pages
+[ ] Bulk select: selecting rows shows bulk action bar
+[ ] Bulk delete: records removed from DB (not just hidden)
+[ ] Undo toast appears 6 seconds after bulk delete
+[ ] Undo restores all deleted records
+[ ] XSS test: add record with name "<script>alert(1)</script>" → renders as text
+```
+
+### CSV Import (F8)
+```
+[ ] Upload 10-row CSV → mapping modal opens with preview
+[ ] Auto-guess populates column selectors for obvious headers
 [ ] Cancel → nothing imported
 [ ] Import → records appear in table
-[ ] Import same file twice → no duplicates (dedup working)
-[ ] CSV with field containing comma inside quotes → parses correctly
-[ ] CSV with formula "=SUM(A1)" in a field → imported as text, not formula
-[ ] Large file > 500KB → UI does not freeze during parse (Web Worker used)
-[ ] Required field not mapped → error message shown, modal stays open
-[ ] File with only headers (no data rows) → "no valid rows" error
+[ ] Import same file twice → no duplicates (dedup by ID works)
+[ ] CSV field with comma inside quotes parses correctly
+[ ] Cell starting with "=" exported with leading quote
+[ ] File > 500KB → UI doesn't freeze (Web Worker used)
+[ ] File with only a header row → "no valid rows" error
 ```
 
-**C08 Tags:**
-```
-[ ] Add tag → appears in list and in form autocomplete
-[ ] Add duplicate tag (case-insensitive) → error shown, not added
-[ ] Add tag with XSS payload → rendered as escaped text, no JS executes
-[ ] Rename tag → all records with old tag updated
-[ ] Delete tag → all records relabeled "Uncategorized"
-[ ] Tags persist after page reload
-```
-
-**C09 Backup:**
-```
-[ ] Add record → snapshot auto-created after ~3 seconds
-[ ] Maximum 5 snapshots kept (older discarded)
-[ ] Restore snapshot → confirm dialog shown (shows current count vs snapshot count)
-[ ] Restore → data replaced with snapshot data
-[ ] File backup (Chrome): link file → backup file created
-[ ] File backup: Firefox → shows "requires Chrome/Edge" message, not an error
-[ ] Cancel file picker dialog → no error toast shown
-[ ] After 30 minutes with file linked → file auto-updated
-```
-
-**C10 Settings:**
-```
-[ ] Save app name → appears in header/sidebar immediately
-[ ] Settings persist after reload
-[ ] Clear all data → requires TWO confirms
-[ ] Clear all data → DB wiped, redirected to main view
-[ ] Cancel on first or second confirm → no data deleted
-[ ] Load sample data → records appear, tagged _sample:true
-[ ] Clear sample data → only _sample records removed, real data untouched
-```
-
-**C11 Toasts:**
-```
-[ ] Success toast → correct color
-[ ] Error toast → correct color
-[ ] Toast auto-dismisses after ~3 seconds
-[ ] Click toast → dismisses immediately
-[ ] Multiple toasts → stack vertically
-[ ] Undo toast stays 6 seconds (not 3)
-[ ] Mobile: toasts appear above bottom nav bar
-```
-
-**C13 Theme:**
-```
-[ ] Toggle switches dark ↔ light
-[ ] Theme persists after reload
-[ ] All text readable in both themes (no invisible text)
-[ ] Charts re-render with correct colors after toggle
-```
-
-**C15 PWA:**
-```
-[ ] manifest.json accessible at /manifest.json (no 404)
-[ ] App installs in Chrome (install icon in address bar)
-[ ] Installed app opens in standalone mode (no browser chrome)
-[ ] Offline: disconnect internet, reload → app still loads
-[ ] Offline: add record → saves to IndexedDB (no server needed)
-[ ] PWA shortcuts appear (long-press icon on Android)
-```
-
-**C16 Export:**
+### Data Export (F10)
 ```
 [ ] Export CSV → file downloads
-[ ] Open exported CSV in Excel → all data present, correct
-[ ] Description containing "=SUM(A1)" → exported as "'=SUM(A1)" (formula blocked)
-[ ] Export JSON → valid JSON with records array
-[ ] Import JSON backup → records added (no duplicates by ID)
+[ ] Open CSV in Excel → data is correct
+[ ] Cell with "=SUM(A1)" → exported as "'=SUM(A1)"
+[ ] Export JSON → valid JSON, parseable
+[ ] Import JSON backup → records added without duplicating existing IDs
+```
+
+### Keyboard Shortcuts (F11)
+```
+[ ] Each configured shortcut works
+[ ] Shortcuts do NOT fire when user is typing in an input field
+[ ] G + H (or your configured g-shortcuts) navigate to correct view
+[ ] Escape closes open modals and the help drawer
+```
+
+### PWA (F12)
+```
+[ ] manifest.json loads without 404
+[ ] App installs in Chrome (install icon appears in address bar)
+[ ] Installed app opens in standalone mode (no browser chrome)
+[ ] Disconnect internet → reload → app still loads from cache
+[ ] Add record while offline → saves to IndexedDB (no server needed)
+```
+
+### Security Regression Tests
+```
+Run each — window.__xss must remain undefined after each test:
+
+[ ] Add record with name:        <img src=x onerror="window.__xss=1">
+    → Check table renders it as escaped text, no alert/xss fires
+
+[ ] Add record with category:    <script>window.__xss=1</script>
+    → Check tag list renders it as escaped text
+
+[ ] Upload CSV with header:      <img src=x onerror="window.__xss=1">
+    → Check mapping modal preview renders escaped
+
+[ ] Export CSV with description: =SUM(A1:A10)
+    → Open in Excel → cell shows text, no formula executes
+
+[ ] Auth gate: email input:      '; DROP TABLE records; --
+    → Stored and displayed safely (no SQL — just verify no crash)
+```
+
+### End-to-End Smoke Test
+```
+ 1. Clear all browser data, open fresh
+ 2. Verify empty state / auth gate
+ 3. Sign in (or skip if no auth)
+ 4. Go to Settings → save app name → verify it appears in header
+ 5. Go to Add → add 3 records
+ 6. Go to list view → verify 3 records shown
+ 7. Search for one record → only that record shown
+ 8. Clear search → all 3 return
+ 9. Sort by a column → order changes
+10. Select 2 records → bulk bar appears → delete → Undo → both restored
+11. Go to Import → upload 5-row CSV → map → import → 5 records added
+12. Export CSV → download, open in spreadsheet, data is correct
+13. Toggle theme → switch works, no data lost
+14. Go to Backup → snapshot exists → restore one → data replaced
+15. Reload page → all data and settings still present
+16. Mobile (375px viewport) → bottom bar visible → all tabs navigate correctly
+17. Help drawer opens → FAQ works → shortcuts listed → closes on backdrop click
+
+PASS: All 17 steps complete with no errors and no console warnings.
 ```
 
 ---
 
-### End-to-End Smoke Test (Run Before Every Release)
+## PART 10 — COMMON BUGS TABLE
 
-```
-1. Open app fresh (clear all browser data first)
-2. Verify empty state shown
-3. Go to Settings → set app name, save → verify name appears in header
-4. Go to Add → add 3 records with valid data
-5. Go to main list → verify 3 records appear
-6. Search for one record by name → verify only that record shown
-7. Clear search → all 3 records return
-8. Sort by a column → verify order changes
-9. Select 2 records → bulk bar shows "2 selected" → delete → undo → verify restored
-10. Go to Import → upload a 5-row CSV → map columns → import → verify 5 records added
-11. Export CSV → verify file downloads, open it, verify data correct
-12. Toggle theme → app switches correctly, charts update
-13. Go to Backup → verify snapshot was auto-created → restore snapshot
-14. Reload page → all data and settings still present
-15. Open in mobile viewport (375px) → bottom nav visible, layout usable
-
-PASS: All 15 steps complete without errors or console warnings.
-```
-
----
-
-## PART 5 — COMMON BUGS PREVENTION TABLE
-
-| Bug | Cause | Prevention |
-|-----|-------|-----------|
-| XSS — script executes in table cell | `innerHTML` used with raw user data | `escapeHtml()` on every user string in every `render()` function |
-| XSS — script executes in toast | `innerHTML` or string concat used for toast message | Use `document.createTextNode(msg)` in toast, never `innerHTML` |
-| CSV formula injection | `=SUM(...)` in description field opens in Excel | `csvSanitize()` on every cell in every export |
-| Float display error (`$0.30000000000000004`) | Raw floating-point arithmetic | `Math.round(x * 100) / 100` before any display |
-| Date off by one day | `new Date("2025-01-15")` = UTC midnight → displays as Jan 14 in UTC-5 | Parse as `[y,m,d] = date.split('-').map(Number)` — no Date constructor |
-| Duplicate chart canvas error | `new Chart()` on canvas that already has a chart | Always `destroyChart(key)` before `new Chart()` |
-| Search stuck on wrong page | Search fires but `page` stays at 5 | Always reset `page = 1` when search or filter changes |
-| Duplicate record IDs on import | Sequential counter reset on each reload | Always use `newId()` = `Date.now() + Math.random()` |
-| IndexedDB silent failure | `onerror` only logs to console | Show user-visible error UI in `req.onerror` — never just `console.error` |
-| localStorage quota crash | Too many/large snapshots | Catch `QuotaExceededError`, trim, retry, warn user |
-| Stale bulk selection after delete | `selectedIds` Set not cleared | `selectedIds.clear()` after every bulk operation |
-| Undo restores wrong data | Deleted array mutated before undo fires | Clone before deleting: `saved = records.map(r => ({...r}))` |
-| Tag rename misses some records | Wrong field name in propagation query | Double-check field name (`r.category`, `r.tag`, etc.) matches your record schema |
-| Chart blank when view not visible | Chart.js renders to 0px container | Only call `renderChart()` inside `VIEW_RENDERERS` — never on app load |
-| File picker cancel shows error | `AbortError` not caught separately | `if (e.name !== 'AbortError') toast(...)` |
-| File backup lost after reload | FileSystemFileHandle not serializable | Store only filename string in localStorage for UI — handle must be re-linked |
-| Auth session never expires | No TTL check on cached session | Always check `Date.now() - sess.ts > SESSION_TTL` before trusting cache |
-| PWA install prompt in standalone | Already installed but still showing prompt | Check `window.matchMedia('(display-mode: standalone)').matches` first |
-| CSV BOM corrupts first header | Excel exports UTF-8 BOM (`﻿`) | `text.replace(/^﻿/, '')` before parsing |
-| CSV quoted field with embedded `""` | Parser treats `""` as end of field | RFC 4180: if `inQuotes && ch==='"' && nextCh==='"'`, append `"` and skip both |
-
----
-
-## APPENDIX — P&L DASHBOARD REFERENCE IMPLEMENTATION
-
-The P&L Dashboard (`pl-dashboard-v8.html`) uses all components in this blueprint. Here is how it maps each component to financial concepts — use as a concrete example when implementing financial apps.
-
-| Component | P&L Implementation | Your App Could Use It For |
-|-----------|-------------------|--------------------------|
-| **F0 DB Schema** | `{ id, date, type, category, description, amount, month, year }` | Any record with dates + numeric fields |
-| **C02 KPI Cards** | Revenue, Expenses, Net Profit, Margin %, Avg Monthly Revenue, Gross Profit | Sales totals, task counts, inventory value |
-| **C03 Bar Chart** | Revenue vs Expenses by month | Any two metrics over time |
-| **C03 Line Chart** | Net Profit trend by month | Any single metric trend |
-| **C03 Pie Charts** | Revenue by Category, Expenses by Category | Record breakdown by any grouping field |
-| **C04 Table** | All Transactions (date, type, category, description, amount) | Any list of records |
-| **C04 Filters** | Year, Month, Type (Revenue/Expense) | Status, date range, category |
-| **C05 Add Form** | Date, Type toggle, Category, Amount, Description | Any record creation form |
-| **C05 Autocomplete** | Category name from past transactions | Tags, labels, names from history |
-| **C08 Tags** | Revenue categories + Expense categories, industry templates | Task tags, product categories, client types |
-| **C09 Snapshots** | Auto-snapshot after every transaction add/edit/delete | Universal — use verbatim |
-| **C10 Settings** | Business name, fiscal year, currency symbol | Any app-level config |
-| **C16 Export CSV** | Date, Type, Category, Description, Amount, Month, Year | Any tabular data |
-
-**P&L-specific logic NOT in this blueprint** (only needed for financial apps):
-- COGS detection via keyword matching on category name
-- Fiscal year filtering (non-calendar year support)
-- Accounting format parsing `(1,234.56)` = negative
-- Currency symbol in KPI cards
-- Monthly P&L rollup table (revenue vs expenses per month)
-- Net Profit = Revenue total − Expense total (type-based sum)
-
-These patterns exist in the reference implementation at `pl-dashboard-v8.html` but are intentionally excluded from this universal blueprint because they are domain-specific.
+| Bug | Root Cause | Prevention |
+|-----|-----------|-----------|
+| XSS alert fires in a table cell | `innerHTML` used without `escapeHtml()` | Every user string in every `render()` function must call `escapeHtml()` |
+| XSS alert fires in toast | `innerHTML` used for toast message | Use `document.createTextNode(msg)` — never innerHTML in toast |
+| Excel opens and executes a formula from exported data | Missing `csvSanitize()` on export | Wrap every CSV/Excel cell value with `csvSanitize()` |
+| Number displays as `0.30000000000000004` | Raw float arithmetic | `Math.round(x * 100) / 100` before any display |
+| Date field off by one day | `new Date("2025-01-15")` = UTC midnight → local time = previous day | Split the string: `[y,m,d] = date.split('-').map(Number)` |
+| Chart.js throws "Canvas already in use" | New chart created on canvas that still has one | Always call `destroyChart(key)` before `new Chart()` |
+| Search stuck showing 0 results on page 2+ | Page not reset when search changes | Always set `page = 1` when search or any filter changes |
+| Duplicate record IDs after bulk import | Sequential counter resets on reload | Always use `Date.now() + Math.random()` — never `++counter` |
+| App shows blank white page on first load | IndexedDB error handled with only `console.error` | Show a user-visible error UI in `req.onerror` |
+| localStorage crash with QuotaExceededError | Too many or too large snapshots | Catch the error, trim snapshots further, retry, warn user |
+| Bulk undo restores wrong or partial data | Records array mutated between delete and undo timeout | Clone array immediately: `saved = records.map(r => ({...r}))` |
+| Tag rename doesn't update some records | Wrong field name in propagation (`r.type` vs `r.category`) | Double-check the field name matches your schema before deploying |
+| Chart shows wrong colors after theme toggle | `retintCharts()` not wired to `toggleTheme()` | Always call `retintCharts()` inside `toggleTheme()` |
+| File backup fails silently after permission revoke | No error handling on `createWritable()` | Wrap in try/catch, show error toast on failure |
+| User sees error toast when cancelling file picker | `AbortError` not filtered | `if (e.name !== 'AbortError') toast(...)` |
+| Auth session never expires | Session TTL not checked | Always verify `Date.now() - sess.ts < SESSION_TTL` on load |
+| PWA install banner shown when already installed | Standalone mode not detected | Check `matchMedia('(display-mode: standalone)').matches` first |
+| Autocomplete list out of date after tag rename | `updateTagDatalist()` not called after tag change | Call `updateTagDatalist()` at the end of every tag add/rename/delete |
+| onSearch doesn't reset to page 1 | `page` state not reset in search handler | Set `state.page = 1` inside `onSearch()` before calling render |
+| Mobile modal covers full screen and can't scroll | Modal container not set to `overflow-y: auto` | Every modal inner div: `max-height: 90vh; overflow-y: auto` |
+| CSP blocks inline scripts | CSP `script-src` missing `'unsafe-inline'` | Include `'unsafe-inline'` in CSP script-src (required for single-file apps) |
