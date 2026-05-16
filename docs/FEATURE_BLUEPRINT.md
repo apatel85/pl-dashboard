@@ -1,89 +1,300 @@
-# PL Dashboard — Complete Feature Blueprint
-**Version:** Based on pl-dashboard-v8.3.0  
-**Purpose:** Reusable feature library for future app development. Each feature is self-contained. Pick what you need, implement it bug-free.
+# Universal App Blueprint
+**Source:** Patterns proven in pl-dashboard-v8.3.0  
+**Purpose:** A domain-agnostic component library. Give this document to an AI or developer with a description of your new app's data and goals. They implement using these proven patterns — zero rewrites, zero guessing.
 
 ---
 
 ## HOW TO USE THIS DOCUMENT
 
-1. **Read the Feature Selection Matrix** — check off which features your new app needs.
-2. **Start with Foundation** (always required) — sets up data storage, theme, utilities.
-3. **Add features one at a time**, following each feature's implementation checklist.
-4. **Run the Audit Checklist** at the bottom to verify everything works before shipping.
+**You are building a new app.** This document contains 16 proven UI components and a complete foundation. Each component is domain-agnostic — the code patterns work for any kind of data (tasks, inventory, contacts, bookings, expenses, logs, etc.).
+
+**Step 1 — Define your app** using the Domain Adapter (Part 3).  
+**Step 2 — Select components** from the Feature Selection Matrix.  
+**Step 3 — Implement Foundation first** (always, no exceptions).  
+**Step 4 — Add components one at a time**, following each checklist.  
+**Step 5 — Run the Audit Plan** before shipping.
+
+> **The P&L Dashboard** is referenced throughout as a working example. It uses every component in this document. Its source file (`pl-dashboard-v8.html`) is the verified reference implementation.
 
 ---
 
 ## FEATURE SELECTION MATRIX
 
-> Check the box next to each feature you want in your new app.
-
-| # | Feature | What It Does (Plain English) | Depends On |
-|---|---------|------------------------------|------------|
-| F0 | **Foundation** | Data storage (IndexedDB), settings, CSS theme, utility functions | — (always include) |
-| F1 | **Dashboard / KPI Cards** | Shows summary numbers: total revenue, expenses, profit, margin | F0 |
-| F2 | **Charts** | Bar chart, line chart, pie charts for revenue/expense trends | F0, F1 |
-| F3 | **Revenue Table** | Paginated list of all income entries, searchable, deletable | F0 |
-| F4 | **Expense Table** | Paginated list of all expense entries, searchable, deletable | F0 |
-| F5 | **All Transactions Table** | Combined income + expenses in one table with advanced filters and sort | F0 |
-| F6 | **Monthly P&L Table** | One row per month: revenue, expenses, net profit, margin % | F0 |
-| F7 | **Add Transaction Form** | Manual form to add a single income or expense entry | F0 |
-| F8 | **CSV / Excel Import** | Upload a spreadsheet to add many transactions at once | F0 |
-| F9 | **Category Management** | Create/rename/delete custom labels for transactions | F0 |
-| F10 | **File Sync (Local Backup)** | Auto-save data to a file on your computer every 30 minutes | F0 |
-| F11 | **Three-Layer Backup** | Snapshot backups in browser + local file + Google Sheets cloud | F0, F10 |
-| F12 | **Settings Page** | Configure business name, fiscal year, currency symbol | F0 |
-| F13 | **Auth Gate (Optional)** | License key or Google sign-in to protect the app | F0 |
-| F14 | **Theme Toggle** | Switch between dark mode and light mode | F0 |
-| F15 | **Toast Notifications** | Small pop-up messages (success, error, info) | F0 |
-| F16 | **Undo Delete** | 6-second window to recover deleted transactions | F0, F15 |
-| F17 | **Keyboard Shortcuts** | Press keys to navigate without clicking | F0 |
-| F18 | **PWA / Offline Support** | App works without internet, installs on phone like a native app | F0 |
-| F19 | **Data Export** | Download all data as CSV, Excel, or JSON file | F0 |
-| F20 | **Industry Templates** | Pre-built category sets for SaaS, e-commerce, consulting, etc. | F9 |
+| ID | Component | What It Does (Plain English) | Requires |
+|----|-----------|------------------------------|----------|
+| F0 | **Foundation** | Browser storage, settings, theme, security utilities, app shell | — always include |
+| C01 | **Navigation Layout** | Sidebar on desktop, bottom bar on mobile, view-switching system | F0 |
+| C02 | **KPI Summary Cards** | Row of metric boxes showing computed totals from your data | F0 |
+| C03 | **Charts** | Bar, line, and pie/doughnut charts auto-built from your records | F0 |
+| C04 | **Filterable Paginated Table** | Sortable, searchable, paginated table for any record type | F0 |
+| C05 | **Quick-Entry Form** | Fast single-record add form with autocomplete field | F0 |
+| C06 | **Bulk Select + Delete + Undo** | Checkboxes on table rows, delete many at once, 6-second undo | F0, C04 |
+| C07 | **CSV / Excel Import** | Upload any spreadsheet, map columns to your fields, bulk import | F0 |
+| C08 | **Tag / Label Management** | Create, rename, delete labels used to categorize records | F0 |
+| C09 | **Three-Layer Backup** | Auto-snapshots in browser + local file + Google Sheets cloud | F0 |
+| C10 | **Settings Panel** | App name, any scalar config values, data summary, sample data | F0 |
+| C11 | **Toast Notifications + Undo** | Dismissable pop-ups with optional Undo action | F0 |
+| C12 | **Auth Gate** | License key or Google sign-in screen (optional — skip if public app) | F0 |
+| C13 | **Theme Toggle** | Dark / light mode switch, remembered across sessions | F0 |
+| C14 | **Keyboard Shortcuts** | Key bindings for navigation and common actions | F0, C01 |
+| C15 | **PWA / Offline Support** | Works without internet, installable on phone or desktop | F0 |
+| C16 | **Data Export** | Download all records as CSV, Excel, or JSON | F0 |
 
 ---
 
-## FOUNDATION (F0) — Always Required
+## PART 1 — FOUNDATION (F0)
+### Always Required. Every other component depends on this.
 
-### What It Does
-Sets up the core infrastructure every other feature needs: data storage, settings, theme system, and utility functions.
+---
 
-### Critical Files
-- Primary app file: `/home/user/pl-dashboard/pl-dashboard-v8.html` (reference implementation)
+### 1A. App Shell HTML
 
-### Data Model
+The entire app lives in a single HTML file. No build step. No bundler. All CSS and JS are inline.
 
-```javascript
-// Transaction record stored in IndexedDB
-const Transaction = {
-  id:          Number,   // Date.now() + Math.random() — unique, never reuse
-  date:        String,   // "YYYY-MM-DD" — always ISO format
-  type:        String,   // "revenue" | "expense" — only these two values
-  category:    String,   // User-defined label, e.g. "Rent"
-  description: String,   // Optional free text note
-  amount:      Number,   // Always positive. Never store negative amounts.
-  month:       String,   // "Jan".."Dec" — derived from date on save
-  year:        Number,   // Fiscal year integer — derived from date on save
-  _sample:     Boolean   // Optional: true only on demo/sample data
-};
+```html
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
-// Settings stored in localStorage
-const Settings = {
-  bizName:    String,   // Business name shown in sidebar
-  fiscalYear: Number,   // e.g. 2025
-  currency:   String    // "$" | "£" | "€" | "¥" etc.
-};
+  <!-- SECURITY: Content Security Policy — adjust CDN domains as needed -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self' 'unsafe-inline' https://accounts.google.com;
+             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+             font-src 'self' https://fonts.gstatic.com;
+             connect-src 'self' https://*.supabase.co https://sheets.googleapis.com https://www.googleapis.com;">
+
+  <title>YOUR_APP_NAME</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* === THEME VARIABLES — customize colors here === */
+    :root, :root[data-theme="dark"] {
+      --bg:           #0f1117;
+      --surface:      #181c27;
+      --surface2:     #1f2435;
+      --border:       #2a3045;
+      --border-strong:#3a4260;
+      --primary:      #0ecfbe;   /* main accent — change to your brand color */
+      --warning:      #f5a623;
+      --danger:       #e74c3c;
+      --success:      #27ae60;
+      --info:         #3b82f6;
+      --text:         #e8eaf0;
+      --muted:        #6b7394;
+      --shadow:       0 4px 24px rgba(0,0,0,.45);
+      --radius:       10px;
+      --focus:        #6ea8ff;
+    }
+    :root[data-theme="light"] {
+      --bg:           #f5f6fa;
+      --surface:      #ffffff;
+      --surface2:     #f0f2f8;
+      --border:       #d4d8e8;
+      --border-strong:#b0b8d0;
+      --primary:      #0aab9e;
+      --warning:      #d97706;
+      --danger:       #dc2626;
+      --success:      #16a34a;
+      --info:         #2563eb;
+      --text:         #1a1f35;
+      --muted:        #6b7394;
+      --shadow:       0 2px 12px rgba(0,0,0,.12);
+      --radius:       10px;
+      --focus:        #2563eb;
+    }
+
+    /* === RESET + BASE === */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--text);
+           font-size: 15px; line-height: 1.5; }
+    button { cursor: pointer; font-family: inherit; }
+    input, select, textarea { font-family: inherit; font-size: 15px; }
+
+    /* === LAYOUT === */
+    #topbar { height: 58px; background: var(--surface); border-bottom: 1px solid var(--border);
+              display: flex; align-items: center; justify-content: space-between;
+              padding: 0 20px; position: sticky; top: 0; z-index: 100; }
+    #app    { display: flex; height: calc(100vh - 58px); overflow: hidden; }
+    #sidebar { width: 220px; flex-shrink: 0; background: var(--surface);
+               border-right: 1px solid var(--border); overflow-y: auto; padding: 16px 0; }
+    #main   { flex: 1; overflow-y: auto; padding: 28px 32px; }
+
+    /* === NAVIGATION === */
+    .nav-label { font-size: 11px; font-weight: 600; text-transform: uppercase;
+                 letter-spacing: .08em; color: var(--muted); padding: 16px 16px 6px; }
+    .nav-item  { display: flex; align-items: center; gap: 10px; padding: 9px 16px;
+                 color: var(--muted); text-decoration: none; cursor: pointer;
+                 border-radius: 6px; margin: 1px 8px; font-size: 14px; transition: all .15s; }
+    .nav-item:hover  { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: rgba(14,207,190,.12); color: var(--primary); font-weight: 600; }
+
+    /* === VIEWS === */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* === CARDS === */
+    .card { background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 20px; }
+
+    /* === BUTTONS === */
+    .btn         { padding: 8px 18px; border-radius: 7px; border: none; font-size: 14px;
+                   font-weight: 500; transition: opacity .15s; }
+    .btn:hover   { opacity: .85; }
+    .btn-primary { background: var(--primary); color: #000; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-danger  { background: var(--danger); color: #fff; }
+    .btn-ghost   { background: transparent; color: var(--muted); }
+
+    /* === FORMS === */
+    .form-input  { width: 100%; padding: 9px 12px; background: var(--surface2);
+                   border: 1px solid var(--border); border-radius: 7px; color: var(--text); }
+    .form-input:focus { outline: 2px solid var(--focus); border-color: transparent; }
+    .form-label  { font-size: 13px; color: var(--muted); margin-bottom: 5px; display: block; }
+
+    /* === TABLES === */
+    .table-wrap  { overflow-x: auto; }
+    table        { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th           { text-align: left; padding: 10px 12px; background: var(--surface2);
+                   color: var(--muted); font-weight: 600; font-size: 12px;
+                   text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); }
+    td           { padding: 11px 12px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td  { background: var(--surface2); }
+    th.sortable  { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: var(--text); }
+
+    /* === BADGES === */
+    .badge       { display: inline-block; padding: 2px 10px; border-radius: 20px;
+                   font-size: 12px; font-weight: 500; }
+    .badge-primary { background: rgba(14,207,190,.15); color: var(--primary); }
+    .badge-danger  { background: rgba(231,76,60,.15);  color: var(--danger); }
+    .badge-warning { background: rgba(245,166,35,.15); color: var(--warning); }
+
+    /* === PAGINATION === */
+    .pagination  { display: flex; align-items: center; gap: 4px; padding: 14px 0; flex-wrap: wrap; }
+    .pagination button { padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border);
+                         background: var(--surface2); color: var(--text); font-size: 13px; }
+    .pagination button.active { background: var(--primary); color: #000; border-color: var(--primary); }
+    .pagination button:disabled { opacity: .4; cursor: not-allowed; }
+    .pg-info     { font-size: 13px; color: var(--muted); margin-right: 8px; }
+
+    /* === MOBILE === */
+    #bottombar   { display: none; }
+    @media (max-width: 640px) {
+      #sidebar   { display: none; }
+      #main      { padding: 16px; }
+      #bottombar { display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+                   background: var(--surface); border-top: 1px solid var(--border);
+                   z-index: 100; }
+      #bottombar button { flex: 1; padding: 10px 0; background: none; border: none;
+                          color: var(--muted); font-size: 11px; display: flex;
+                          flex-direction: column; align-items: center; gap: 2px; }
+      #bottombar button.active { color: var(--primary); }
+      #app { height: calc(100vh - 58px - 60px); }
+    }
+    @media (min-width: 641px) { .mobile-only { display: none !important; } }
+  </style>
+</head>
+<body>
+
+  <header id="topbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-weight:700;font-size:16px">YOUR_APP_NAME</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="save-status" style="font-size:12px;color:var(--muted)"></span>
+      <button id="theme-toggle" onclick="toggleTheme()" class="btn-ghost btn" style="padding:6px 10px">☀️</button>
+    </div>
+  </header>
+
+  <div id="app">
+    <nav id="sidebar">
+      <!-- Inject nav items here — see C01 -->
+    </nav>
+    <main id="main">
+      <!-- Each view is a div.view — only one shown at a time -->
+      <!-- <div id="YOUR_VIEW" class="view"> ... </div> -->
+    </main>
+  </div>
+
+  <nav id="bottombar">
+    <!-- Mobile nav buttons — see C01 -->
+  </nav>
+
+  <div id="toast" role="status" aria-live="polite" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:center"></div>
+
+  <!-- Inline Chart.js 4.4.1 here if using C03 -->
+  <!-- Inline XLSX.js 0.18.5 here if using C07 or C16 -->
+
+  <script>
+    // All JavaScript goes here — see component sections below
+  </script>
+</body>
+</html>
 ```
 
-### IndexedDB Setup
+---
+
+### 1B. Security Utilities — MANDATORY, Copy Verbatim
+
+**These two functions must be applied everywhere user data touches the DOM or a file. No exceptions.**
 
 ```javascript
-const DB_NAME    = 'PLDashboard';
+// RULE: Wrap EVERY user-sourced string before inserting into innerHTML.
+// Safe exceptions: fmt() output, boolean CSS class names, static strings you wrote.
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// RULE: Wrap EVERY cell value before writing to a CSV or Excel export.
+// Prevents formula injection in Excel/Sheets (=SUM(...), +cmd, -cmd, @, tab, CR).
+function csvSanitize(v) {
+  const s = String(v == null ? '' : v);
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+}
+```
+
+**When to use each:**
+
+| Situation | Use |
+|-----------|-----|
+| `element.innerHTML = '...' + userValue + '...'` | `escapeHtml(userValue)` |
+| `element.textContent = userValue` | Safe — no escaping needed |
+| `element.value = userValue` (input) | Safe — no escaping needed |
+| Writing a cell to CSV/Excel file | `csvSanitize(value)` |
+| onclick attribute with string param: `onclick="fn('${val}')"` | `escapeHtml(val).replace(/'/g, "&#39;")` |
+| onclick attribute with numeric/ID param: `onclick="fn(${id})"` | `JSON.stringify(id)` |
+
+---
+
+### 1C. Generic IndexedDB Engine
+
+**This is the data layer. Define your schema once; all CRUD functions below work for any record shape.**
+
+```javascript
+// ── CONFIGURE THESE FOR YOUR APP ──────────────────────────────────────────
+const DB_NAME    = 'YOUR_APP_DB';     // e.g. 'TaskManager', 'InventoryApp'
 const DB_VERSION = 1;
-const STORE_NAME = 'transactions';
+const STORE_NAME = 'records';         // e.g. 'tasks', 'items', 'contacts'
+
+// Fields to index (enables fast filtering — add any field you filter/sort by)
+const DB_INDEXES = [
+  // { name: 'date',     keyPath: 'date'     },
+  // { name: 'status',   keyPath: 'status'   },
+  // { name: 'category', keyPath: 'category' },
+  // { name: 'priority', keyPath: 'priority' },
+  // Add your own:
+];
+// ── END CONFIG ────────────────────────────────────────────────────────────
+
 let db = null;
 
-function openDB() {
+async function initDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -91,131 +302,126 @@ function openDB() {
       const d = e.target.result;
       if (!d.objectStoreNames.contains(STORE_NAME)) {
         const store = d.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        // CRITICAL: create all indexes — queries depend on these
-        store.createIndex('date',     'date',     { unique: false });
-        store.createIndex('type',     'type',     { unique: false });
-        store.createIndex('month',    'month',    { unique: false });
-        store.createIndex('year',     'year',     { unique: false });
-        store.createIndex('category', 'category', { unique: false });
+        DB_INDEXES.forEach(idx => store.createIndex(idx.name, idx.keyPath, { unique: false }));
       }
     };
 
     req.onsuccess = e => { db = e.target.result; resolve(db); };
-    req.onerror   = e => reject(e.target.error);
+
+    req.onerror = e => {
+      // NEVER fail silently — show a visible error to the user
+      document.body.innerHTML = `
+        <div style="padding:40px;text-align:center;font-family:sans-serif;color:#e8eaf0;background:#0f1117;min-height:100vh">
+          <h2>Storage Unavailable</h2>
+          <p>This app needs browser storage to work.<br>Try a different browser, or disable private/incognito mode.</p>
+          <p style="color:#6b7394;font-size:12px;margin-top:16px">${e.target.error}</p>
+        </div>`;
+      reject(e.target.error);
+    };
   });
 }
 
-// ALWAYS call openDB() before any DB operations
-// Handle IndexedDB unavailable (private browsing, storage quota, etc.)
-async function initDB() {
-  try {
-    await openDB();
-  } catch (err) {
-    // Replace page with friendly error — do not silently fail
-    document.body.innerHTML = `
-      <div style="padding:40px;text-align:center;font-family:sans-serif">
-        <h2>Storage Unavailable</h2>
-        <p>This app needs browser storage. Try a different browser or disable private mode.</p>
-        <p style="color:#888;font-size:12px">${err.message}</p>
-      </div>`;
-    throw err;
-  }
-}
-```
+// ── CRUD ──────────────────────────────────────────────────────────────────
 
-### IndexedDB CRUD Functions
-
-```javascript
-// BUG PREVENTION: All DB functions return Promises — always await them
-
-function dbPut(txn) {
+function dbPut(record) {
   return new Promise((resolve, reject) => {
-    const t = db.transaction(STORE_NAME, 'readwrite');
-    t.objectStore(STORE_NAME).put(txn).onsuccess = () => resolve();
-    t.onerror = e => reject(e.target.error);
+    const tx  = db.transaction(STORE_NAME, 'readwrite');
+    const req = tx.objectStore(STORE_NAME).put(record);
+    req.onsuccess = () => resolve();
+    tx.onerror    = e => reject(e.target.error);
   });
 }
 
 function dbGet(id) {
   return new Promise((resolve, reject) => {
-    const t = db.transaction(STORE_NAME, 'readonly');
-    const req = t.objectStore(STORE_NAME).get(id);
+    const tx  = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).get(id);
     req.onsuccess = () => resolve(req.result);
-    req.onerror   = e => reject(e.target.error);
+    tx.onerror    = e => reject(e.target.error);
   });
 }
 
 function dbDelete(id) {
   return new Promise((resolve, reject) => {
-    const t = db.transaction(STORE_NAME, 'readwrite');
-    t.objectStore(STORE_NAME).delete(id).onsuccess = () => resolve();
-    t.onerror = e => reject(e.target.error);
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).delete(id).onsuccess = () => resolve();
+    tx.onerror = e => reject(e.target.error);
   });
 }
 
 function dbGetAll() {
   return new Promise((resolve, reject) => {
-    const t   = db.transaction(STORE_NAME, 'readonly');
-    const req = t.objectStore(STORE_NAME).getAll();
+    const tx  = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).getAll();
     req.onsuccess = () => resolve(req.result || []);
-    req.onerror   = e => reject(e.target.error);
+    tx.onerror    = e => reject(e.target.error);
   });
 }
 
-function dbBulkPut(txns, onProgress) {
+function dbBulkPut(records, onProgress) {
   return new Promise((resolve, reject) => {
-    const t = db.transaction(STORE_NAME, 'readwrite');
-    const store = t.objectStore(STORE_NAME);
+    if (!records.length) { resolve(); return; }
+    const tx    = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
     let done = 0;
-    txns.forEach(txn => {
-      const req = store.put(txn);
+    records.forEach(r => {
+      const req   = store.put(r);
       req.onsuccess = () => {
         done++;
-        if (onProgress) onProgress(done, txns.length);
-        if (done === txns.length) resolve();
+        if (onProgress) onProgress(done, records.length);
+        if (done === records.length) resolve();
       };
-      req.onerror = e => reject(e.target.error);
     });
-    if (txns.length === 0) resolve();
-    t.onerror = e => reject(e.target.error);
+    tx.onerror = e => reject(e.target.error);
   });
 }
 
 function dbClear() {
   return new Promise((resolve, reject) => {
-    const t = db.transaction(STORE_NAME, 'readwrite');
-    t.objectStore(STORE_NAME).clear().onsuccess = () => resolve();
-    t.onerror = e => reject(e.target.error);
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).clear().onsuccess = () => resolve();
+    tx.onerror = e => reject(e.target.error);
   });
 }
 
-// Advanced query with search, filter, sort, pagination
-// BUG PREVENTION: All comparisons must account for undefined/null fields
-async function dbQuery({ search='', type='', month='', year='', sort='date', dir='desc', page=1, pageSize=25 } = {}) {
+function dbCount() {
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).count();
+    req.onsuccess = () => resolve(req.result);
+    tx.onerror    = e => reject(e.target.error);
+  });
+}
+
+// Advanced query: filter, search, sort, paginate — all in memory after dbGetAll()
+// Customize the 'search' function to match your field names.
+async function dbQuery({
+  search   = '',
+  filters  = {},    // { fieldName: 'value' } — any number of exact-match filters
+  sort     = 'id',
+  dir      = 'desc',
+  page     = 1,
+  pageSize = 25
+} = {}) {
   let rows = await dbGetAll();
 
-  // Apply filters
-  if (type)  rows = rows.filter(r => r.type === type);
-  if (month) rows = rows.filter(r => r.month === month);
-  if (year)  rows = rows.filter(r => r.year === +year);
+  // Apply exact-match filters (e.g. { status: 'active', category: 'Work' })
+  Object.entries(filters).forEach(([key, val]) => {
+    if (val !== '' && val != null) rows = rows.filter(r => String(r[key]) === String(val));
+  });
 
-  // Full-text search (case-insensitive)
+  // Full-text search across SEARCH_FIELDS — customize this array for your app
   if (search.trim()) {
     const q = search.trim().toLowerCase();
     rows = rows.filter(r =>
-      (r.description || '').toLowerCase().includes(q) ||
-      (r.category    || '').toLowerCase().includes(q) ||
-      String(r.amount || '').includes(q) ||
-      (r.date        || '').includes(q)
+      SEARCH_FIELDS.some(f => String(r[f] ?? '').toLowerCase().includes(q))
     );
   }
 
-  // Sort
+  // Sort — handles strings and numbers correctly
   rows.sort((a, b) => {
-    let av = a[sort] ?? '';
-    let bv = b[sort] ?? '';
-    if (sort === 'amount') { av = +av; bv = +bv; }
-    if (sort === 'date')   { av = av || ''; bv = bv || ''; }
+    let av = a[sort] ?? '', bv = b[sort] ?? '';
+    if (typeof av === 'number' || !isNaN(+av)) { av = +av; bv = +bv; }
     if (av < bv) return dir === 'asc' ? -1 : 1;
     if (av > bv) return dir === 'asc' ?  1 : -1;
     return 0;
@@ -225,14 +431,47 @@ async function dbQuery({ search='', type='', month='', year='', sort='date', dir
   const start = (page - 1) * pageSize;
   return { rows: rows.slice(start, start + pageSize), total };
 }
+
+// ── CONFIGURE: which fields to search across ──────────────────────────────
+// Replace with your record's text fields
+const SEARCH_FIELDS = ['name', 'description', 'category', 'notes'];
+// ─────────────────────────────────────────────────────────────────────────
 ```
 
-### Settings (localStorage)
+---
+
+### 1D. Record ID Generation
 
 ```javascript
-const SETTINGS_KEY = 'pl_settings_v4';
+// RULE: Always use this pattern. Never use sequential integers.
+// Sequential IDs break if the user clears and reimports data (collisions).
+// This float ID is unique per session and safe for IndexedDB keyPath.
+function newId() {
+  return Date.now() + Math.random();
+}
 
-let settings = { bizName: '', fiscalYear: new Date().getFullYear(), currency: '$' };
+// When passing an ID into an HTML onclick attribute:
+//   CORRECT:   onclick="deleteRecord(${JSON.stringify(record.id)})"
+//   INCORRECT: onclick="deleteRecord(${record.id})"   ← float may render as "1.234e+15"
+```
+
+---
+
+### 1E. Settings System
+
+```javascript
+// ── CONFIGURE: define your app's settings ────────────────────────────────
+const SETTINGS_KEY = 'YOUR_APP_settings_v1';
+
+// Default values — add/remove fields for your app
+let settings = {
+  appName:  '',        // shown in sidebar / header
+  // Add your own scalar config here, e.g.:
+  // timezone: 'UTC',
+  // defaultView: 'list',
+  // itemsPerPage: 25,
+};
+// ─────────────────────────────────────────────────────────────────────────
 
 function loadSettings() {
   try {
@@ -246,1747 +485,1279 @@ function saveSettings() {
 }
 ```
 
-### Security Utilities (REQUIRED — use on every user-facing string)
+---
+
+### 1F. App Initialization — Required Order
 
 ```javascript
-// XSS prevention — wrap ALL user data before inserting into innerHTML
-function escapeHtml(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c]));
-}
-
-// CSV formula injection — wrap ALL values in CSV/Excel exports
-function csvSanitize(v) {
-  const s = String(v == null ? '' : v);
-  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
-}
-```
-
-### Currency Formatter
-
-```javascript
-// BUG PREVENTION: Use Math.round to avoid floating-point drift (e.g. 0.1+0.2 = 0.30000000000000004)
-function fmt(n) {
-  const cur     = settings.currency || '$';
-  const rounded = Math.round((+n || 0) * 100) / 100;
-  const s       = Math.abs(rounded).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-  return rounded < 0 ? `(${cur}${s})` : `${cur}${s}`;
-}
-
-// For percentage display
-function fmtPct(n) {
-  return (Math.round((+n || 0) * 10) / 10).toFixed(1) + '%';
-}
-```
-
-### Month Utilities
-
-```javascript
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-function getMonthFromDate(isoDate) {
-  // BUG PREVENTION: Use UTC to avoid timezone-off-by-one on date parsing
-  const [y, m, d] = isoDate.split('-').map(Number);
-  return MONTHS[m - 1] || '';
-}
-
-function getYearFromDate(isoDate) {
-  return +isoDate.slice(0, 4) || new Date().getFullYear();
-}
-
-// Always set month+year when saving a transaction:
-function prepareTransaction(raw) {
-  return {
-    ...raw,
-    month: getMonthFromDate(raw.date),
-    year:  getYearFromDate(raw.date)
-  };
-}
-```
-
-### CSS Theme System
-
-```css
-/* Always define both themes; default to dark */
-:root, :root[data-theme="dark"] {
-  --bg:           #0f1117;
-  --surface:      #181c27;
-  --surface2:     #1f2435;
-  --border:       #2a3045;
-  --border-strong:#3a4260;
-  --teal:         #0ecfbe;   /* revenue / positive */
-  --amber:        #f5a623;   /* profit / margin */
-  --red:          #e74c3c;   /* expense / danger */
-  --green:        #27ae60;   /* success / backup */
-  --blue:         #3b82f6;   /* info / link */
-  --text:         #e8eaf0;
-  --muted:        #6b7394;
-  --shadow:       0 4px 24px rgba(0,0,0,.45);
-  --radius:       10px;
-  --focus:        #6ea8ff;
-}
-
-:root[data-theme="light"] {
-  --bg:           #f5f6fa;
-  --surface:      #ffffff;
-  --surface2:     #f0f2f8;
-  --border:       #d4d8e8;
-  --border-strong:#b0b8d0;
-  --teal:         #0aab9e;
-  --amber:        #d97706;
-  --red:          #dc2626;
-  --green:        #16a34a;
-  --blue:         #2563eb;
-  --text:         #1a1f35;
-  --muted:        #6b7394;
-  --shadow:       0 2px 12px rgba(0,0,0,.12);
-  --radius:       10px;
-  --focus:        #2563eb;
-}
-```
-
-### App Initialization Sequence
-
-```javascript
-// Run in this exact order on page load — ordering bugs cause blank screens
+// Run in this exact order. Changing order causes blank screens or missing data.
 async function initApp() {
-  loadSettings();         // 1. Load settings first (currency needed for formatters)
-  loadCategories();       // 2. Load categories (needed by form and tables)
-  applyTheme();           // 3. Apply theme before any rendering
-  await initDB();         // 4. Open IndexedDB (must succeed before any data ops)
-  checkAuthSession();     // 5. Check if user is already logged in (optional, skip if no auth)
-  showView('dashboard-view'); // 6. Show default view
-  scheduleVersionCheck(); // 7. Async update check (non-blocking)
+  loadSettings();       // 1. Settings first — formatters depend on settings
+  loadTags();           // 2. Load labels/tags (if using C08)
+  applyTheme();         // 3. Theme before any rendering — prevents flash
+  await initDB();       // 4. Open IndexedDB — must succeed before any data operation
+  checkAuthSession();   // 5. Auth check (skip if no auth gate)
+  showView(DEFAULT_VIEW); // 6. Show initial view
+  scheduleVersionCheck(); // 7. Non-blocking update check
 }
+
+window.addEventListener('DOMContentLoaded', initApp);
 ```
 
 ---
 
-## FEATURE 1 — Dashboard / KPI Cards (F1)
+## PART 2 — UI COMPONENTS
 
-### What It Does (Plain English)
-Shows your financial summary at a glance: total money earned, total spent, profit, and margin percentage. Updates automatically when you filter by month.
+---
 
-### HTML Structure
+### C01 — Navigation Layout
 
+**What it does:** Sidebar navigation on desktop, bottom tab bar on mobile. One function (`showView`) switches between views and updates active state everywhere.
+
+**Customization points:** Define your views and nav items.
+
+```javascript
+// ── CONFIGURE: your app's views ───────────────────────────────────────────
+const DEFAULT_VIEW = 'YOUR_MAIN_VIEW';  // e.g. 'dashboard', 'list-view'
+
+// Map view ID → render function to call when switching to it
+const VIEW_RENDERERS = {
+  'YOUR_MAIN_VIEW':   renderMainView,
+  'YOUR_LIST_VIEW':   () => renderTable({ page: 1 }),
+  'YOUR_ADD_VIEW':    initAddForm,
+  'YOUR_SETTINGS':    loadSettingsForm,
+  // Add your views here
+};
+
+// Fields used to build mobile bottom bar (max 5 items)
+const MOBILE_NAV = [
+  { view: 'YOUR_MAIN_VIEW',  label: 'Home',   icon: '🏠' },
+  { view: 'YOUR_LIST_VIEW',  label: 'List',   icon: '📋' },
+  { view: 'YOUR_ADD_VIEW',   label: 'Add',    icon: '+',  fab: true },
+  { view: 'YOUR_SETTINGS',   label: 'Settings', icon: '⚙️' },
+];
+// ─────────────────────────────────────────────────────────────────────────
+
+function showView(viewId) {
+  // Hide all views
+  document.querySelectorAll('.view').forEach(v => {
+    v.style.display = 'none';
+    v.classList.remove('active');
+  });
+
+  // Show target view
+  const target = document.getElementById(viewId);
+  if (!target) { console.warn('View not found:', viewId); return; }
+  target.style.display = 'block';
+  target.classList.add('active');
+
+  // Update sidebar active state
+  document.querySelectorAll('.nav-item[data-view]').forEach(a => {
+    a.classList.toggle('active', a.dataset.view === viewId);
+  });
+
+  // Update mobile bottom bar active state
+  document.querySelectorAll('#bottombar button[data-view]').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === viewId);
+  });
+
+  // Run the view's render function
+  const renderer = VIEW_RENDERERS[viewId];
+  if (renderer) renderer();
+}
+
+// Build mobile bottom bar from MOBILE_NAV config
+function buildMobileNav() {
+  const bar = document.getElementById('bottombar');
+  bar.innerHTML = MOBILE_NAV.map(item => `
+    <button data-view="${item.view}" onclick="showView('${item.view}')"
+            ${item.fab ? 'style="font-size:24px;font-weight:700;color:var(--primary)"' : ''}>
+      <span>${item.icon}</span>
+      <span>${item.fab ? '' : item.label}</span>
+    </button>
+  `).join('');
+}
+```
+
+**HTML for sidebar nav items:**
 ```html
-<div id="dashboard-view">
-  <!-- Month filter chips (one per month that has data) -->
-  <div id="dash-month-filter" class="filter-chips"></div>
+<nav id="sidebar">
+  <div class="nav-label">SECTION NAME</div>
+  <a class="nav-item" data-view="YOUR_VIEW_ID" onclick="showView('YOUR_VIEW_ID')">
+    🏠 View Name
+  </a>
+  <!-- repeat for each view -->
+</nav>
+```
 
-  <!-- 6 KPI cards in a grid -->
-  <div class="kpi-grid">
-    <div class="kpi-card">
-      <div class="kpi-label">Total Revenue</div>
-      <div class="kpi-value teal" id="kpi-rev">$0.00</div>
-      <div class="kpi-sub" id="kpi-rev-ct">0 entries</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Total Expenses</div>
-      <div class="kpi-value red"  id="kpi-exp">$0.00</div>
-      <div class="kpi-sub" id="kpi-exp-ct">0 entries</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Net Profit</div>
-      <div class="kpi-value"      id="kpi-net">$0.00</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Gross Profit</div>
-      <div class="kpi-value"      id="kpi-gross">$0.00</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Profit Margin</div>
-      <div class="kpi-value amber" id="kpi-margin">0.0%</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Avg Monthly Revenue</div>
-      <div class="kpi-value"      id="kpi-avg-rev">$0.00</div>
-    </div>
+**Known bugs to avoid:**
+- Always call `showView()` for navigation — never toggle `display` directly, it skips the renderer and active-state updates.
+- If a view renders a chart, only call `renderChart()` inside its VIEW_RENDERER — not on load — or the canvas will be 0px height.
+
+---
+
+### C02 — KPI Summary Cards
+
+**What it does:** A row of metric boxes showing totals, counts, averages, or any computed number from your records.
+
+**Customization points:** Define what metrics to show and how to compute them.
+
+```javascript
+// ── CONFIGURE: define your KPI metrics ───────────────────────────────────
+// Each metric: { id, label, compute(records) → value, format(value) → string, colorFn(value) → css-color-var }
+const KPI_METRICS = [
+  {
+    id:      'kpi-total',
+    label:   'Total Records',
+    compute: records => records.length,
+    format:  v => v.toLocaleString(),
+    color:   () => 'var(--primary)',
+  },
+  {
+    id:      'kpi-active',
+    label:   'Active',
+    compute: records => records.filter(r => r.status === 'active').length,
+    format:  v => v.toLocaleString(),
+    color:   v => v > 0 ? 'var(--success)' : 'var(--muted)',
+  },
+  // Add your own metrics here...
+];
+// ─────────────────────────────────────────────────────────────────────────
+
+async function renderKPICards() {
+  const records = await dbGetAll();
+  // Apply any active filters (e.g. date range) before passing to compute
+  const filtered = applyGlobalFilter(records); // define this for your app
+
+  KPI_METRICS.forEach(metric => {
+    const el = document.getElementById(metric.id);
+    if (!el) return;
+    const value = metric.compute(filtered);
+    el.textContent = metric.format(value);
+    el.style.color = metric.color(value);
+  });
+}
+```
+
+**HTML template (repeat per metric):**
+```html
+<div class="kpi-grid">
+  <!-- Generated from KPI_METRICS config -->
+  <div class="card kpi-card">
+    <div class="kpi-label">LABEL</div>
+    <div class="kpi-value" id="kpi-METRICID" style="font-size:26px;font-weight:700">—</div>
+    <div class="kpi-sub" id="kpi-METRICID-sub" style="font-size:12px;color:var(--muted)"></div>
   </div>
-
-  <!-- Charts area — see F2 -->
-  <div class="charts-grid" id="charts-area">...</div>
 </div>
 ```
 
-### Logic
-
-```javascript
-// COGS categories — used to compute Gross Profit
-const COGS_KEYWORDS = ['cost of goods', 'cogs', 'cost of sales', 'materials', 'inventory'];
-
-let dashFilter = ''; // '' = all months, 'Jan'...'Dec' = filtered month
-
-async function refreshDashboard() {
-  const all = await dbGetAll();
-
-  // Apply year filter to current fiscal year
-  const yearRows = all.filter(r => r.year === settings.fiscalYear);
-
-  // Apply month filter
-  const rows = dashFilter
-    ? yearRows.filter(r => r.month === dashFilter)
-    : yearRows;
-
-  // Calculate KPIs
-  const rev  = rows.filter(r => r.type === 'revenue');
-  const exp  = rows.filter(r => r.type === 'expense');
-
-  const totalRev = rev.reduce((s, r) => s + r.amount, 0);
-  const totalExp = exp.reduce((s, r) => s + r.amount, 0);
-  const netProfit = totalRev - totalExp;
-
-  // Gross Profit = Revenue minus COGS only
-  const cogs = exp
-    .filter(r => COGS_KEYWORDS.some(k => (r.category || '').toLowerCase().includes(k)))
-    .reduce((s, r) => s + r.amount, 0);
-  const grossProfit = totalRev - cogs;
-
-  // Margin — BUG: guard against divide-by-zero
-  const margin = totalRev > 0 ? (netProfit / totalRev) * 100 : 0;
-
-  // Avg monthly revenue (distinct months that have revenue)
-  const revMonths = new Set(rev.map(r => r.month)).size || 1;
-  const avgRev = totalRev / revMonths;
-
-  // Update DOM
-  document.getElementById('kpi-rev').textContent    = fmt(totalRev);
-  document.getElementById('kpi-rev-ct').textContent  = `${rev.length} entries`;
-  document.getElementById('kpi-exp').textContent    = fmt(totalExp);
-  document.getElementById('kpi-exp-ct').textContent  = `${exp.length} entries`;
-
-  // Net profit color: green if positive, red if negative
-  const netEl = document.getElementById('kpi-net');
-  netEl.textContent = fmt(netProfit);
-  netEl.className   = 'kpi-value ' + (netProfit >= 0 ? 'teal' : 'red');
-
-  document.getElementById('kpi-gross').textContent  = fmt(grossProfit);
-  document.getElementById('kpi-margin').textContent = fmtPct(margin);
-  document.getElementById('kpi-avg-rev').textContent = fmt(avgRev);
-
-  // Build month filter chips
-  renderDashMonthFilter(yearRows);
-}
-
-function renderDashMonthFilter(yearRows) {
-  // Only show chips for months that actually have data
-  const activeMonths = [...new Set(yearRows.map(r => r.month))];
-  const orderedMonths = MONTHS.filter(m => activeMonths.includes(m));
-
-  const container = document.getElementById('dash-month-filter');
-  container.innerHTML = orderedMonths.length
-    ? ['', ...orderedMonths].map(m =>
-        `<button class="filter-chip ${dashFilter === m ? 'active' : ''}"
-                 onclick="setDashFilter('${m}')">${m || 'All'}</button>`
-      ).join('')
-    : '';
-}
-
-function setDashFilter(month) {
-  dashFilter = month;
-  refreshDashboard(); // re-render KPIs + charts with new filter
-}
-```
-
-### CSS
-
+**CSS:**
 ```css
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
-}
-@media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 480px) { .kpi-grid { grid-template-columns: 1fr 1fr; } }
-
-.kpi-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-}
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.kpi-card { padding: 20px; }
 .kpi-label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
-.kpi-value { font-size: 26px; font-weight: 700; color: var(--text); }
-.kpi-value.teal  { color: var(--teal); }
-.kpi-value.red   { color: var(--red);  }
-.kpi-value.amber { color: var(--amber);}
-.kpi-sub   { font-size: 12px; color: var(--muted); margin-top: 4px; }
-.filter-chip { padding: 4px 14px; border-radius: 20px; border: 1px solid var(--border);
-               background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; }
-.filter-chip.active { border-color: var(--teal); color: var(--teal); background: rgba(14,207,190,.1); }
 ```
 
-### Known Bugs to Avoid
-- **Divide-by-zero**: Always check `totalRev > 0` before computing margin.
-- **Float drift**: Use `Math.round(x * 100) / 100` before display, never raw floating point.
-- **Missing months**: Filter chips must only include months with actual data (not all 12 months).
+**Known bugs to avoid:**
+- Always guard divide-by-zero: `denominator > 0 ? numerator / denominator : 0`
+- Use `Math.round(value * 100) / 100` for any decimal before display — prevents `0.30000000000000004`
+
+**P&L Dashboard example:** 6 KPIs: Total Revenue, Expenses, Net Profit, Gross Profit, Margin %, Avg Monthly Revenue.
 
 ---
 
-## FEATURE 2 — Charts (F2)
+### C03 — Charts
 
-### What It Does (Plain English)
-Four interactive graphs that visualize your financial data: a bar chart comparing monthly revenue vs expenses, a line chart showing profit trend, and two pie charts breaking down categories.
+**What it does:** Bar, line, and pie/doughnut charts that visualize your record data.
 
-### Dependencies
-- Chart.js 4.4.1 (inline it in the HTML — no CDN, for offline support)
-
-### Chart Setup
+**Dependency:** Chart.js 4.4.1 (inline the library in your HTML — no CDN at runtime, for offline support).
 
 ```javascript
-const charts = {}; // Track instances to destroy before recreating
+// ── CONFIGURE: define your charts ────────────────────────────────────────
+// Chart instances stored here so they can be destroyed before recreating
+const charts = {};
 
-// BUG PREVENTION: Always destroy existing chart before creating new one
-// Chart.js throws if you create a chart on a canvas that already has one
-function destroyChart(key) {
-  if (charts[key]) {
-    charts[key].destroy();
-    delete charts[key];
-  }
-}
-
+// Read CSS variables at render time (not at init) so theme changes work
 function themeColors() {
-  // Read current CSS variables — must read at render time, not at init
   const s = getComputedStyle(document.documentElement);
   return {
-    text:    s.getPropertyValue('--text').trim()    || '#e8eaf0',
-    muted:   s.getPropertyValue('--muted').trim()   || '#6b7394',
-    surface: s.getPropertyValue('--surface').trim() || '#181c27',
-    border:  s.getPropertyValue('--border').trim()  || '#2a3045',
-    teal:    s.getPropertyValue('--teal').trim()     || '#0ecfbe',
-    red:     s.getPropertyValue('--red').trim()      || '#e74c3c',
-    amber:   s.getPropertyValue('--amber').trim()    || '#f5a623',
+    text:    s.getPropertyValue('--text').trim(),
+    muted:   s.getPropertyValue('--muted').trim(),
+    surface: s.getPropertyValue('--surface').trim(),
+    border:  s.getPropertyValue('--border').trim(),
+    primary: s.getPropertyValue('--primary').trim(),
+    warning: s.getPropertyValue('--warning').trim(),
+    danger:  s.getPropertyValue('--danger').trim(),
   };
 }
+// ─────────────────────────────────────────────────────────────────────────
 
-// Shared bar/line chart options
-function bOpts(tc) {
+// RULE: Always destroy before recreating. Chart.js throws if canvas is reused.
+function destroyChart(key) {
+  if (charts[key]) { try { charts[key].destroy(); } catch(e) {} delete charts[key]; }
+}
+
+// Shared chart base options (reuse for all chart types)
+function baseChartOptions(tc) {
   return {
-    responsive: true,
+    responsive:          true,
     maintainAspectRatio: false,
     plugins: {
       legend: { labels: { color: tc.text, font: { size: 12 } } },
-      tooltip: {
-        callbacks: {
-          label: ctx => ` ${fmt(ctx.parsed.y)}`
-        }
-      }
     },
     scales: {
-      x: { ticks: { color: tc.muted }, grid: { color: tc.border } },
-      y: { ticks: { color: tc.muted, callback: v => fmt(v) }, grid: { color: tc.border } }
+      x: { ticks: { color: tc.muted }, grid: { color: tc.border + '55' } },
+      y: { ticks: { color: tc.muted }, grid: { color: tc.border + '55' } },
     }
   };
 }
 
-// Shared doughnut chart options
-function dOpts(tc) {
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'right',
-        labels: { color: tc.text, font: { size: 11 }, boxWidth: 12, padding: 10 }
-      },
-      tooltip: {
-        callbacks: {
-          label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)}`
-        }
-      }
-    }
-  };
-}
-
-// Categorical colors for pie slices — enough for 12 categories
-const PIE_COLORS = [
-  '#0ecfbe','#3b82f6','#f5a623','#e74c3c','#8b5cf6',
-  '#10b981','#f59e0b','#6366f1','#ec4899','#14b8a6',
-  '#a855f7','#ef4444'
-];
-```
-
-### Render All Charts
-
-```javascript
-async function renderCharts() {
+// ── EXAMPLE: Bar chart (adapt GROUP_BY and VALUE_FIELD for your data) ─────
+async function renderBarChart() {
+  const records = await dbGetAll();
   const tc      = themeColors();
-  const all     = await dbGetAll();
-  const yearRows = all.filter(r => r.year === settings.fiscalYear);
-  const filtered = dashFilter ? yearRows.filter(r => r.month === dashFilter) : yearRows;
 
-  // Monthly aggregation for bar + line charts
-  const monthlyRev = {};
-  const monthlyExp = {};
-  yearRows.forEach(r => {
-    if (r.type === 'revenue') monthlyRev[r.month] = (monthlyRev[r.month] || 0) + r.amount;
-    if (r.type === 'expense') monthlyExp[r.month] = (monthlyExp[r.month] || 0) + r.amount;
+  // Group records by a field (e.g. month, status, category)
+  const grouped = {};
+  records.forEach(r => {
+    const key = r.YOUR_GROUP_BY_FIELD || 'Other'; // e.g. r.month, r.status
+    grouped[key] = (grouped[key] || 0) + (r.YOUR_NUMERIC_FIELD || 0);
   });
 
-  const chartMonths  = MONTHS.filter(m => monthlyRev[m] || monthlyExp[m]);
-  const revData      = chartMonths.map(m => monthlyRev[m] || 0);
-  const expData      = chartMonths.map(m => monthlyExp[m] || 0);
-  const profitData   = chartMonths.map((m, i) => revData[i] - expData[i]);
+  const labels = Object.keys(grouped);
+  const data   = Object.values(grouped);
 
-  // 1. Revenue vs Expenses bar chart
-  destroyChart('revExp');
-  charts.revExp = new Chart(document.getElementById('chart-rev-exp'), {
+  // Guard: don't create empty chart
+  if (!data.length) return;
+
+  destroyChart('bar');
+  charts.bar = new Chart(document.getElementById('chart-bar'), {
     type: 'bar',
     data: {
-      labels: chartMonths,
-      datasets: [
-        { label: 'Revenue',  data: revData,    backgroundColor: tc.teal + '99' },
-        { label: 'Expenses', data: expData,    backgroundColor: tc.red  + '99' }
-      ]
-    },
-    options: bOpts(tc)
-  });
-
-  // 2. Net Profit trend line chart
-  destroyChart('profit');
-  charts.profit = new Chart(document.getElementById('chart-profit'), {
-    type: 'line',
-    data: {
-      labels: chartMonths,
-      datasets: [{
-        label:           'Net Profit',
-        data:            profitData,
-        borderColor:     tc.amber,
-        backgroundColor: tc.amber + '22',
-        fill:            true,
-        tension:         0.4,
-        pointRadius:     4
-      }]
-    },
-    options: bOpts(tc)
-  });
-
-  // 3 & 4. Category breakdowns (use filtered data for pie charts)
-  renderCategoryChart('chart-rev-cat',  filtered.filter(r => r.type === 'revenue'),  tc, 'Revenue by Category');
-  renderCategoryChart('chart-exp-cat',  filtered.filter(r => r.type === 'expense'),  tc, 'Expenses by Category');
-}
-
-function renderCategoryChart(canvasId, rows, tc, label) {
-  // Aggregate by category
-  const cats = {};
-  rows.forEach(r => { cats[r.category || 'Uncategorized'] = (cats[r.category || 'Uncategorized'] || 0) + r.amount; });
-
-  const labels = Object.keys(cats);
-  const data   = Object.values(cats);
-
-  const key = canvasId; // use canvas ID as chart key
-  destroyChart(key);
-
-  if (data.length === 0) {
-    // BUG PREVENTION: Don't create empty chart — Chart.js renders oddly with 0 data
-    return;
-  }
-
-  charts[key] = new Chart(document.getElementById(canvasId), {
-    type: 'doughnut',
-    data: {
       labels,
-      datasets: [{ data, backgroundColor: PIE_COLORS.slice(0, labels.length) }]
+      datasets: [{ label: 'YOUR_LABEL', data, backgroundColor: tc.primary + '99' }]
     },
-    options: dOpts(tc)
+    options: baseChartOptions(tc)
   });
 }
 
-// Re-tint all charts on theme toggle (call after toggling theme)
+// ── EXAMPLE: Pie/doughnut chart ───────────────────────────────────────────
+const CHART_COLORS = ['#0ecfbe','#3b82f6','#f5a623','#e74c3c','#8b5cf6','#10b981','#f59e0b','#6366f1','#ec4899','#14b8a6','#a855f7','#ef4444'];
+
+async function renderPieChart() {
+  const records = await dbGetAll();
+  const tc      = themeColors();
+
+  const grouped = {};
+  records.forEach(r => {
+    const key = r.YOUR_CATEGORY_FIELD || 'Uncategorized';
+    grouped[key] = (grouped[key] || 0) + 1; // or + r.YOUR_NUMERIC_FIELD
+  });
+
+  const labels = Object.keys(grouped);
+  const data   = Object.values(grouped);
+  if (!data.length) return;
+
+  destroyChart('pie');
+  charts.pie = new Chart(document.getElementById('chart-pie'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: CHART_COLORS.slice(0, labels.length) }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: tc.text, font: { size: 11 }, boxWidth: 12 } }
+      }
+    }
+  });
+}
+
+// Call after theme toggle (destroy + recreate is simpler than patching colors)
 function retintCharts() {
-  // Destroy and re-render — simplest, no theme patch bugs
-  renderCharts();
+  // Re-call each render function — they destroy and recreate
+  renderBarChart();
+  renderPieChart();
 }
 ```
 
-### HTML Canvases
-
+**HTML canvases:**
 ```html
-<div class="charts-grid">
-  <div class="chart-card">
-    <h3>Revenue vs Expenses</h3>
-    <div class="chart-wrap"><canvas id="chart-rev-exp"></canvas></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+  <div class="card"><h3>YOUR CHART TITLE</h3>
+    <div style="position:relative;height:240px"><canvas id="chart-bar"></canvas></div>
   </div>
-  <div class="chart-card">
-    <h3>Net Profit Trend</h3>
-    <div class="chart-wrap"><canvas id="chart-profit"></canvas></div>
-  </div>
-  <div class="chart-card">
-    <h3>Revenue by Category</h3>
-    <div class="chart-wrap"><canvas id="chart-rev-cat"></canvas></div>
-  </div>
-  <div class="chart-card">
-    <h3>Expenses by Category</h3>
-    <div class="chart-wrap"><canvas id="chart-exp-cat"></canvas></div>
+  <div class="card"><h3>YOUR PIE TITLE</h3>
+    <div style="position:relative;height:240px"><canvas id="chart-pie"></canvas></div>
   </div>
 </div>
 ```
 
-```css
-.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.chart-card  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
-.chart-wrap  { position: relative; height: 240px; }
-@media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
-```
-
-### Known Bugs to Avoid
-- **Double canvas bug**: Always call `destroyChart(key)` before `new Chart(...)`. Never skip this.
-- **Empty data**: Skip chart creation if data array is empty — Chart.js renders a blank circle otherwise.
-- **Theme retint**: Call `retintCharts()` after theme toggle, not `update()` — updating with new colors is unreliable.
+**Known bugs to avoid:**
+- `destroyChart(key)` before every `new Chart()` — without this the second render throws.
+- Read `themeColors()` inside the render function, not at module load — otherwise theme toggle won't update chart colors.
+- If data is empty, skip chart creation. Chart.js renders a broken empty circle otherwise.
 
 ---
 
-## FEATURE 3 — Revenue Table (F3)
+### C04 — Filterable Paginated Table
 
-### What It Does (Plain English)
-A paginated list of all your income transactions. You can search, select multiple rows to delete them, and edit any entry inline.
+**What it does:** A sortable, searchable, paginated table. Works for any record type.
 
-### HTML Structure
-
-```html
-<div id="revenue-view">
-  <div class="table-toolbar">
-    <input id="rev-search" type="search" placeholder="Search revenue..." oninput="debouncedRevSearch()">
-    <div id="rev-bulk-bar" style="display:none">
-      <span id="rev-sel-count">0 selected</span>
-      <button onclick="deleteBulkRev()">Delete Selected</button>
-    </div>
-  </div>
-  <div class="table-card">
-    <table>
-      <thead>
-        <tr>
-          <th><input type="checkbox" id="rev-check-all" onchange="toggleAllRev(this)"></th>
-          <th>Date</th>
-          <th>Category</th>
-          <th>Description</th>
-          <th>Amount</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="rev-tbody"></tbody>
-    </table>
-  </div>
-  <div id="rev-pagination" class="pagination"></div>
-</div>
-```
-
-### Logic
+**Customization points:** Define columns, default sort, filter fields.
 
 ```javascript
-let revPage = 1;
-const REV_PAGE_SIZE = 50;
-let revSearch = '';
-const selectedRevIds = new Set();
+// ── CONFIGURE: define your table columns ─────────────────────────────────
+const TABLE_COLUMNS = [
+  // { key: fieldName, label: 'Header Text', sortable: true, render: (record) => htmlString }
+  { key: 'name',        label: 'Name',        sortable: true,
+    render: r => escapeHtml(r.name || '—') },
+  { key: 'status',      label: 'Status',      sortable: true,
+    render: r => `<span class="badge badge-primary">${escapeHtml(r.status || '')}</span>` },
+  { key: 'created_at',  label: 'Created',     sortable: true,
+    render: r => escapeHtml(r.created_at || '') },
+  // Add your columns here. ALWAYS use escapeHtml() in render functions.
+  { key: '_actions',    label: '',             sortable: false,
+    render: r => `<button class="btn btn-ghost" onclick="deleteRecord(${JSON.stringify(r.id)})">🗑</button>` },
+];
 
-async function renderRevTable() {
+// Filter fields — dropdowns above the table
+// Each: { key: fieldName, label: 'Label', options: [] or 'dynamic' }
+const TABLE_FILTERS = [
+  { key: 'status',   label: 'Status',   options: ['active','inactive','pending'] },
+  { key: 'category', label: 'Category', options: 'dynamic' }, // populated from data
+];
+// ─────────────────────────────────────────────────────────────────────────
+
+// Table state (module-level)
+let tableState = {
+  page:     1,
+  pageSize: 25,
+  sort:     TABLE_COLUMNS.find(c => c.sortable)?.key || 'id',
+  dir:      'desc',
+  search:   '',
+  filters:  {},
+};
+
+async function renderTable(overrides = {}) {
+  Object.assign(tableState, overrides);
+
   const { rows, total } = await dbQuery({
-    search:   revSearch,
-    type:     'revenue',
-    sort:     'date',
-    dir:      'desc',
-    page:     revPage,
-    pageSize: REV_PAGE_SIZE
+    search:   tableState.search,
+    filters:  tableState.filters,
+    sort:     tableState.sort,
+    dir:      tableState.dir,
+    page:     tableState.page,
+    pageSize: tableState.pageSize,
   });
 
-  const tbody = document.getElementById('rev-tbody');
+  const tbody = document.getElementById('main-tbody');
 
-  if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
-      No revenue entries. <button onclick="showView('add-view')">Add one</button>
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="${TABLE_COLUMNS.length}" style="text-align:center;padding:40px;color:var(--muted)">
+      No records found.
     </td></tr>`;
-    document.getElementById('rev-pagination').innerHTML = '';
-    return;
+  } else {
+    // BUG: escapeHtml is applied inside each column's render() — never skip it
+    tbody.innerHTML = rows.map(r =>
+      `<tr>${TABLE_COLUMNS.map(col => `<td>${col.render(r)}</td>`).join('')}</tr>`
+    ).join('');
   }
 
-  // BUG PREVENTION: escapeHtml on every user-sourced string
-  tbody.innerHTML = rows.map(r => `
-    <tr data-id="${r.id}">
-      <td><input type="checkbox" class="rev-row-check" value="${r.id}"
-                 ${selectedRevIds.has(r.id) ? 'checked' : ''}
-                 onchange="onRevCheck(this)"></td>
-      <td>${escapeHtml(r.date)}</td>
-      <td><span class="badge teal">${escapeHtml(r.category || 'Uncategorized')}</span></td>
-      <td>${escapeHtml(r.description || '—')}</td>
-      <td class="amount teal">${fmt(r.amount)}</td>
-      <td>
-        <button class="icon-btn" onclick="deleteOneTxn(${r.id})" title="Delete">🗑</button>
-      </td>
-    </tr>
-  `).join('');
+  // Update count label
+  const countEl = document.getElementById('table-count');
+  if (countEl) countEl.textContent = `${total.toLocaleString()} records`;
 
-  renderPagination('rev-pagination', revPage, total, REV_PAGE_SIZE, p => {
-    revPage = p;
-    renderRevTable();
+  // Render pagination
+  renderPagination('table-pagination', tableState.page, total, tableState.pageSize, p => {
+    tableState.page = p;
+    renderTable();
+  });
+
+  // Update sort indicators on headers
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    const isActive = th.dataset.sort === tableState.sort;
+    th.textContent = th.dataset.label + (isActive ? (tableState.dir === 'asc' ? ' ↑' : ' ↓') : '');
   });
 }
 
-function onRevCheck(checkbox) {
-  const id = +checkbox.value;
-  if (checkbox.checked) selectedRevIds.add(id); else selectedRevIds.delete(id);
-  updateRevBulkBar();
+function sortTable(col) {
+  if (tableState.sort === col) {
+    tableState.dir = tableState.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    tableState.sort = col;
+    tableState.dir  = 'asc';
+  }
+  tableState.page = 1;
+  renderTable();
 }
 
-function toggleAllRev(masterCheckbox) {
-  document.querySelectorAll('.rev-row-check').forEach(cb => {
-    cb.checked = masterCheckbox.checked;
-    onRevCheck(cb);
-  });
-}
-
-function updateRevBulkBar() {
-  const bar = document.getElementById('rev-bulk-bar');
-  bar.style.display = selectedRevIds.size > 0 ? 'flex' : 'none';
-  document.getElementById('rev-sel-count').textContent = `${selectedRevIds.size} selected`;
-}
-
-async function deleteBulkRev() {
-  if (!selectedRevIds.size) return;
-  const ids = [...selectedRevIds];
-  // Store for undo BEFORE deleting
-  const deleted = await Promise.all(ids.map(id => dbGet(id)));
-
-  if (!confirm(`Delete ${ids.length} transaction(s)?`)) return;
-
-  await Promise.all(ids.map(id => dbDelete(id)));
-  selectedRevIds.clear();
-  updateRevBulkBar();
-  renderRevTable();
-  offerUndo(`Deleted ${deleted.length} entries`, deleted);
-}
-
-// Debounce search to avoid too many DB reads
-let revSearchTimer;
-function debouncedRevSearch() {
-  clearTimeout(revSearchTimer);
-  revSearchTimer = setTimeout(() => {
-    revSearch = document.getElementById('rev-search').value;
-    revPage = 1; // reset to first page on new search
-    renderRevTable();
-  }, 250);
-}
-```
-
-### Pagination Helper (shared by all tables)
-
-```javascript
+// Shared pagination renderer (reuse for every table in the app)
 function renderPagination(containerId, currentPage, total, pageSize, onPageChange) {
   const totalPages = Math.ceil(total / pageSize);
-  const container  = document.getElementById(containerId);
-  if (totalPages <= 1) { container.innerHTML = ''; return; }
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
 
   const start = (currentPage - 1) * pageSize + 1;
   const end   = Math.min(currentPage * pageSize, total);
 
-  // Show pages: first, ..., (current-2)..(current+2), ..., last
-  const pages = [];
+  // Build page number array with ellipsis
+  const pageNums = [];
   for (let i = 1; i <= totalPages; i++) {
-    if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
-      pages.push(i);
-    }
+    if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) pageNums.push(i);
   }
-
-  // Add ellipsis markers
   const withGaps = [];
-  pages.forEach((p, i) => {
-    if (i > 0 && p - pages[i - 1] > 1) withGaps.push('...');
+  pageNums.forEach((p, i) => {
+    if (i > 0 && p - pageNums[i-1] > 1) withGaps.push('…');
     withGaps.push(p);
   });
 
-  container.innerHTML = `
+  el.innerHTML = `
     <span class="pg-info">Showing ${start}–${end} of ${total}</span>
-    <button onclick="(${onPageChange})(1)"          ${currentPage===1?'disabled':''}>«</button>
+    <button onclick="(${onPageChange})(1)"               ${currentPage===1?'disabled':''}>«</button>
     <button onclick="(${onPageChange})(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>
-    ${withGaps.map(p => p === '...'
-      ? `<span>…</span>`
+    ${withGaps.map(p => p === '…'
+      ? `<span style="padding:0 4px;color:var(--muted)">…</span>`
       : `<button class="${p===currentPage?'active':''}" onclick="(${onPageChange})(${p})">${p}</button>`
     ).join('')}
     <button onclick="(${onPageChange})(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>
-    <button onclick="(${onPageChange})(${totalPages})"     ${currentPage===totalPages?'disabled':''}>»</button>
-  `;
+    <button onclick="(${onPageChange})(${totalPages})"     ${currentPage===totalPages?'disabled':''}>»</button>`;
+}
+
+// Debounced search (prevents DB query on every keypress)
+let _searchTimer;
+function onTableSearch(value) {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => {
+    tableState.search = value;
+    tableState.page   = 1; // RULE: reset to page 1 on new search
+    renderTable();
+  }, 250);
+}
+
+// Filter dropdown change
+function onTableFilter(field, value) {
+  tableState.filters[field] = value;
+  tableState.page = 1; // RULE: reset to page 1 on filter change
+  renderTable();
 }
 ```
 
-### Known Bugs to Avoid
-- **Stale selections**: Clear `selectedRevIds` after bulk delete completes.
-- **Page reset on search**: Always set `revPage = 1` when search text changes.
-- **XSS in table rows**: Every `r.category`, `r.description`, `r.date` must pass through `escapeHtml()`.
-
----
-
-## FEATURE 4 — Expense Table (F4)
-
-### What It Does (Plain English)
-Identical to the Revenue Table but shows only expense transactions. Uses the same pagination, search, and bulk-delete patterns.
-
-### Implementation
-Same as F3 — copy the Revenue Table implementation and change:
-- `type: 'revenue'` → `type: 'expense'`
-- All variable names: `rev` → `exp`
-- Badge color: `.badge.teal` → `.badge.red`
-- Amount color: `.amount.teal` → `.amount.red`
-
----
-
-## FEATURE 5 — All Transactions Table (F5)
-
-### What It Does (Plain English)
-A master view showing all income and expenses together. You can filter by type, month, and year, sort any column, and export everything to a file.
-
-### Key Difference from F3/F4
-- Shows both revenue and expenses
-- Supports column sorting (click header)
-- Year + month + type dropdowns as filters
-- Page size selector (25/50/100/250)
-- Export to CSV/Excel buttons
-
-### Logic
-
-```javascript
-let txnPage     = 1;
-let txnPageSize = 25;
-let txnSort     = { col: 'date', dir: 'desc' };
-let txnFilters  = { search: '', type: '', month: '', year: '' };
-
-async function renderTxnTable() {
-  const { rows, total } = await dbQuery({
-    ...txnFilters,
-    sort:     txnSort.col,
-    dir:      txnSort.dir,
-    page:     txnPage,
-    pageSize: txnPageSize
-  });
-
-  // ... render table rows with escapeHtml on all values
-}
-
-function sortTxnBy(col) {
-  if (txnSort.col === col) {
-    txnSort.dir = txnSort.dir === 'asc' ? 'desc' : 'asc';
-  } else {
-    txnSort.col = col;
-    txnSort.dir = 'asc';
-  }
-  txnPage = 1;
-  renderTxnTable();
-}
-
-// Page size change
-function onTxnPageSizeChange() {
-  txnPageSize = +document.getElementById('txn-page-size').value;
-  txnPage = 1;
-  renderTxnTable();
-}
-```
-
-### CSV Export
-
-```javascript
-async function exportCSV() {
-  const all = await dbGetAll();
-  const header = ['Date','Type','Category','Description','Amount','Month','Year'];
-
-  // BUG PREVENTION: csvSanitize on every cell to prevent formula injection
-  const lines = [
-    header.join(','),
-    ...all.map(r => [
-      csvSanitize(r.date),
-      csvSanitize(r.type),
-      csvSanitize(r.category),
-      csvSanitize(r.description || ''),
-      csvSanitize(r.amount),
-      csvSanitize(r.month),
-      csvSanitize(r.year)
-    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
-  ];
-
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `pl_export_${Date.now()}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-```
-
----
-
-## FEATURE 6 — Monthly P&L Table (F6)
-
-### What It Does (Plain English)
-A one-row-per-month summary for the selected fiscal year. Shows total revenue, expenses, net profit, and margin for each month. Useful for spotting your best and worst months.
-
-### Logic
-
-```javascript
-async function renderMonthlyTable() {
-  const all  = await dbGetAll();
-  const rows = all.filter(r => r.year === settings.fiscalYear);
-
-  // Aggregate by month
-  const monthData = {};
-  rows.forEach(r => {
-    if (!monthData[r.month]) monthData[r.month] = { rev: 0, exp: 0 };
-    if (r.type === 'revenue') monthData[r.month].rev += r.amount;
-    if (r.type === 'expense') monthData[r.month].exp += r.amount;
-  });
-
-  // Only months with data, in calendar order
-  const activeMonths = MONTHS.filter(m => monthData[m]);
-
-  let totalRev = 0, totalExp = 0;
-
-  const tbody = document.getElementById('monthly-tbody');
-  tbody.innerHTML = activeMonths.map(m => {
-    const { rev, exp } = monthData[m];
-    const net    = rev - exp;
-    const margin = rev > 0 ? (net / rev * 100) : 0;
-    totalRev += rev;
-    totalExp += exp;
-    return `<tr>
-      <td>${m}</td>
-      <td class="teal">${fmt(rev)}</td>
-      <td class="red">${fmt(exp)}</td>
-      <td class="${net >= 0 ? 'teal' : 'red'}">${fmt(net)}</td>
-      <td class="amber">${fmtPct(margin)}</td>
-    </tr>`;
-  }).join('');
-
-  // Footer totals
-  const totalNet    = totalRev - totalExp;
-  const totalMargin = totalRev > 0 ? (totalNet / totalRev * 100) : 0;
-  document.getElementById('monthly-footer').innerHTML = `
-    <tr class="total-row">
-      <td><strong>Total</strong></td>
-      <td class="teal"><strong>${fmt(totalRev)}</strong></td>
-      <td class="red"><strong>${fmt(totalExp)}</strong></td>
-      <td class="${totalNet >= 0 ? 'teal' : 'red'}"><strong>${fmt(totalNet)}</strong></td>
-      <td class="amber"><strong>${fmtPct(totalMargin)}</strong></td>
-    </tr>`;
-}
-```
-
----
-
-## FEATURE 7 — Add Transaction Form (F7)
-
-### What It Does (Plain English)
-A simple form to enter a single income or expense. Pick the date, choose income or expense, type the amount, select or type a category, and add an optional note. Press Enter to save quickly.
-
-### HTML
-
+**HTML structure:**
 ```html
-<div id="add-view">
-  <form id="quick-add-form" onsubmit="quickAddTransaction(event)">
-    <div class="form-row">
-      <label class="form-label">Date</label>
-      <input id="qa-date" type="date" class="form-input" required>
-    </div>
-    <div class="form-row">
-      <label class="form-label">Type</label>
-      <div class="type-toggle">
-        <button type="button" id="qa-type-rev" class="active" onclick="setType('revenue')">Revenue</button>
-        <button type="button" id="qa-type-exp"               onclick="setType('expense')">Expense</button>
-      </div>
-    </div>
-    <div class="form-row">
-      <label class="form-label">Category</label>
-      <input id="qa-category" type="text" list="cat-datalist" class="form-input"
-             placeholder="e.g. Product Sales" autocomplete="off">
-      <datalist id="cat-datalist"></datalist>
-    </div>
-    <div class="form-row">
-      <label class="form-label">Amount</label>
-      <div class="amount-input-wrap">
-        <span id="qa-currency-prefix" class="currency-prefix">$</span>
-        <input id="qa-amount" type="number" min="0.01" step="0.01" class="form-input" placeholder="0.00" required>
-      </div>
-    </div>
-    <div class="form-row">
-      <label class="form-label">Description <span class="optional">(optional)</span></label>
-      <input id="qa-description" type="text" class="form-input" placeholder="Notes...">
-    </div>
-    <button type="submit" class="btn btn-primary">Add Transaction</button>
-  </form>
+<div id="YOUR_LIST_VIEW" class="view">
+  <!-- Toolbar: search + filter dropdowns -->
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+    <input type="search" placeholder="Search..." oninput="onTableSearch(this.value)"
+           style="flex:1;min-width:200px" class="form-input">
+    <!-- Repeat per TABLE_FILTERS entry: -->
+    <select class="form-input" style="width:auto" onchange="onTableFilter('status', this.value)">
+      <option value="">All Status</option>
+      <option value="active">Active</option>
+    </select>
+    <span id="table-count" style="color:var(--muted);font-size:13px;align-self:center"></span>
+  </div>
 
-  <!-- Recently added (last 5) -->
-  <div id="qa-recent"></div>
+  <!-- Table -->
+  <div class="card table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <!-- Generated from TABLE_COLUMNS config — mark sortable ones -->
+          <th class="sortable" data-sort="name" data-label="Name" onclick="sortTable('name')">Name ↓</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="main-tbody"></tbody>
+    </table>
+  </div>
+  <div id="table-pagination" class="pagination"></div>
 </div>
 ```
 
-### Logic
+**Known bugs to avoid:**
+- Search timer must reset `tableState.page = 1` — otherwise you stay on page 5 with 0 results.
+- Every column `render()` function must use `escapeHtml()` on user data. Forgetting one column is all XSS needs.
+- Sort direction must persist across page changes — never reset `tableState.sort/dir` in `renderTable()`.
+
+---
+
+### C05 — Quick-Entry Form
+
+**What it does:** A fast single-record add form. Includes an autocomplete field, keyboard-first flow (Enter to submit), and a "recently added" preview below the form.
+
+**Customization points:** Define your form fields and validation rules.
 
 ```javascript
-let qaType = 'revenue';
+// ── CONFIGURE: define your form fields ───────────────────────────────────
+const FORM_FIELDS = [
+  // { id: 'htmlInputId', key: 'recordFieldName', required: true, transform: fn }
+  { id: 'f-name',        key: 'name',        required: true,  transform: v => v.trim() },
+  { id: 'f-category',    key: 'category',    required: false, transform: v => v.trim() || 'Uncategorized' },
+  { id: 'f-amount',      key: 'amount',      required: true,  transform: v => Math.abs(parseFloat(v)) },
+  { id: 'f-date',        key: 'date',        required: true,  transform: v => v },
+  { id: 'f-description', key: 'description', required: false, transform: v => v.trim() },
+];
 
-function setType(type) {
-  qaType = type;
-  document.getElementById('qa-type-rev').classList.toggle('active', type === 'revenue');
-  document.getElementById('qa-type-exp').classList.toggle('active', type === 'expense');
-  updateCatDatalist(); // Refresh categories based on type
+// Validation rules: return error string or null
+const FORM_VALIDATORS = [
+  ({ amount }) => (!amount || amount <= 0) ? 'Amount must be a positive number' : null,
+  ({ date })   => (!date) ? 'Date is required' : null,
+  ({ name })   => (!name) ? 'Name is required' : null,
+];
+
+// Fields to show in the "recently added" preview table
+const RECENT_COLUMNS = [
+  { key: 'date',     label: 'Date',     render: r => escapeHtml(r.date || '') },
+  { key: 'name',     label: 'Name',     render: r => escapeHtml(r.name || '') },
+  { key: 'category', label: 'Category', render: r => `<span class="badge badge-primary">${escapeHtml(r.category || '')}</span>` },
+];
+// ─────────────────────────────────────────────────────────────────────────
+
+function initAddForm() {
+  // Set date to today (UTC-safe)
+  const todayInput = document.getElementById('f-date');
+  if (todayInput && !todayInput.value) {
+    todayInput.value = new Date().toISOString().slice(0, 10);
+  }
+  updateAutocompleteList(); // Populate datalist for autocomplete field (see below)
+  renderRecentEntries();
 }
 
-function updateCatDatalist() {
-  const datalist = document.getElementById('cat-datalist');
-  datalist.innerHTML = CATEGORIES
-    .filter(c => guessType(c) === qaType) // Only show relevant categories
-    .map(c => `<option value="${escapeHtml(c)}">`)
-    .join('');
-}
+async function submitAddForm(e) {
+  if (e) e.preventDefault();
 
-async function quickAddTransaction(e) {
-  e.preventDefault();
+  // Clear previous error
+  const errEl = document.getElementById('form-error');
+  if (errEl) errEl.textContent = '';
 
-  const date   = document.getElementById('qa-date').value;
-  const amount = parseFloat(document.getElementById('qa-amount').value);
-  const cat    = document.getElementById('qa-category').value.trim();
-  const desc   = document.getElementById('qa-description').value.trim();
-
-  // Validation
-  if (!date)          { toast('Date is required', 'error'); return; }
-  if (!amount || amount <= 0) { toast('Enter a valid positive amount', 'error'); return; }
-
-  const txn = prepareTransaction({
-    id:          Date.now() + Math.random(), // unique ID
-    date,
-    type:        qaType,
-    category:    cat || 'Uncategorized',
-    description: desc,
-    amount:      Math.round(amount * 100) / 100, // store rounded value
+  // Read + transform all fields
+  const raw = {};
+  FORM_FIELDS.forEach(f => {
+    const el = document.getElementById(f.id);
+    raw[f.key] = el ? f.transform(el.value) : '';
   });
 
-  await dbPut(txn);
+  // Validate
+  for (const validator of FORM_VALIDATORS) {
+    const err = validator(raw);
+    if (err) {
+      if (errEl) errEl.textContent = err;
+      return;
+    }
+  }
+
+  // Build record — add any derived fields here
+  const record = {
+    id: newId(),
+    ...raw,
+    created_at: new Date().toISOString(),
+    // Add your derived fields:
+    // month: getMonthFromDate(raw.date),
+    // year:  getYearFromDate(raw.date),
+  };
+
+  await dbPut(record);
   scheduleSnapshot();
 
-  // Clear form — keep date and type for rapid entry
-  document.getElementById('qa-amount').value      = '';
-  document.getElementById('qa-category').value    = '';
-  document.getElementById('qa-description').value = '';
-  document.getElementById('qa-amount').focus();
+  // Clear amount + description, keep date/category for rapid entry
+  ['f-amount', 'f-description', 'f-name'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
 
-  toast(`${qaType === 'revenue' ? 'Revenue' : 'Expense'} added`, 'success');
+  // Refocus first required field for rapid re-entry
+  document.getElementById('f-name')?.focus();
+
+  toast('Record added', 'success');
   renderRecentEntries();
 }
 
 async function renderRecentEntries() {
   const all    = await dbGetAll();
-  // Sort by id (timestamp) descending, take first 5
   const recent = all.sort((a, b) => b.id - a.id).slice(0, 5);
+  const tbody  = document.getElementById('recent-tbody');
+  if (!tbody) return;
 
-  const container = document.getElementById('qa-recent');
-  if (!recent.length) { container.innerHTML = ''; return; }
-
-  container.innerHTML = `
-    <h4>Recently Added</h4>
-    <table class="recent-table">
-      ${recent.map(r => `
-        <tr>
-          <td>${escapeHtml(r.date)}</td>
-          <td><span class="badge ${r.type === 'revenue' ? 'teal' : 'red'}">${escapeHtml(r.type)}</span></td>
-          <td>${escapeHtml(r.category)}</td>
-          <td class="${r.type === 'revenue' ? 'teal' : 'red'}">${fmt(r.amount)}</td>
-        </tr>
-      `).join('')}
-    </table>`;
+  tbody.innerHTML = recent.length
+    ? recent.map(r =>
+        `<tr>${RECENT_COLUMNS.map(col => `<td>${col.render(r)}</td>`).join('')}</tr>`
+      ).join('')
+    : `<tr><td colspan="${RECENT_COLUMNS.length}" style="color:var(--muted);text-align:center;padding:20px">No records yet</td></tr>`;
 }
 
-// Initialize date to today on view load
-function initAddForm() {
-  const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-  document.getElementById('qa-date').value = today;
-  document.getElementById('qa-currency-prefix').textContent = settings.currency || '$';
-  updateCatDatalist();
-  renderRecentEntries();
+// Autocomplete datalist — populate from existing records + static tags
+async function updateAutocompleteList() {
+  const all    = await dbGetAll();
+  // Extract unique values from your autocomplete field (e.g. category)
+  const values = [...new Set(all.map(r => r.category).filter(Boolean)), ...TAGS];
+  const list   = document.getElementById('autocomplete-list');
+  if (list) list.innerHTML = values.map(v => `<option value="${escapeHtml(v)}">`).join('');
 }
 ```
 
-### Known Bugs to Avoid
-- **Amount float drift**: Store `Math.round(amount * 100) / 100`, not the raw `parseFloat` value.
-- **Empty category**: Default to `'Uncategorized'` not empty string.
-- **Duplicate IDs**: Use `Date.now() + Math.random()` — never use sequential counters that reset on refresh.
-- **Date off by one**: Always use `new Date().toISOString().slice(0,10)` for today's date (UTC-safe).
+**HTML:**
+```html
+<div id="YOUR_ADD_VIEW" class="view">
+  <form onsubmit="submitAddForm(event)" style="max-width:520px">
+    <div id="form-error" style="color:var(--danger);font-size:13px;margin-bottom:10px"></div>
+
+    <div style="margin-bottom:14px">
+      <label class="form-label">Name *</label>
+      <input id="f-name" type="text" class="form-input" required>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label class="form-label">Category</label>
+      <input id="f-category" type="text" class="form-input" list="autocomplete-list" autocomplete="off">
+      <datalist id="autocomplete-list"></datalist>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label class="form-label">Date *</label>
+      <input id="f-date" type="date" class="form-input" required>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <label class="form-label">Notes</label>
+      <input id="f-description" type="text" class="form-input">
+    </div>
+
+    <button type="submit" class="btn btn-primary">Add Record</button>
+  </form>
+
+  <!-- Recently added preview -->
+  <div style="margin-top:32px">
+    <h3 style="font-size:15px;margin-bottom:12px">Recently Added</h3>
+    <div class="card table-wrap">
+      <table><thead><tr>
+        <!-- Match RECENT_COLUMNS -->
+        <th>Date</th><th>Name</th><th>Category</th>
+      </tr></thead>
+      <tbody id="recent-tbody"></tbody></table>
+    </div>
+  </div>
+</div>
+```
+
+**Known bugs to avoid:**
+- `new Date().toISOString().slice(0,10)` for today — never `new Date().toLocaleDateString()` (locale-dependent format).
+- `Math.abs(parseFloat(v))` for numeric fields — prevents negative storage, NaN.
+- Clear the error element at the start of every submit — stale errors confuse users.
+- `newId()` = `Date.now() + Math.random()` — never a sequential counter that resets on page reload.
 
 ---
 
-## FEATURE 8 — CSV / Excel Import (F8)
+### C06 — Bulk Select + Delete + Undo
 
-### What It Does (Plain English)
-Upload a spreadsheet or CSV file to import many transactions at once. The app helps you map which column in your file corresponds to which field (date, amount, etc.), then imports everything automatically.
-
-### Architecture
-- Files under 500KB: parse synchronously in main thread.
-- Files 500KB+: parse in a Web Worker to avoid freezing the UI.
-
-### CSV Parser
+**What it does:** Adds checkboxes to table rows. When rows are selected, a floating action bar appears. Deleting shows a 6-second Undo toast before the action becomes permanent.
 
 ```javascript
-// RFC 4180 compliant CSV parser
-// BUG PREVENTION: Handle quoted fields with embedded commas and newlines
-function parseCSV(text) {
-  const rows = [];
-  let field = '', row = [], inQuotes = false;
+// Module-level selection set — stores String(record.id)
+const selectedIds = new Set();
 
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
+// Call after rendering each table row to wire up checkboxes
+function onRowCheck(checkbox) {
+  const id = checkbox.value; // stored as string
+  if (checkbox.checked) selectedIds.add(id);
+  else                  selectedIds.delete(id);
+  updateBulkBar();
+}
 
-    if (inQuotes) {
-      if (ch === '"') {
-        if (text[i + 1] === '"') { field += '"'; i++; } // escaped quote
-        else inQuotes = false;
-      } else {
-        field += ch;
-      }
-    } else {
-      if (ch === '"') {
-        inQuotes = true;
-      } else if (ch === ',') {
-        row.push(field); field = '';
-      } else if (ch === '\n' || (ch === '\r' && text[i + 1] !== '\n')) {
-        row.push(field); rows.push(row); row = []; field = '';
-      } else if (ch === '\r') {
-        // skip \r in \r\n
-      } else {
-        field += ch;
-      }
-    }
-  }
-  if (field || row.length) { row.push(field); rows.push(row); }
-  return rows;
+function toggleSelectAll(masterCheckbox) {
+  document.querySelectorAll('.row-checkbox').forEach(cb => {
+    cb.checked = masterCheckbox.checked;
+    onRowCheck(cb);
+  });
+}
+
+function updateBulkBar() {
+  const bar   = document.getElementById('bulk-bar');
+  const count = document.getElementById('bulk-count');
+  if (!bar) return;
+  bar.style.display = selectedIds.size > 0 ? 'flex' : 'none';
+  if (count) count.textContent = `${selectedIds.size} selected`;
+}
+
+async function deleteBulkSelected() {
+  if (!selectedIds.size) return;
+  const ids = [...selectedIds];
+
+  // Load records BEFORE deleting (for undo)
+  const deleted = (await Promise.all(ids.map(id => dbGet(+id || id)))).filter(Boolean);
+
+  if (!confirm(`Delete ${ids.length} record(s)?`)) return;
+
+  await Promise.all(ids.map(id => dbDelete(+id || id)));
+  selectedIds.clear();
+  updateBulkBar();
+  renderTable();
+  offerUndo(`Deleted ${deleted.length} record(s)`, deleted);
+}
+
+// Delete a single record with undo
+async function deleteRecord(id) {
+  const record = await dbGet(id);
+  if (!record) return;
+  await dbDelete(id);
+  renderTable();
+  offerUndo('Record deleted', [record]);
 }
 ```
 
-### Web Worker for Large Files
+**Add to table rows (inside your column render or tbody HTML):**
+```html
+<!-- Header row -->
+<th><input type="checkbox" id="check-all" onchange="toggleSelectAll(this)"></th>
+
+<!-- Data rows (in render function) -->
+<td><input type="checkbox" class="row-checkbox" value="${JSON.stringify(r.id)}" onchange="onRowCheck(this)"></td>
+```
+
+**Bulk action bar (floating, shown when selection > 0):**
+```html
+<div id="bulk-bar" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 20px;
+  box-shadow:var(--shadow);gap:14px;align-items:center;z-index:200">
+  <span id="bulk-count">0 selected</span>
+  <button class="btn btn-danger" onclick="deleteBulkSelected()">Delete Selected</button>
+  <button class="btn btn-ghost" onclick="selectedIds.clear();updateBulkBar();renderTable()">Cancel</button>
+</div>
+```
+
+**Known bugs to avoid:**
+- Store IDs as `String(record.id)` in the Set — floats compare unreliably as object keys.
+- When deleting, convert back: `dbDelete(+id || id)` handles both float and string IDs.
+- Fetch records for undo BEFORE calling `dbDelete` — after deletion, `dbGet` returns undefined.
+- Clear `selectedIds` after every bulk delete and after switching views.
+
+---
+
+### C07 — CSV / Excel Import with Field Mapping
+
+**What it does:** User uploads any CSV or XLSX file. A mapping modal lets them connect each file column to a record field. Large files use a Web Worker so the UI stays responsive.
 
 ```javascript
-const CSV_WORKER_SRC = `
+// ── CONFIGURE: define your importable fields ──────────────────────────────
+const IMPORT_FIELDS = [
+  // { key: 'recordField', label: 'Display Name', required: true }
+  { key: 'name',        label: 'Name',        required: true  },
+  { key: 'date',        label: 'Date',        required: true  },
+  { key: 'category',    label: 'Category',    required: false },
+  { key: 'description', label: 'Description', required: false },
+  // { key: 'amount', label: 'Amount', required: true, numeric: true },
+  // Add your fields here
+];
+
+// Keywords that auto-guess column mapping from CSV headers
+const IMPORT_GUESS_KEYWORDS = {
+  name:        ['name', 'title', 'item', 'product'],
+  date:        ['date', 'time', 'period', 'created'],
+  category:    ['category', 'cat', 'type', 'class', 'group'],
+  description: ['description', 'desc', 'note', 'memo', 'detail'],
+  amount:      ['amount', 'total', 'value', 'price', 'cost', 'sum'],
+};
+// ─────────────────────────────────────────────────────────────────────────
+
+let _csvRows = []; // module-level: rows[][] from parsed file
+
+// RFC 4180 compliant CSV parser — handles quoted fields, embedded commas, escaped quotes
+function parseCSV(text) {
+  text = text.replace(/^﻿/, ''); // strip BOM
+  const rows = [];
+  let field = '', row = [], inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (text[i+1] === '"') { field += '"'; i++; } // escaped quote
+        else inQ = false;
+      } else field += ch;
+    } else {
+      if (ch === '"')  inQ = true;
+      else if (ch === ',') { row.push(field); field = ''; }
+      else if (ch === '\n' || (ch === '\r' && text[i+1] !== '\n')) {
+        row.push(field); if (row.some(c => c !== '')) rows.push(row); row = []; field = '';
+      } else if (ch !== '\r') field += ch;
+    }
+  }
+  if (field || row.length) { row.push(field); if (row.some(c => c !== '')) rows.push(row); }
+  return rows;
+}
+
+// Web Worker source for large files (> 500KB)
+const CSV_WORKER = `
   self.onmessage = function(e) {
-    const text = e.data.text;
-    // Inline the same parseCSV() function here
-    function parseCSV(text) { /* same as above */ }
-    const rows = parseCSV(text);
-    self.postMessage({ type: 'done', rows });
+    const text = e.data;
+    text.replace(/^\\uFEFF/, '');
+    const rows = [];
+    let field='', row=[], inQ=false;
+    for (let i=0; i<text.length; i++) {
+      const ch=text[i];
+      if(inQ){if(ch==='"'){if(text[i+1]==='"'){field+='"';i++;}else inQ=false;}else field+=ch;}
+      else{if(ch==='"')inQ=true;else if(ch===','){row.push(field);field='';}
+      else if(ch==='\\n'||(ch==='\\r'&&text[i+1]!=='\\n')){row.push(field);if(row.some(c=>c!==''))rows.push(row);row=[];field='';}
+      else if(ch!=='\\r')field+=ch;}
+    }
+    if(field||row.length){row.push(field);if(row.some(c=>c!==''))rows.push(row);}
+    self.postMessage(rows);
   };
 `;
 
-function parseCSVWithWorker(text) {
-  return new Promise((resolve) => {
-    const blob   = new Blob([CSV_WORKER_SRC], { type: 'application/javascript' });
-    const url    = URL.createObjectURL(blob);
-    const worker = new Worker(url);
-    worker.onmessage = e => {
-      URL.revokeObjectURL(url);
-      worker.terminate();
-      resolve(e.data.rows);
-    };
-    worker.postMessage({ text });
-  });
-}
-
-async function handleFileImport(file) {
+async function handleFileSelect(file) {
   const text = await file.text();
   let rows;
-  if (text.length > 500_000) {
-    rows = await parseCSVWithWorker(text);
+
+  if (text.length > 500_000 && typeof Worker !== 'undefined') {
+    rows = await new Promise(resolve => {
+      const blob   = new Blob([CSV_WORKER], { type: 'application/javascript' });
+      const worker = new Worker(URL.createObjectURL(blob));
+      worker.onmessage = e => { worker.terminate(); resolve(e.data); };
+      worker.postMessage(text);
+    });
   } else {
     rows = parseCSV(text);
   }
+
+  if (rows.length < 2) { toast('File is empty or has only headers', 'error'); return; }
   openMappingModal(rows, file.name);
 }
-```
-
-### Field Mapping Modal
-
-```javascript
-// State for the mapping modal
-let csvPreviewRows = [];
-let csvFieldMap    = {}; // { 'Date': 0, 'Amount': 2, ... } — field name → column index
 
 function openMappingModal(rows, filename) {
-  csvPreviewRows = rows;
+  _csvRows = rows;
   const headers  = rows[0] || [];
-  const dataRows = rows.slice(1, 6); // Preview first 5 data rows
+  const preview  = rows.slice(1, 4);
 
-  // Auto-guess mapping based on header names
-  const guesses = { date: -1, type: -1, category: -1, description: -1, amount: -1 };
+  // Auto-guess field mapping
+  const guessed = {};
   headers.forEach((h, i) => {
     const low = (h || '').toLowerCase().trim();
-    if (/date/i.test(low))        guesses.date        = i;
-    if (/amount|total|value/i.test(low)) guesses.amount = i;
-    if (/category|type2/i.test(low)) guesses.category  = i;
-    if (/type|kind/i.test(low))   guesses.type        = i;
-    if (/desc|note|memo/i.test(low)) guesses.description = i;
+    Object.entries(IMPORT_GUESS_KEYWORDS).forEach(([field, keywords]) => {
+      if (keywords.some(k => low.includes(k)) && guessed[field] == null) guessed[field] = i;
+    });
   });
 
-  // Render mapping selects — one dropdown per field
-  const fields = ['date', 'type', 'category', 'description', 'amount'];
-  // ... render HTML with selects pre-set to guesses
+  // Build mapping modal HTML
+  const modal = document.getElementById('import-modal');
+  document.getElementById('import-preview-thead').innerHTML =
+    `<tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`;
+  document.getElementById('import-preview-tbody').innerHTML =
+    preview.map(row => `<tr>${row.map(c => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
 
-  document.getElementById('mapping-modal').style.display = 'flex';
+  document.getElementById('import-field-map').innerHTML = IMPORT_FIELDS.map(f => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <label style="width:120px;font-size:13px">${f.label}${f.required ? ' *' : ''}</label>
+      <select id="map-${f.key}" class="form-input" style="flex:1">
+        <option value="-1">— skip —</option>
+        ${headers.map((h, i) => `<option value="${i}" ${guessed[f.key]===i?'selected':''}>${escapeHtml(h)}</option>`).join('')}
+      </select>
+    </div>
+  `).join('');
+
+  modal.style.display = 'flex';
 }
 
-async function finishCsvImport() {
-  const headers  = csvPreviewRows[0] || [];
-  const dataRows = csvPreviewRows.slice(1);
+async function applyImport() {
+  const headers  = _csvRows[0] || [];
+  const dataRows = _csvRows.slice(1);
 
-  // Read mapping from dropdowns
-  const map = {
-    date:        +document.getElementById('map-date').value,
-    type:        +document.getElementById('map-type').value,
-    category:    +document.getElementById('map-category').value,
-    description: +document.getElementById('map-description').value,
-    amount:      +document.getElementById('map-amount').value,
-  };
-
-  const imported = [];
-  const skipped  = [];
-
-  dataRows.forEach((row, i) => {
-    const raw = {
-      date:        row[map.date]        || '',
-      type:        row[map.type]        || 'expense',
-      category:    row[map.category]    || 'Uncategorized',
-      description: row[map.description] || '',
-      amount:      row[map.amount]      || '0',
-    };
-
-    // Parse amount — handle accounting format: (1,234.56) = negative, but we use absolute
-    let amt = parseFloat(
-      String(raw.amount)
-        .replace(/\((.+)\)/, '-$1')   // (1234) → -1234
-        .replace(/[^0-9.\-]/g, '')     // strip currency symbols, commas
-    );
-    if (isNaN(amt) || amt === 0) { skipped.push(i + 2); return; }
-    amt = Math.abs(amt); // always positive
-
-    // Parse date — try multiple formats
-    let date = raw.date.trim();
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(date)) {
-      const [m, d, y] = date.split('/');
-      date = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { skipped.push(i + 2); return; }
-
-    // Normalize type
-    const type = /rev|income|earn/i.test(raw.type) ? 'revenue' : 'expense';
-
-    imported.push(prepareTransaction({
-      id:          Date.now() + Math.random(),
-      date,
-      type,
-      category:    raw.category.trim() || 'Uncategorized',
-      description: raw.description.trim(),
-      amount:      Math.round(amt * 100) / 100,
-    }));
+  // Read column mapping
+  const map = {};
+  IMPORT_FIELDS.forEach(f => {
+    map[f.key] = +document.getElementById(`map-${f.key}`).value;
   });
 
-  if (imported.length === 0) {
-    toast('No valid rows found. Check date and amount columns.', 'error');
-    return;
-  }
+  // Validate required fields are mapped
+  const missing = IMPORT_FIELDS.filter(f => f.required && map[f.key] < 0).map(f => f.label);
+  if (missing.length) { toast(`Map required fields: ${missing.join(', ')}`, 'error'); return; }
+
+  const imported = [], skipped = [];
+
+  dataRows.forEach((row, i) => {
+    const raw = {};
+    IMPORT_FIELDS.forEach(f => {
+      raw[f.key] = map[f.key] >= 0 ? (row[map[f.key]] || '').trim() : '';
+    });
+
+    // Validate required fields have values
+    if (IMPORT_FIELDS.filter(f => f.required).some(f => !raw[f.key])) {
+      skipped.push(i + 2); return;
+    }
+
+    imported.push({
+      id: newId(),
+      ...raw,
+      // Add derived fields for your app here, e.g.:
+      // year: getYearFromDate(raw.date),
+    });
+  });
+
+  if (!imported.length) { toast('No valid rows found — check column mapping', 'error'); return; }
 
   await dbBulkPut(imported);
   scheduleSnapshot();
-  document.getElementById('mapping-modal').style.display = 'none';
-  toast(`Imported ${imported.length} transactions${skipped.length ? ` (${skipped.length} skipped)` : ''}`, 'success');
-  refreshDashboard();
+  document.getElementById('import-modal').style.display = 'none';
+  toast(`Imported ${imported.length} records${skipped.length ? ` (${skipped.length} skipped)` : ''}`, 'success');
+  renderTable();
 }
 ```
 
-### Known Bugs to Avoid
-- **Quoted fields with commas**: Must use RFC 4180 parser, not `row.split(',')`.
-- **Accounting format**: `(1,234.56)` means negative — strip parentheses and commas before `parseFloat`.
-- **Date formats**: Always convert `MM/DD/YYYY` to `YYYY-MM-DD` before storing.
-- **Zero amounts**: Skip rows where amount is 0 or NaN — they indicate bad mapping.
+**HTML for import modal:**
+```html
+<!-- Import trigger -->
+<button class="btn btn-outline" onclick="document.getElementById('file-input').click()">Import CSV</button>
+<input id="file-input" type="file" accept=".csv,.xlsx" style="display:none"
+       onchange="handleFileSelect(this.files[0]);this.value=''">
+
+<!-- Mapping Modal -->
+<div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
+  z-index:500;align-items:center;justify-content:center">
+  <div class="card" style="width:min(700px,95vw);max-height:85vh;overflow-y:auto">
+    <h3 style="margin-bottom:16px">Map CSV Columns</h3>
+
+    <!-- Preview -->
+    <div class="table-wrap" style="margin-bottom:20px;max-height:150px;overflow:auto">
+      <table><thead id="import-preview-thead"></thead><tbody id="import-preview-tbody"></tbody></table>
+    </div>
+
+    <!-- Field mapping -->
+    <div id="import-field-map"></div>
+
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-primary" onclick="applyImport()">Import</button>
+      <button class="btn btn-outline" onclick="document.getElementById('import-modal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+</div>
+```
+
+**Known bugs to avoid:**
+- RFC 4180: `""` inside quoted fields = literal `"`. Must handle in parser or imports with quotes in text corrupt silently.
+- Strip BOM (`﻿`) from CSV text before parsing — Excel-exported CSVs have it and it breaks header detection.
+- `this.value = ''` after reading file input — allows re-selecting the same file.
+- Large file web worker must inline the CSV parser (it can't import external scripts).
 
 ---
 
-## FEATURE 9 — Category Management (F9)
+### C08 — Tag / Label Management
 
-### What It Does (Plain English)
-A list of labels you can customize. Add your own categories, rename them, or delete them. Renaming a category automatically updates all existing transactions that use it.
-
-### Default Categories
+**What it does:** Users create, rename, and delete labels used to categorize records. Renaming propagates to all existing records automatically.
 
 ```javascript
-const DEFAULT_CATEGORIES = [
-  'Product Sales', 'Service Revenue', 'Consulting / Retainers',
-  'Subscription Revenue', 'Licensing Fees', 'Grants & Funding',
-  'Cost of Goods Sold (COGS)', 'Salaries & Wages', 'Rent / Office Space',
-  'Utilities', 'Software & Subscriptions', 'Marketing & Advertising',
-  'Professional Services', 'Insurance', 'Travel & Transportation',
-  'Meals & Entertainment', 'Equipment & Hardware', 'Loan Repayments',
-  'Taxes & Licenses', 'Miscellaneous'
+// ── CONFIGURE ─────────────────────────────────────────────────────────────
+const TAGS_KEY = 'YOUR_APP_tags_v1';
+
+// Default tags for a fresh install
+const DEFAULT_TAGS = [
+  'General', 'Work', 'Personal', 'Urgent',
+  // Add your defaults here
 ];
 
-const CATEGORIES_KEY = 'pl_categories_v1';
-let CATEGORIES = [...DEFAULT_CATEGORIES];
+let TAGS = [...DEFAULT_TAGS];
 
-function loadCategories() {
+function loadTags() {
   try {
-    const raw = localStorage.getItem(CATEGORIES_KEY);
-    if (raw) CATEGORIES = JSON.parse(raw);
-  } catch { CATEGORIES = [...DEFAULT_CATEGORIES]; }
+    const raw = localStorage.getItem(TAGS_KEY);
+    if (raw) TAGS = JSON.parse(raw);
+  } catch { TAGS = [...DEFAULT_TAGS]; }
 }
 
-function saveCategories() {
-  localStorage.setItem(CATEGORIES_KEY, JSON.stringify(CATEGORIES));
+function saveTags() {
+  localStorage.setItem(TAGS_KEY, JSON.stringify(TAGS));
 }
-```
+// ─────────────────────────────────────────────────────────────────────────
 
-### Guess Revenue vs Expense from Name
-
-```javascript
-const REVENUE_KEYWORDS = ['sales', 'revenue', 'income', 'service', 'consult', 'subscription', 'licens', 'grant', 'earning'];
-
-function guessType(category) {
-  const low = (category || '').toLowerCase();
-  return REVENUE_KEYWORDS.some(k => low.includes(k)) ? 'revenue' : 'expense';
+function renderTagManager() {
+  const container = document.getElementById('tag-list');
+  if (!container) return;
+  // BUG: always escapeHtml on tag name — user-supplied string in innerHTML
+  container.innerHTML = TAGS.map((tag, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1">${escapeHtml(tag)}</span>
+      <button class="btn btn-ghost" onclick="openRenameTag(${i})">✏️</button>
+      <button class="btn btn-ghost" onclick="deleteTag(${i})">🗑</button>
+    </div>
+  `).join('');
 }
-```
 
-### Category CRUD
-
-```javascript
-async function addCategory(name, type) {
+function addTag(name) {
   name = name.trim();
-  if (!name) { toast('Category name required', 'error'); return; }
-
-  // BUG PREVENTION: Check for duplicate (case-insensitive)
-  if (CATEGORIES.some(c => c.toLowerCase() === name.toLowerCase())) {
-    toast('Category already exists', 'error');
-    return;
+  if (!name) { toast('Tag name required', 'error'); return; }
+  // Case-insensitive duplicate check
+  if (TAGS.some(t => t.toLowerCase() === name.toLowerCase())) {
+    toast('Tag already exists', 'error'); return;
   }
-  CATEGORIES.push(name);
-  saveCategories();
-  renderCategoryManager();
-  toast('Category added', 'success');
+  TAGS.push(name);
+  saveTags();
+  renderTagManager();
+  updateAutocompleteList();
+  toast(`Tag "${name}" added`, 'success');
 }
 
-async function renameCategory(oldName, newName) {
+async function renameTag(index, newName) {
   newName = newName.trim();
   if (!newName) { toast('Name required', 'error'); return; }
-  if (CATEGORIES.some(c => c.toLowerCase() === newName.toLowerCase() && c !== oldName)) {
-    toast('Name already in use', 'error');
-    return;
+  if (TAGS.some((t, i) => i !== index && t.toLowerCase() === newName.toLowerCase())) {
+    toast('Name already in use', 'error'); return;
   }
 
-  // Update all transactions with old category name
-  const all = await dbGetAll();
-  const toUpdate = all.filter(r => r.category === oldName);
+  const oldName = TAGS[index];
+
+  // Propagate rename to all records — update the field that holds tags
+  const all      = await dbGetAll();
+  const toUpdate = all.filter(r => r.category === oldName); // change 'category' to your tag field
   await Promise.all(toUpdate.map(r => dbPut({ ...r, category: newName })));
 
-  // Update category list
-  const idx = CATEGORIES.indexOf(oldName);
-  if (idx !== -1) CATEGORIES[idx] = newName;
-  saveCategories();
-  renderCategoryManager();
-  toast(`Renamed "${oldName}" to "${newName}" (${toUpdate.length} transactions updated)`, 'success');
+  TAGS[index] = newName;
+  saveTags();
+  renderTagManager();
+  updateAutocompleteList();
+  toast(`Renamed to "${newName}" — ${toUpdate.length} records updated`, 'success');
 }
 
-async function deleteCategory(name) {
-  if (!confirm(`Delete "${name}"? Transactions will be labeled "Uncategorized".`)) return;
+async function deleteTag(index) {
+  const name = TAGS[index];
+  if (!confirm(`Delete tag "${name}"? Records using it will be set to "Uncategorized".`)) return;
 
-  // Update transactions
-  const all = await dbGetAll();
+  const all      = await dbGetAll();
   const toUpdate = all.filter(r => r.category === name);
   await Promise.all(toUpdate.map(r => dbPut({ ...r, category: 'Uncategorized' })));
 
-  CATEGORIES = CATEGORIES.filter(c => c !== name);
-  saveCategories();
-  renderCategoryManager();
-  toast(`Deleted "${name}" (${toUpdate.length} transactions updated)`, 'success');
+  TAGS.splice(index, 1);
+  saveTags();
+  renderTagManager();
+  updateAutocompleteList();
+  toast(`Deleted "${name}" — ${toUpdate.length} records updated`, 'success');
 }
 ```
 
-### Industry Templates
-
-```javascript
-const INDUSTRY_TEMPLATES = {
-  saas: {
-    name: 'SaaS',
-    categories: ['MRR / Subscription Revenue', 'One-Time Licenses', 'Professional Services', 'Hosting & Infrastructure', 'Salaries & Wages', 'Marketing & Ads', 'Customer Support Tools', 'R&D Expenses']
-  },
-  ecommerce: {
-    name: 'E-commerce',
-    categories: ['Product Sales', 'Shipping Revenue', 'Cost of Goods Sold (COGS)', 'Fulfillment & Shipping', 'Marketing & Ads', 'Returns & Refunds', 'Platform Fees', 'Salaries & Wages']
-  },
-  consulting: {
-    name: 'Consulting',
-    categories: ['Consulting Fees', 'Retainer Revenue', 'Project Deliverables', 'Subcontractor Costs', 'Travel & Transportation', 'Software & Tools', 'Professional Development', 'Insurance']
-  },
-  restaurant: {
-    name: 'Restaurant',
-    categories: ['Food Sales', 'Beverage Sales', 'Food Cost (COGS)', 'Labor / Wages', 'Rent', 'Utilities', 'Marketing', 'Equipment Repairs']
-  },
-  generic: {
-    name: 'Generic Business',
-    categories: [...DEFAULT_CATEGORIES]
-  }
-};
-
-function applyIndustryTemplate(key) {
-  const tmpl = INDUSTRY_TEMPLATES[key];
-  if (!tmpl) return;
-  // Merge — add template categories that don't already exist
-  tmpl.categories.forEach(c => {
-    if (!CATEGORIES.includes(c)) CATEGORIES.push(c);
-  });
-  saveCategories();
-  renderCategoryManager();
-  toast(`Applied "${tmpl.name}" template`, 'success');
-}
-```
+**Known bugs to avoid:**
+- `escapeHtml(tag)` in `renderTagManager` — tag names are user-supplied and will be in `innerHTML`.
+- Rename: check for duplicates at `idx !== index` — otherwise it flags the tag being renamed as a duplicate of itself.
+- After rename/delete, call `updateAutocompleteList()` to keep the add form datalist in sync.
 
 ---
 
-## FEATURE 10 — File Sync (Local Backup) (F10)
+### C09 — Three-Layer Backup System
 
-### What It Does (Plain English)
-Links a file on your computer and automatically saves all your data to it every 30 minutes. Only works in Chrome, Edge, or Brave (not Firefox or Safari).
-
-### Browser Compatibility Check
-
-```javascript
-function isFileSystemAPISupported() {
-  return typeof window.showSaveFilePicker === 'function';
-}
-```
-
-### Auto-Backup Logic
+**What it does:**
+- **Layer 1** — Auto-saves a browser snapshot every 3 seconds after any data change (up to 5 kept in localStorage).
+- **Layer 2** — Links a file on your computer; auto-saves to it every 30 minutes (Chrome/Edge/Brave only).
+- **Layer 3** — OAuth sign-in to sync with Google Sheets in the cloud.
 
 ```javascript
-const L2_META_KEY      = 'pl_l2_meta';
-const AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+// ── Layer 1: Browser Snapshots ────────────────────────────────────────────
+const SNAPSHOTS_KEY  = 'YOUR_APP_snapshots_v1';
+const MAX_SNAPSHOTS  = 5;
+let   _snapTimer     = null;
 
-let autoFileHandle    = null;
-let autoBackupTimer   = null;
-let l2Meta            = { fileName: '', lastBackup: null };
-
-function loadL2Meta() {
-  try {
-    const raw = localStorage.getItem(L2_META_KEY);
-    if (raw) l2Meta = JSON.parse(raw);
-  } catch { l2Meta = { fileName: '', lastBackup: null }; }
-}
-
-async function linkBackupFile() {
-  if (!isFileSystemAPISupported()) {
-    toast('File backup requires Chrome, Edge, or Brave', 'error');
-    return;
-  }
-
-  try {
-    autoFileHandle = await window.showSaveFilePicker({
-      suggestedName: 'pl_backup.json',
-      types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }]
-    });
-    l2Meta.fileName = autoFileHandle.name;
-    localStorage.setItem(L2_META_KEY, JSON.stringify(l2Meta));
-    startAutoFileBackupTimer();
-    await runFileBackupNow(); // immediate first backup
-    toast(`Linked to ${autoFileHandle.name}`, 'success');
-  } catch (err) {
-    if (err.name !== 'AbortError') toast('Could not link file', 'error');
-  }
-}
-
-async function runFileBackupNow() {
-  if (!autoFileHandle) return;
-  try {
-    const all  = await dbGetAll();
-    const data = JSON.stringify({ settings, transactions: all, exportedAt: Date.now() }, null, 2);
-
-    const writable = await autoFileHandle.createWritable();
-    await writable.write(data);
-    await writable.close();
-
-    l2Meta.lastBackup = Date.now();
-    localStorage.setItem(L2_META_KEY, JSON.stringify(l2Meta));
-    toast('Backup saved', 'success');
-  } catch (err) {
-    // BUG PREVENTION: Permission may have been revoked — handle gracefully
-    toast('Backup failed: ' + err.message, 'error');
-  }
-}
-
-function startAutoFileBackupTimer() {
-  clearInterval(autoBackupTimer);
-  autoBackupTimer = setInterval(runFileBackupNow, AUTO_BACKUP_INTERVAL_MS);
-}
-
-function unlinkBackupFile() {
-  autoFileHandle = null;
-  clearInterval(autoBackupTimer);
-  l2Meta = { fileName: '', lastBackup: null };
-  localStorage.removeItem(L2_META_KEY);
-  toast('File backup unlinked', 'info');
-}
-```
-
----
-
-## FEATURE 11 — Three-Layer Backup System (F11)
-
-### What It Does (Plain English)
-Three overlapping safety nets for your data:
-- **Layer 1**: The app automatically saves snapshots in your browser (up to 5 kept).
-- **Layer 2**: Every 30 minutes, the app saves to a file on your computer (requires Chrome).
-- **Layer 3**: Syncs your data to Google Sheets in the cloud (requires a Google account).
-
-### Layer 1: Browser Snapshots
-
-```javascript
-const SNAPSHOTS_KEY = 'pl_snapshots_v4';
-const MAX_SNAPSHOTS = 5;
-
-let snapshotTimer = null;
-
+// Call this after EVERY data mutation (dbPut, dbDelete, dbBulkPut, dbClear)
 function scheduleSnapshot() {
-  clearTimeout(snapshotTimer);
-  snapshotTimer = setTimeout(createSnapshot, 3000); // debounce 3s after last change
+  clearTimeout(_snapTimer);
+  _snapTimer = setTimeout(takeSnapshot, 3000); // debounce 3 seconds
 }
 
-async function createSnapshot() {
-  const all       = await dbGetAll();
-  let snapshots   = loadSnapshots();
+async function takeSnapshot() {
+  const all  = await dbGetAll();
+  let   snaps = loadSnapshots();
 
-  const snap = { ts: Date.now(), count: all.length, data: all };
-  snapshots.unshift(snap); // newest first
+  snaps.unshift({ ts: Date.now(), count: all.length, data: all });
+  snaps = snaps.slice(0, MAX_SNAPSHOTS);
 
-  // Keep only last MAX_SNAPSHOTS
-  if (snapshots.length > MAX_SNAPSHOTS) snapshots = snapshots.slice(0, MAX_SNAPSHOTS);
-
-  // BUG PREVENTION: Guard localStorage quota
   try {
-    localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snapshots));
+    localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snaps));
   } catch (e) {
     if (e.name === 'QuotaExceededError') {
       // Trim further and retry
-      snapshots = snapshots.slice(0, 2);
-      try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snapshots)); } catch { /* ignore */ }
+      try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snaps.slice(0, 2))); } catch {}
+      toast('Storage nearly full — older snapshots trimmed', 'warning');
     }
   }
 }
 
 function loadSnapshots() {
-  try {
-    return JSON.parse(localStorage.getItem(SNAPSHOTS_KEY) || '[]');
-  } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(SNAPSHOTS_KEY) || '[]'); } catch { return []; }
 }
 
 async function restoreSnapshot(ts) {
-  if (!confirm('Restore this snapshot? Current data will be replaced.')) return;
-
-  const snapshots = loadSnapshots();
-  const snap = snapshots.find(s => s.ts === ts);
+  const snaps = loadSnapshots();
+  const snap  = snaps.find(s => s.ts === ts);
   if (!snap) { toast('Snapshot not found', 'error'); return; }
+
+  const current = await dbCount();
+  if (!confirm(`Restore ${snap.count} records? This replaces your current ${current} records.`)) return;
 
   await dbClear();
   await dbBulkPut(snap.data);
-  toast(`Restored ${snap.count} transactions`, 'success');
-  refreshDashboard();
-}
-```
-
-### Layer 3: Google Sheets Sync
-
-```javascript
-// Google Sheets integration requires:
-// 1. A Google Cloud project with Sheets API enabled
-// 2. An OAuth 2.0 client ID configured for your domain
-// 3. The google.accounts.oauth2 library loaded
-
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE';
-let gsheetsToken = null;
-let gsheetsSheetId = null;
-
-async function gSheetsAPI(method, url, body) {
-  const res = await fetch(url, {
-    method,
-    headers: {
-      'Authorization': `Bearer ${gsheetsToken}`,
-      'Content-Type': 'application/json'
-    },
-    body: body ? JSON.stringify(body) : undefined
-  });
-  if (!res.ok) throw new Error(`Sheets API error: ${res.status}`);
-  return res.json();
+  toast(`Restored ${snap.count} records`, 'success');
+  showView(DEFAULT_VIEW);
 }
 
-async function gsheetsPushSilent() {
-  if (!gsheetsToken || !gsheetsSheetId) return;
+// ── Layer 2: Local File Auto-Backup ───────────────────────────────────────
+let   _autoFileHandle = null;
+let   _autoBackupTimer = null;
+const L2_META_KEY      = 'YOUR_APP_l2_v1';
+
+function isFileSystemSupported() { return typeof window.showSaveFilePicker === 'function'; }
+
+async function linkBackupFile() {
+  if (!isFileSystemSupported()) {
+    toast('File backup requires Chrome, Edge, or Brave', 'error'); return;
+  }
   try {
-    const all = await dbGetAll();
-    const values = [
-      ['ID','Date','Type','Category','Description','Amount','Month','Year'],
-      ...all.map(r => [r.id, r.date, r.type, r.category, r.description || '', r.amount, r.month, r.year])
-    ];
-    await gSheetsAPI('PUT',
-      `https://sheets.googleapis.com/v4/spreadsheets/${gsheetsSheetId}/values/PL_Transactions!A1?valueInputOption=RAW`,
-      { values }
-    );
-  } catch { /* silent — don't interrupt user */ }
-}
-```
-
-### Protection Score Display
-
-```javascript
-function getProtectionScore() {
-  let score = 0;
-  const snapshots = loadSnapshots();
-  if (snapshots.length > 0) score++;   // Layer 1 active
-  if (autoFileHandle)       score++;   // Layer 2 active
-  if (gsheetsSheetId)       score++;   // Layer 3 active
-  return score; // 0, 1, 2, or 3
-}
-
-function updateProtectionBanner() {
-  const score  = getProtectionScore();
-  const banner = document.getElementById('protection-banner');
-  const colors = ['red', 'amber', 'teal', 'teal'];
-  const labels = ['No backup active', '1 layer active', '2 layers active', '3 layers active (maximum protection)'];
-  banner.textContent  = labels[score];
-  banner.className    = `protection-banner ${colors[score]}`;
-}
-```
-
----
-
-## FEATURE 12 — Settings Page (F12)
-
-### What It Does (Plain English)
-Set your business name (shown in the app title), the year you're reporting on, and the currency symbol used throughout the app.
-
-### HTML
-
-```html
-<div id="settings-view">
-  <form onsubmit="saveSettingsForm(event)">
-    <label>Business Name
-      <input id="set-bizname" type="text" class="form-input" placeholder="My Business">
-    </label>
-    <label>Fiscal Year
-      <input id="set-year" type="number" class="form-input" min="2000" max="2100">
-    </label>
-    <label>Currency Symbol
-      <input id="set-currency" type="text" class="form-input" placeholder="$" maxlength="4">
-    </label>
-    <button type="submit" class="btn btn-primary">Save Settings</button>
-  </form>
-</div>
-```
-
-### Logic
-
-```javascript
-function loadSettingsForm() {
-  document.getElementById('set-bizname').value  = settings.bizName    || '';
-  document.getElementById('set-year').value     = settings.fiscalYear || new Date().getFullYear();
-  document.getElementById('set-currency').value = settings.currency   || '$';
-}
-
-function saveSettingsForm(e) {
-  e.preventDefault();
-  settings.bizName    = document.getElementById('set-bizname').value.trim();
-  settings.fiscalYear = +document.getElementById('set-year').value || new Date().getFullYear();
-  settings.currency   = document.getElementById('set-currency').value.trim() || '$';
-  saveSettings();
-  toast('Settings saved', 'success');
-  // Update currency prefix in Add form
-  document.getElementById('qa-currency-prefix').textContent = settings.currency;
-}
-```
-
----
-
-## FEATURE 13 — Auth Gate (F13, Optional)
-
-### What It Does (Plain English)
-A sign-in screen that protects the app. Users can sign in with their Google account or enter a license key. The session is remembered for 24 hours so they don't have to log in every time.
-
-### When to Include
-Include this only if your app needs access control (e.g., paid software, internal tools). Omit entirely for public or personal apps.
-
-### Session Cache
-
-```javascript
-const AUTH_SESSION_KEY = 'pl_auth_session_v1';
-const SESSION_TTL_MS   = 24 * 60 * 60 * 1000; // 24 hours
-
-let authUser = null; // { email, name, plan, ts }
-
-function checkAuthSession() {
-  try {
-    const raw  = localStorage.getItem(AUTH_SESSION_KEY);
-    if (!raw) return showAuthGate();
-    const sess = JSON.parse(raw);
-    if (Date.now() - sess.ts > SESSION_TTL_MS) return showAuthGate();
-    authUser = sess;
-    bootApp(); // session valid — go straight to app
-  } catch {
-    showAuthGate();
+    _autoFileHandle = await window.showSaveFilePicker({
+      suggestedName: 'YOUR_APP_backup.json',
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+    });
+    localStorage.setItem(L2_META_KEY, JSON.stringify({ fileName: _autoFileHandle.name, lastBackup: null }));
+    clearInterval(_autoBackupTimer);
+    _autoBackupTimer = setInterval(runFileBackup, 30 * 60 * 1000);
+    await runFileBackup();
+    toast(`Linked to ${_autoFileHandle.name}`, 'success');
+  } catch (e) {
+    if (e.name !== 'AbortError') toast('Could not link file: ' + e.message, 'error');
   }
 }
 
-function cacheSession(user) {
-  authUser = { ...user, ts: Date.now() };
-  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(authUser));
+async function runFileBackup() {
+  if (!_autoFileHandle) return;
+  try {
+    const all  = await dbGetAll();
+    const json = JSON.stringify({ settings, records: all, backedUpAt: Date.now() }, null, 2);
+    const w    = await _autoFileHandle.createWritable();
+    await w.write(json); await w.close();
+    const meta = JSON.parse(localStorage.getItem(L2_META_KEY) || '{}');
+    meta.lastBackup = Date.now();
+    localStorage.setItem(L2_META_KEY, JSON.stringify(meta));
+  } catch (e) {
+    toast('Auto-backup failed: ' + e.message, 'error');
+  }
 }
 
-function authSignOut() {
-  localStorage.removeItem(AUTH_SESSION_KEY);
-  authUser = null;
-  showAuthGate();
+function unlinkBackupFile() {
+  _autoFileHandle = null;
+  clearInterval(_autoBackupTimer);
+  localStorage.removeItem(L2_META_KEY);
+  toast('File backup unlinked', 'info');
 }
 ```
 
-### Supabase License Check
+**Known bugs to avoid:**
+- `AbortError` when user cancels the file picker dialog — catch and ignore, don't show an error toast.
+- File handle does NOT persist across page reloads — store only the filename string (for UI) in localStorage.
+- `clearInterval(_autoBackupTimer)` on unlink — otherwise the old timer keeps firing.
+- Layer 1 `QuotaExceededError` — always catch, always trim further, never let it crash the app silently.
+
+---
+
+### C10 — Settings Panel
+
+**What it does:** A form to configure scalar app settings (names, display options). Includes a sample data loader, a "clear all data" destructive action, and storage info.
 
 ```javascript
-const SUPA_URL = 'https://YOUR_PROJECT.supabase.co';
-const SUPA_KEY = 'YOUR_ANON_KEY'; // safe to expose — protected by RLS
+function loadSettingsForm() {
+  // Populate form from settings object
+  Object.keys(settings).forEach(key => {
+    const el = document.getElementById(`setting-${key}`);
+    if (el) el.value = settings[key] ?? '';
+  });
+  updateStorageInfo();
+}
 
-async function verifyLicense(email, licenseKey) {
-  const res = await fetch(
-    `${SUPA_URL}/rest/v1/pl_licensed_users?email=eq.${encodeURIComponent(email)}&select=*`,
-    {
-      headers: {
-        'apikey':        SUPA_KEY,
-        'Authorization': `Bearer ${SUPA_KEY}`
-      }
-    }
-  );
+function saveSettingsForm(e) {
+  if (e) e.preventDefault();
+  Object.keys(settings).forEach(key => {
+    const el = document.getElementById(`setting-${key}`);
+    if (el) settings[key] = el.value.trim();
+  });
+  saveSettings();
+  toast('Settings saved', 'success');
+  // Apply any immediate effects (e.g., update header title)
+  document.querySelector('#topbar span').textContent = settings.appName || 'YOUR_APP_NAME';
+}
 
-  if (!res.ok) throw new Error('Could not connect to license server');
-  const rows = await res.json();
+async function updateStorageInfo() {
+  const count = await dbCount();
+  const el    = document.getElementById('storage-info');
+  if (el) el.textContent = `${count.toLocaleString()} records stored`;
+}
 
-  if (!rows.length) throw new Error('No license found for this email');
+// Double-confirm for destructive clear — NEVER use single confirm for this
+function confirmClearAll() {
+  if (!confirm('Delete ALL data? This cannot be undone.')) return;
+  if (!confirm('Are you absolutely sure? Type OK to confirm.')) return;
+  dbClear().then(() => {
+    scheduleSnapshot();
+    toast('All data cleared', 'info');
+    showView(DEFAULT_VIEW);
+  });
+}
 
-  const user = rows[0];
-  if (user.status === 'suspended') throw new Error('License suspended');
-  if (user.expires_at && new Date(user.expires_at) < new Date()) throw new Error('License expired');
-  if (licenseKey && user.license_key !== licenseKey) throw new Error('Invalid license key');
+// Sample data loader — marks records with _sample: true so they can be cleared separately
+async function loadSampleData(sampleRecords) {
+  const tagged = sampleRecords.map(r => ({ ...r, id: newId(), _sample: true }));
+  await dbBulkPut(tagged);
+  scheduleSnapshot();
+  toast(`Loaded ${tagged.length} sample records`, 'success');
+  showView(DEFAULT_VIEW);
+}
 
-  return user; // { email, name, plan, status }
+async function clearSampleData() {
+  const all      = await dbGetAll();
+  const toDelete = all.filter(r => r._sample);
+  await Promise.all(toDelete.map(r => dbDelete(r.id)));
+  scheduleSnapshot();
+  toast(`Removed ${toDelete.length} sample records`, 'success');
 }
 ```
 
 ---
 
-## FEATURE 14 — Theme Toggle (F14)
+### C11 — Toast Notifications + Undo
 
-### What It Does (Plain English)
-A button that switches the app between dark mode (dark background, light text) and light mode. Your preference is remembered.
-
-### Logic
-
-```javascript
-const THEME_KEY = 'pl-theme';
-
-function applyTheme() {
-  const saved = localStorage.getItem(THEME_KEY) || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  updateThemeButton(saved);
-}
-
-function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme') || 'dark';
-  const next    = current === 'dark' ? 'light' : 'dark';
-  localStorage.setItem(THEME_KEY, next);
-  document.documentElement.setAttribute('data-theme', next);
-  updateThemeButton(next);
-  if (typeof retintCharts === 'function') retintCharts(); // F2 integration
-}
-
-function updateThemeButton(theme) {
-  const btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
-}
-```
-
----
-
-## FEATURE 15 — Toast Notifications (F15)
-
-### What It Does (Plain English)
-Small pop-up messages that appear at the bottom of the screen to tell you when something succeeds, fails, or needs attention. They disappear automatically after a few seconds.
-
-### HTML
-
-```html
-<!-- Place at bottom of <body> -->
-<div id="toast" role="status" aria-live="polite" aria-atomic="false"></div>
-```
-
-### Logic
+**What it does:** Dismissable notification pop-ups. Supports an optional Undo action (6-second window to restore deleted records).
 
 ```javascript
 function toast(msg, type = 'info', opts = {}) {
   const container = document.getElementById('toast');
   const duration  = opts.duration || 3200;
 
-  const el        = document.createElement('div');
-  el.className    = `toast-msg ${type}`;
-  // BUG PREVENTION: escapeHtml before setting textContent is redundant but use textContent, not innerHTML
-  el.textContent  = msg;
+  const el = document.createElement('div');
+  el.style.cssText = `padding:12px 18px;border-radius:8px;font-size:14px;cursor:pointer;
+    box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;max-width:360px;
+    ${type==='success' ? 'background:var(--success);color:#fff' :
+      type==='error'   ? 'background:var(--danger);color:#fff'  :
+      type==='warning' ? 'background:var(--warning);color:#000' :
+                         'background:var(--surface2);color:var(--text);border:1px solid var(--border)'}`;
+
+  // Use textContent (not innerHTML) — toast messages may contain user data
+  const msgNode = document.createTextNode(msg);
+  el.appendChild(msgNode);
 
   if (opts.action) {
-    const btn   = document.createElement('button');
+    const btn = document.createElement('button');
     btn.textContent = opts.action.label;
-    btn.className   = 'toast-action';
-    btn.onclick     = () => { opts.action.onClick(); el.remove(); };
+    btn.style.cssText = 'background:rgba(255,255,255,.25);border:none;color:inherit;padding:2px 10px;border-radius:4px;cursor:pointer;font-weight:600;margin-left:4px';
+    btn.onclick = () => { opts.action.onClick(); el.remove(); };
     el.appendChild(btn);
   }
 
-  // Click to dismiss
   el.addEventListener('click', () => el.remove());
-
   container.appendChild(el);
 
-  // Auto-dismiss
   setTimeout(() => {
     el.style.opacity = '0';
-    setTimeout(() => el.remove(), 300); // fade out then remove
+    el.style.transition = 'opacity .3s';
+    setTimeout(() => el.remove(), 300);
   }, duration);
 }
-```
 
-### CSS
-
-```css
-#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-         z-index: 9999; display: flex; flex-direction: column; gap: 8px; align-items: center; }
-.toast-msg { padding: 12px 20px; border-radius: 8px; font-size: 14px; cursor: pointer;
-             max-width: 360px; box-shadow: var(--shadow); transition: opacity 0.3s;
-             display: flex; align-items: center; gap: 10px; }
-.toast-msg.success { background: var(--green);  color: #fff; }
-.toast-msg.error   { background: var(--red);    color: #fff; }
-.toast-msg.info    { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-.toast-action { background: rgba(255,255,255,.25); border: none; color: inherit;
-                padding: 2px 10px; border-radius: 4px; cursor: pointer; font-weight: 600; }
-@media (max-width: 640px) { #toast { bottom: 80px; } } /* above mobile nav bar */
-```
-
----
-
-## FEATURE 16 — Undo Delete (F16)
-
-### What It Does (Plain English)
-When you delete a transaction (or multiple transactions), an "Undo" button appears in a toast for 6 seconds. Click it to restore everything exactly as it was.
-
-### Logic
-
-```javascript
-function offerUndo(label, deletedTxns) {
-  // BUG PREVENTION: Clone the array to avoid mutations after this call
-  const saved = deletedTxns.map(t => ({ ...t }));
+// Undo system — 6-second window to restore deleted records
+function offerUndo(label, deletedRecords) {
+  // Clone before async operations can modify the originals
+  const saved = deletedRecords.map(r => ({ ...r }));
 
   toast(label, 'info', {
     duration: 6000,
@@ -1995,609 +1766,629 @@ function offerUndo(label, deletedTxns) {
       onClick: async () => {
         await dbBulkPut(saved);
         scheduleSnapshot();
-        renderRevTable();  // or whichever view is active
-        refreshDashboard();
+        renderTable();
         toast('Restored', 'success');
       }
     }
   });
 }
+```
 
-// Usage when deleting:
-async function deleteOneTxn(id) {
-  const txn = await dbGet(id);
-  if (!txn) return;
-  await dbDelete(id);
-  refreshCurrentView();
-  offerUndo('Transaction deleted', [txn]);
+---
+
+### C12 — Auth Gate (Optional)
+
+**What it does:** A sign-in screen that blocks access until the user authenticates. Skip entirely for public or personal apps.
+
+```javascript
+const AUTH_KEY     = 'YOUR_APP_auth_v1';
+const SESSION_TTL  = 24 * 60 * 60 * 1000; // 24 hours
+let   authUser     = null;
+
+function checkAuthSession() {
+  try {
+    const raw  = localStorage.getItem(AUTH_KEY);
+    if (!raw) { showAuthGate(); return; }
+    const sess = JSON.parse(raw);
+    if (Date.now() - sess.ts > SESSION_TTL) { showAuthGate(); return; }
+    authUser = sess;
+    bootApp();
+  } catch { showAuthGate(); }
+}
+
+function cacheSession(user) {
+  authUser = { ...user, ts: Date.now() };
+  localStorage.setItem(AUTH_KEY, JSON.stringify(authUser));
+}
+
+function signOut() {
+  localStorage.removeItem(AUTH_KEY);
+  authUser = null;
+  showAuthGate();
+}
+
+function showAuthGate() {
+  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+  document.getElementById('auth-gate').style.display = 'flex';
+}
+
+function bootApp() {
+  document.getElementById('auth-gate').style.display = 'none';
+  showView(DEFAULT_VIEW);
+}
+
+// Verify against Supabase (or your own API)
+async function verifyCredentials(email, key) {
+  const SUPA_URL = 'https://YOUR_PROJECT.supabase.co';
+  const SUPA_KEY = 'YOUR_ANON_KEY'; // protected by RLS
+
+  const res = await fetch(
+    `${SUPA_URL}/rest/v1/YOUR_USERS_TABLE?email=eq.${encodeURIComponent(email)}&select=*`,
+    { headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` } }
+  );
+  if (!res.ok) throw new Error('Cannot connect to auth server');
+  const rows = await res.json();
+  if (!rows.length) throw new Error('No account found for this email');
+  const user = rows[0];
+  if (user.license_key !== key) throw new Error('Invalid license key');
+  return user;
 }
 ```
 
 ---
 
-## FEATURE 17 — Keyboard Shortcuts (F17)
-
-### What It Does (Plain English)
-Press keys to navigate without using the mouse. Press `?` to see a list of all shortcuts.
-
-### Logic
+### C13 — Theme Toggle
 
 ```javascript
-const SHORTCUTS = {
-  'n': () => showView('add-view'),      // New transaction
-  '/': () => document.querySelector('[id$="-search"]')?.focus(), // Search
-  '?': toggleShortcutsModal,
-  'g': null, // prefix key — handled below
-};
+const THEME_KEY = 'YOUR_APP_theme';
 
-const G_SHORTCUTS = {
-  'd': () => showView('dashboard-view'),
-  'r': () => showView('revenue-view'),
-  'e': () => showView('expenses-view'),
-  'm': () => showView('monthly-view'),
-  't': () => showView('transactions-view'),
-  's': () => showView('settings-view'),
-  'i': () => showView('upload-view'),
-  'b': () => showView('backup-view'),
-};
+function applyTheme() {
+  const saved = localStorage.getItem(THEME_KEY) || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+}
 
-let gKeyActive = false;
-
-document.addEventListener('keydown', e => {
-  // Skip if typing in an input, textarea, or select
-  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
-  if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-  const key = e.key.toLowerCase();
-
-  if (e.key === 'Escape') {
-    closeAllModals();
-    return;
-  }
-
-  if (gKeyActive) {
-    gKeyActive = false;
-    if (G_SHORTCUTS[key]) G_SHORTCUTS[key]();
-    return;
-  }
-
-  if (key === 'g') { gKeyActive = true; return; }
-
-  if (SHORTCUTS[key]) SHORTCUTS[key]();
-});
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next    = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  document.documentElement.setAttribute('data-theme', next);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
+  if (typeof retintCharts === 'function') retintCharts(); // update charts if C03 included
+}
 ```
 
 ---
 
-## FEATURE 18 — PWA / Offline Support (F18)
+### C14 — Keyboard Shortcuts
 
-### What It Does (Plain English)
-The app works without an internet connection after the first visit, and can be installed on a phone or desktop like a native app.
+```javascript
+// ── CONFIGURE: define your shortcuts ─────────────────────────────────────
+const SHORTCUTS = {
+  'n': () => showView('YOUR_ADD_VIEW'),   // n = new record
+  '/': () => document.getElementById('search-input')?.focus(),
+  '?': toggleShortcutsHelp,
+};
 
-### manifest.json
+// Two-key shortcuts (press g then a key)
+const G_SHORTCUTS = {
+  'h': () => showView('YOUR_MAIN_VIEW'),
+  'l': () => showView('YOUR_LIST_VIEW'),
+  's': () => showView('YOUR_SETTINGS'),
+  // Add your views here
+};
+// ─────────────────────────────────────────────────────────────────────────
 
+let _gKeyActive = false;
+
+document.addEventListener('keydown', e => {
+  // Skip when typing in inputs
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+  const key = e.key.toLowerCase();
+
+  if (e.key === 'Escape') { closeAllModals(); return; }
+
+  if (_gKeyActive) {
+    _gKeyActive = false;
+    if (G_SHORTCUTS[key]) { G_SHORTCUTS[key](); }
+    return;
+  }
+
+  if (key === 'g') { _gKeyActive = true; return; }
+  if (SHORTCUTS[key]) SHORTCUTS[key]();
+});
+
+function closeAllModals() {
+  document.querySelectorAll('[id$="-modal"]').forEach(m => m.style.display = 'none');
+}
+```
+
+---
+
+### C15 — PWA / Offline Support
+
+**manifest.json** — place in your project root:
 ```json
 {
-  "name": "P&L Dashboard",
-  "short_name": "P&L Dash",
+  "name": "YOUR APP NAME",
+  "short_name": "YOUR APP",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "any",
   "theme_color": "#0f1117",
   "background_color": "#0f1117",
-  "description": "Track profit and loss for your business",
-  "categories": ["finance", "productivity", "business"],
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ],
   "shortcuts": [
-    { "name": "Add Transaction", "url": "/?action=add",    "description": "Quickly add a revenue or expense" },
-    { "name": "Import CSV",      "url": "/?action=import", "description": "Import transactions from CSV" },
-    { "name": "Dashboard",       "url": "/?action=dashboard", "description": "View your financial overview" }
+    { "name": "Add Record",  "url": "/?action=add",  "description": "Quickly add a new record" },
+    { "name": "View All",    "url": "/?action=list", "description": "See all records"           }
   ]
 }
 ```
 
-### service-worker.js
-
+**service-worker.js** — handles URL shortcut actions and offline caching:
 ```javascript
-const CACHE_NAME   = 'pl-dashboard-v1';
-const CORE_ASSETS  = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+const CACHE = 'YOUR_APP_v1';
+const CORE  = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(CORE_ASSETS)));
-  self.skipWaiting(); // Activate immediately
-});
-
-self.addEventListener('activate', e => {
-  // Delete old caches
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-  ));
-  self.clients.claim();
-});
-
+self.addEventListener('install',  e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE))); self.skipWaiting(); });
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', e => {
-  // Bypass service worker for API calls (Supabase, Google)
-  if (e.request.url.includes('supabase.co') ||
-      e.request.url.includes('googleapis.com') ||
-      e.request.url.includes('accounts.google.com')) {
-    return; // Let the browser handle it
-  }
-
-  // Stale-while-revalidate for app shell
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      const network = fetch(e.request).then(res => {
-        if (res.ok) caches.open(CACHE_NAME).then(c => c.put(e.request, res.clone()));
-        return res;
-      });
-      return cached || network;
-    })
-  );
+  // Bypass API calls — never cache network requests to external services
+  if (e.request.url.includes('supabase.co') || e.request.url.includes('googleapis.com')) return;
+  e.respondWith(caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
+    if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+    return res;
+  })));
 });
 ```
 
-### Registration (in main app HTML)
-
+**Register in app HTML:**
 ```javascript
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .catch(err => console.warn('SW registration failed:', err));
-  });
+  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js'));
 }
+
+// Handle PWA shortcuts (?action=add, ?action=list, etc.)
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(location.search);
+  const action = params.get('action');
+  if (action === 'add')  showView('YOUR_ADD_VIEW');
+  if (action === 'list') showView('YOUR_LIST_VIEW');
+});
 ```
 
 ---
 
-## FEATURE 19 — Data Export (F19)
-
-### What It Does (Plain English)
-Download all your data as a CSV file (opens in Excel/Google Sheets), an Excel file, or a JSON file (for backup or importing into other apps).
-
-### CSV Export (see F5 for full implementation)
-
-### JSON Export
+### C16 — Data Export
 
 ```javascript
-async function exportJSON() {
-  const all  = await dbGetAll();
-  const data = { settings, transactions: all, exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+// Export all records as CSV
+async function exportCSV(filename = 'export') {
+  const records = await dbGetAll();
+  if (!records.length) { toast('No records to export', 'info'); return; }
+
+  // ── CONFIGURE: define your CSV columns ──────────────────────────────────
+  const CSV_COLUMNS = [
+    { header: 'Name',        value: r => r.name        || '' },
+    { header: 'Category',    value: r => r.category    || '' },
+    { header: 'Date',        value: r => r.date        || '' },
+    { header: 'Description', value: r => r.description || '' },
+    // Add your columns here
+  ];
+  // ────────────────────────────────────────────────────────────────────────
+
+  const lines = [
+    CSV_COLUMNS.map(c => `"${c.header}"`).join(','),
+    ...records.map(r =>
+      CSV_COLUMNS.map(c => `"${String(csvSanitize(c.value(r))).replace(/"/g, '""')}"`).join(',')
+    )
+  ];
+
+  downloadBlob(lines.join('\n'), `${filename}_${Date.now()}.csv`, 'text/csv;charset=utf-8;');
+}
+
+// Export all records as JSON backup
+async function exportJSON(filename = 'backup') {
+  const records = await dbGetAll();
+  const payload = JSON.stringify({ settings, records, exportedAt: new Date().toISOString() }, null, 2);
+  downloadBlob(payload, `${filename}_${Date.now()}.json`, 'application/json');
+}
+
+// Import JSON backup
+async function importJSON(file) {
+  try {
+    const data = JSON.parse(await file.text());
+    if (!Array.isArray(data.records)) { toast('Invalid backup file', 'error'); return; }
+    if (!confirm(`Import ${data.records.length} records? Duplicates (same ID) will be skipped.`)) return;
+    const existingIds = new Set((await dbGetAll()).map(r => r.id));
+    const toImport    = data.records.filter(r => !existingIds.has(r.id));
+    await dbBulkPut(toImport);
+    scheduleSnapshot();
+    toast(`Imported ${toImport.length} new records`, 'success');
+    renderTable();
+  } catch { toast('Could not read backup file', 'error'); }
+}
+
+function downloadBlob(content, filename, type) {
+  const blob = new Blob([content], { type });
   const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `pl_backup_${Date.now()}.json`;
+  const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
   a.click();
   URL.revokeObjectURL(url);
 }
 ```
 
-### JSON Import
+---
+
+## PART 3 — DOMAIN ADAPTATION GUIDE
+
+**How to apply this blueprint to any new app in 6 steps:**
+
+---
+
+### Step 1 — Define Your Record
+
+Replace the P&L `Transaction` with your own shape. Every record **must** have `id`. Everything else is your choice.
 
 ```javascript
-async function importJSON(file) {
-  try {
-    const text = await file.text();
-    const data = JSON.parse(text);
+// EXAMPLES for different app types:
 
-    if (!Array.isArray(data.transactions)) {
-      toast('Invalid backup file', 'error');
-      return;
-    }
+// Task Manager
+const Record = { id, title, status, priority, due_date, assignee, tags, created_at };
 
-    if (!confirm(`Import ${data.transactions.length} transactions? Duplicates will be skipped.`)) return;
+// Inventory Tracker
+const Record = { id, sku, name, quantity, unit_price, category, location, last_updated };
 
-    // Merge — dbBulkPut uses put() which overwrites by ID
-    // To merge without overwriting, filter for new IDs only
-    const existing = new Set((await dbGetAll()).map(r => r.id));
-    const toImport  = data.transactions.filter(r => !existing.has(r.id));
+// Client CRM
+const Record = { id, name, email, company, status, next_followup, notes, created_at };
 
-    await dbBulkPut(toImport);
-    scheduleSnapshot();
-    toast(`Imported ${toImport.length} new transactions`, 'success');
-    refreshDashboard();
-  } catch {
-    toast('Could not read backup file', 'error');
-  }
-}
+// Event Logger
+const Record = { id, event_type, description, severity, source, timestamp };
+
+// Recipe Book
+const Record = { id, name, cuisine, prep_time, difficulty, ingredients, instructions };
 ```
+
+**Rules for any record shape:**
+- `id` = always `newId()` (float: `Date.now() + Math.random()`)
+- Date fields = always `"YYYY-MM-DD"` strings (ISO format)
+- Numeric fields = always store as numbers, always positive (use a separate field for sign if needed)
+- Text fields = stored raw in DB; `escapeHtml()` applied at render time
 
 ---
 
-## FEATURE 20 — Industry Templates (F20)
-
-### What It Does (Plain English)
-Choose your business type (e.g., SaaS, restaurant, freelancer) and the app automatically sets up the right income and expense categories for you — saving time vs. creating them manually.
-
-*See F9 for full implementation including `INDUSTRY_TEMPLATES` and `applyIndustryTemplate()`.*
-
----
-
-## LAYOUT BLUEPRINT
-
-### Full Page Structure
-
-```html
-<!DOCTYPE html>
-<html lang="en" data-theme="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <!-- REQUIRED: Prevent XSS via CSP -->
-  <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com;
-                 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-                 font-src 'self' https://fonts.gstatic.com;
-                 connect-src 'self' https://*.supabase.co https://sheets.googleapis.com https://www.googleapis.com;">
-  <title>P&L Dashboard</title>
-  <link rel="manifest" href="manifest.json">
-</head>
-<body>
-  <!-- Top Bar -->
-  <header id="topbar">
-    <div class="topbar-left">
-      <button id="sidebar-toggle" class="icon-btn mobile-only">☰</button>
-      <span class="app-logo">P&L Dashboard</span>
-    </div>
-    <div class="topbar-right">
-      <span id="save-status" class="save-status"></span>
-      <button id="theme-toggle" onclick="toggleTheme()">☀️</button>
-    </div>
-  </header>
-
-  <!-- App body: sidebar + main -->
-  <div id="app">
-    <!-- Sidebar Navigation (Desktop) -->
-    <nav id="sidebar">
-      <div class="nav-section">
-        <div class="nav-label">Overview</div>
-        <a onclick="showView('dashboard-view')"    class="nav-item" data-view="dashboard-view">📊 Dashboard</a>
-        <a onclick="showView('transactions-view')" class="nav-item" data-view="transactions-view">📋 All Transactions</a>
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">Transactions</div>
-        <a onclick="showView('revenue-view')"  class="nav-item" data-view="revenue-view">💰 Revenue</a>
-        <a onclick="showView('expenses-view')" class="nav-item" data-view="expenses-view">📉 Expenses</a>
-        <a onclick="showView('monthly-view')"  class="nav-item" data-view="monthly-view">📅 Monthly P&L</a>
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">Data</div>
-        <a onclick="showView('add-view')"        class="nav-item" data-view="add-view">➕ Add Transaction</a>
-        <a onclick="showView('upload-view')"     class="nav-item" data-view="upload-view">📤 Import</a>
-        <a onclick="showView('categories-view')" class="nav-item" data-view="categories-view">🏷 Categories</a>
-        <a onclick="showView('backup-view')"     class="nav-item" data-view="backup-view">💾 Backup</a>
-        <a onclick="showView('settings-view')"   class="nav-item" data-view="settings-view">⚙️ Settings</a>
-      </div>
-    </nav>
-
-    <!-- Main Content Area -->
-    <main id="main">
-      <!-- Each view div — only one visible at a time -->
-      <div id="dashboard-view"    class="view">...</div>
-      <div id="transactions-view" class="view" style="display:none">...</div>
-      <div id="revenue-view"      class="view" style="display:none">...</div>
-      <div id="expenses-view"     class="view" style="display:none">...</div>
-      <div id="monthly-view"      class="view" style="display:none">...</div>
-      <div id="add-view"          class="view" style="display:none">...</div>
-      <div id="upload-view"       class="view" style="display:none">...</div>
-      <div id="categories-view"   class="view" style="display:none">...</div>
-      <div id="backup-view"       class="view" style="display:none">...</div>
-      <div id="settings-view"     class="view" style="display:none">...</div>
-    </main>
-  </div>
-
-  <!-- Mobile Bottom Navigation -->
-  <nav id="bottombar" class="mobile-only">
-    <button onclick="showView('dashboard-view')">📊<br>Dashboard</button>
-    <button onclick="showView('revenue-view')">💰<br>Revenue</button>
-    <button class="fab" onclick="showView('add-view')">+</button>
-    <button onclick="showView('expenses-view')">📉<br>Expenses</button>
-    <button onclick="openMoreDrawer()">☰<br>More</button>
-  </nav>
-
-  <!-- Toast container -->
-  <div id="toast" role="status" aria-live="polite"></div>
-</body>
-</html>
-```
-
-### View Navigation Function
+### Step 2 — Configure the DB Schema
 
 ```javascript
-function showView(viewId) {
-  // Hide all views
-  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+// Change these at the top of your script
+const DB_NAME    = 'TaskManagerDB';
+const STORE_NAME = 'tasks';
+const DB_INDEXES = [
+  { name: 'status',   keyPath: 'status'   },
+  { name: 'due_date', keyPath: 'due_date' },
+  { name: 'priority', keyPath: 'priority' },
+];
 
-  // Show target
-  const target = document.getElementById(viewId);
-  if (!target) return;
-  target.style.display = 'block';
-
-  // Update active nav item
-  document.querySelectorAll('.nav-item').forEach(a => {
-    a.classList.toggle('active', a.dataset.view === viewId);
-  });
-
-  // Trigger view-specific render
-  const renders = {
-    'dashboard-view':    () => { refreshDashboard(); renderCharts(); },
-    'revenue-view':      () => { revPage = 1; renderRevTable(); },
-    'expenses-view':     () => { expPage = 1; renderExpTable(); },
-    'transactions-view': () => { txnPage = 1; renderTxnTable(); },
-    'monthly-view':      renderMonthlyTable,
-    'add-view':          initAddForm,
-    'categories-view':   renderCategoryManager,
-    'settings-view':     loadSettingsForm,
-  };
-  if (renders[viewId]) renders[viewId]();
-}
+// Configure search fields (what gets searched when user types in the search box)
+const SEARCH_FIELDS = ['title', 'assignee', 'tags', 'description'];
 ```
 
 ---
 
-## AUDIT PLAN
+### Step 3 — Configure the Table
 
-### How to Run the Audit
-After building any feature from this blueprint, run through the corresponding checklist. Check each box before marking the feature "ready to ship."
+```javascript
+const TABLE_COLUMNS = [
+  { key: 'title',    label: 'Task',     sortable: true,  render: r => escapeHtml(r.title) },
+  { key: 'status',   label: 'Status',   sortable: true,  render: r => `<span class="badge badge-primary">${escapeHtml(r.status)}</span>` },
+  { key: 'priority', label: 'Priority', sortable: true,  render: r => escapeHtml(r.priority) },
+  { key: 'due_date', label: 'Due',      sortable: true,  render: r => escapeHtml(r.due_date) },
+  { key: '_actions', label: '',         sortable: false, render: r => `<button onclick="deleteRecord(${JSON.stringify(r.id)})">🗑</button>` },
+];
+
+const TABLE_FILTERS = [
+  { key: 'status',   label: 'Status',   options: ['open', 'in-progress', 'done'] },
+  { key: 'priority', label: 'Priority', options: ['low', 'medium', 'high']       },
+];
+```
 
 ---
 
-### A0 — Foundation Audit
+### Step 4 — Configure the Add Form
+
+```javascript
+const FORM_FIELDS = [
+  { id: 'f-title',    key: 'title',    required: true,  transform: v => v.trim()       },
+  { id: 'f-status',   key: 'status',   required: false, transform: v => v || 'open'    },
+  { id: 'f-priority', key: 'priority', required: false, transform: v => v || 'medium'  },
+  { id: 'f-due',      key: 'due_date', required: false, transform: v => v              },
+  { id: 'f-notes',    key: 'description', required: false, transform: v => v.trim()    },
+];
+
+const FORM_VALIDATORS = [
+  ({ title }) => !title ? 'Title is required' : null,
+];
+```
+
+---
+
+### Step 5 — Configure KPI Cards
+
+```javascript
+const KPI_METRICS = [
+  { id: 'kpi-total',    label: 'Total Tasks',   compute: r => r.length,                               format: v => v, color: () => 'var(--text)' },
+  { id: 'kpi-open',     label: 'Open',          compute: r => r.filter(t => t.status==='open').length, format: v => v, color: v => v>0?'var(--warning)':'var(--muted)' },
+  { id: 'kpi-done',     label: 'Completed',     compute: r => r.filter(t => t.status==='done').length, format: v => v, color: v => v>0?'var(--success)':'var(--muted)' },
+  { id: 'kpi-overdue',  label: 'Overdue',       compute: r => r.filter(t => t.due_date && t.due_date < new Date().toISOString().slice(0,10) && t.status!=='done').length, format: v => v, color: v => v>0?'var(--danger)':'var(--muted)' },
+];
+```
+
+---
+
+### Step 6 — Configure Navigation
+
+```javascript
+const DEFAULT_VIEW = 'dashboard';
+
+const VIEW_RENDERERS = {
+  'dashboard':  () => { renderKPICards(); renderBarChart(); },
+  'task-list':  () => renderTable({ page: 1 }),
+  'add-task':   initAddForm,
+  'settings':   loadSettingsForm,
+};
+
+const MOBILE_NAV = [
+  { view: 'dashboard', label: 'Home',  icon: '🏠' },
+  { view: 'task-list', label: 'Tasks', icon: '📋' },
+  { view: 'add-task',  label: 'Add',   icon: '+',  fab: true },
+  { view: 'settings',  label: 'Setup', icon: '⚙️' },
+];
+```
+
+---
+
+## PART 4 — AUDIT PLAN
+
+### Foundation Audit (run first, on every new app)
 
 ```
-[ ] IndexedDB opens without errors on first load
-[ ] Reload page → data persists (IndexedDB didn't clear)
-[ ] Open in private/incognito → app shows "Storage Unavailable" error (not blank screen)
-[ ] Settings (business name, currency) save and reload correctly
-[ ] Theme preference persists after page reload
+[ ] App loads in Chrome without console errors
+[ ] App loads in Firefox without console errors  
+[ ] App loads in Safari without console errors
+[ ] Reload after adding a record — record persists (IndexedDB working)
+[ ] Open in private/incognito — shows "Storage Unavailable" message (not blank)
+[ ] Settings save and reload correctly after page refresh
+[ ] Theme preference persists after reload (dark/light)
 [ ] escapeHtml('<script>alert(1)</script>') returns '&lt;script&gt;alert(1)&lt;/script&gt;'
-[ ] fmt(1234567.899) returns correct currency string (e.g., "$1,234,567.90")
-[ ] fmt(0.1 + 0.2) returns "$0.30" not "$0.30000000000000004"
-[ ] getMonthFromDate('2025-01-15') returns 'Jan'
-[ ] getYearFromDate('2025-01-15') returns 2025
-[ ] prepareTransaction sets month and year fields correctly
+[ ] csvSanitize('=SUM(A1)') returns "'=SUM(A1)"
+[ ] newId() called 1000 times produces 1000 unique values (verify with Set)
 ```
 
-### A1 — Dashboard Audit
+### Component Audits
 
+**C02 KPI Cards:**
 ```
-[ ] All 6 KPI cards render with correct values (verify manually with known test data)
-[ ] Net Profit = Revenue - Expenses (check formula)
-[ ] Margin = Net Profit / Revenue × 100 (check formula)
-[ ] Margin shows 0.0% when revenue is 0 (no divide-by-zero error)
-[ ] Month filter chips appear only for months with transactions
-[ ] Clicking "Jan" filter chip shows only January data
-[ ] Clicking "All" chip clears filter and shows full year
-[ ] KPI values update immediately after adding a new transaction
-[ ] Test with negative net profit → value shows in red, positive → teal
+[ ] Cards show correct values (verify manually with known test data)
+[ ] No divide-by-zero when denominator is 0 (e.g. no records → 0%, not NaN%)
+[ ] Cards update after adding a record and navigating back
+[ ] Cards with color logic show correct color (e.g. red when overdue)
 ```
 
-### A2 — Charts Audit
-
+**C03 Charts:**
 ```
-[ ] All 4 charts render without JavaScript errors
-[ ] Reload dashboard after adding data → charts show new data
-[ ] Toggle dark/light theme → charts re-render with correct colors
-[ ] Add 0 transactions for a category → that category does NOT appear in pie chart
-[ ] Add transactions in only 2 months → bar chart shows only 2 months
-[ ] Chart tooltips show formatted currency values (e.g., "$1,234.00")
+[ ] All charts render without JS errors on first load
+[ ] Charts update after adding data and revisiting the view
+[ ] Toggle theme dark→light → charts re-render with correct colors
+[ ] No chart created when data array is empty (no broken empty circle)
+[ ] Chart tooltips show formatted values
 ```
 
-### A3/A4 — Revenue and Expense Table Audit
-
+**C04 Table:**
 ```
-[ ] Table shows correct transactions (revenue-only or expense-only)
-[ ] Search "rent" → shows only rows containing "rent" in any field
+[ ] Search "xyz" → only matching rows shown
 [ ] Clear search → all rows return
-[ ] Pagination shows correct "Showing X–Y of Z" text
-[ ] Next/Previous buttons navigate pages correctly
-[ ] Last page "Next" button is disabled
+[ ] Pagination: "Showing 1–25 of 100" is accurate
+[ ] Next/Prev/First/Last buttons work correctly
+[ ] Last page: Next and Last buttons are disabled
+[ ] Click column header → sorts ascending; click again → descending
+[ ] Sort persists when changing page
+[ ] Filter dropdown → shows only matching records
+[ ] XSS test: add record with name "<script>alert(1)</script>" → renders as text, no alert
+```
+
+**C05 Add Form:**
+```
+[ ] Submit empty form → shows validation error
+[ ] Submit with required field missing → specific error shown
+[ ] Submit valid data → record appears in table, form resets
+[ ] Date field defaults to today
+[ ] Press Enter in a form field → submits (if wired up)
+[ ] Recently added list updates after submit
+[ ] Rapid entry: add 10 records quickly → all 10 saved (no ID collisions)
+```
+
+**C06 Bulk Select + Undo:**
+```
 [ ] Select 3 checkboxes → bulk bar shows "3 selected"
-[ ] Delete bulk → rows removed from DB (not just UI)
-[ ] Undo button restores deleted rows within 6 seconds
-[ ] Undo button disappears after 6 seconds
-[ ] Category badges show correct color (teal=revenue, red=expense)
-[ ] Test XSS: Add transaction with description "<script>alert(1)</script>" → renders as text, no alert fires
-[ ] Test long category name (50 chars) → wraps correctly, doesn't break layout
+[ ] Select all → all visible rows selected
+[ ] Delete selected → rows removed from DB (not just hidden in UI)
+[ ] Undo toast appears for 6 seconds
+[ ] Click Undo within 6s → rows restored and visible
+[ ] Let Undo expire (7s) → rows not restored
+[ ] Selection cleared after bulk delete
+[ ] Selection cleared after switching views
 ```
 
-### A5 — All Transactions Table Audit
-
+**C07 CSV Import:**
 ```
-[ ] Shows both revenue and expense rows
-[ ] Type filter "Revenue" → shows only revenue
-[ ] Year filter → shows only selected year
-[ ] Month filter → shows only selected month
-[ ] Sort by Amount ascending → smallest first
-[ ] Sort by Date descending → newest first
-[ ] Click sort column twice → reverses direction
-[ ] Page size change to 100 → shows up to 100 rows
-[ ] Export CSV button → file downloads
-[ ] Open CSV in Excel → no formulas execute (test with description starting with "=")
-```
-
-### A6 — Monthly P&L Audit
-
-```
-[ ] Shows all months with at least one transaction
-[ ] Empty months (no transactions) are NOT shown
-[ ] Footer "Total" row sums correctly
-[ ] Net Profit per row = Revenue - Expenses for that month
-[ ] Margin per row = Net Profit / Revenue × 100 (0% when revenue = 0)
-[ ] Loss months show red Net Profit values
+[ ] Upload CSV with 10 rows → mapping modal opens with preview
+[ ] Auto-guess detects column headers correctly
+[ ] Cancel → nothing imported
+[ ] Import → records appear in table
+[ ] Import same file twice → no duplicates (dedup working)
+[ ] CSV with field containing comma inside quotes → parses correctly
+[ ] CSV with formula "=SUM(A1)" in a field → imported as text, not formula
+[ ] Large file > 500KB → UI does not freeze during parse (Web Worker used)
+[ ] Required field not mapped → error message shown, modal stays open
+[ ] File with only headers (no data rows) → "no valid rows" error
 ```
 
-### A7 — Add Transaction Form Audit
-
+**C08 Tags:**
 ```
-[ ] Date field defaults to today's date
-[ ] Submit with no date → shows error toast
-[ ] Submit with amount = 0 → shows error toast  
-[ ] Submit with negative amount → shows error toast
-[ ] Submit valid data → success toast, form resets (amount cleared, date kept)
-[ ] Submit valid data → transaction appears in "Recently Added" list
-[ ] Currency prefix updates when settings currency changes
-[ ] Category datalist shows correct categories for current type (revenue vs expense)
-[ ] Press Enter in Amount field → submits form
-[ ] Adding transaction → dashboard KPIs update on next navigation to dashboard
-[ ] ID uniqueness: add 100 transactions rapidly → no duplicate IDs (use Set to check)
+[ ] Add tag → appears in list and in form autocomplete
+[ ] Add duplicate tag (case-insensitive) → error shown, not added
+[ ] Add tag with XSS payload → rendered as escaped text, no JS executes
+[ ] Rename tag → all records with old tag updated
+[ ] Delete tag → all records relabeled "Uncategorized"
+[ ] Tags persist after page reload
 ```
 
-### A8 — CSV Import Audit
-
+**C09 Backup:**
 ```
-[ ] Drop a CSV file → mapping modal opens
-[ ] Modal shows first 5 rows as preview
-[ ] Auto-guess: CSV with "Date" header → date field auto-selected
-[ ] Auto-guess: CSV with "Amount" header → amount field auto-selected
-[ ] Click Import → transactions added to DB
-[ ] Import 0-row CSV → error toast "No valid rows found"
-[ ] CSV with amount "(1,234.56)" (accounting format) → imported as 1234.56
-[ ] CSV with date "12/31/2025" (MM/DD/YYYY) → stored as "2025-12-31"
-[ ] CSV with formula "=SUM(A1:A10)" in description → imported as text, not executed
-[ ] Large CSV > 500KB → no UI freeze (Web Worker used)
-[ ] Duplicate import (import same file twice) → no duplicate transactions
-[ ] Cancel button → closes modal, nothing imported
+[ ] Add record → snapshot auto-created after ~3 seconds
+[ ] Maximum 5 snapshots kept (older discarded)
+[ ] Restore snapshot → confirm dialog shown (shows current count vs snapshot count)
+[ ] Restore → data replaced with snapshot data
+[ ] File backup (Chrome): link file → backup file created
+[ ] File backup: Firefox → shows "requires Chrome/Edge" message, not an error
+[ ] Cancel file picker dialog → no error toast shown
+[ ] After 30 minutes with file linked → file auto-updated
 ```
 
-### A9 — Category Management Audit
-
+**C10 Settings:**
 ```
-[ ] Default categories load on first use
-[ ] Add new category → appears in list + in Add Transaction datalist
-[ ] Add duplicate name (case-insensitive) → error toast
-[ ] Rename "Rent" to "Office Rent" → all existing "Rent" transactions updated
-[ ] Delete category → all transactions updated to "Uncategorized"
-[ ] Reset to defaults → default categories restored
-[ ] Apply SaaS industry template → SaaS categories added (not replacing existing)
-[ ] Categories persist after page reload
+[ ] Save app name → appears in header/sidebar immediately
+[ ] Settings persist after reload
+[ ] Clear all data → requires TWO confirms
+[ ] Clear all data → DB wiped, redirected to main view
+[ ] Cancel on first or second confirm → no data deleted
+[ ] Load sample data → records appear, tagged _sample:true
+[ ] Clear sample data → only _sample records removed, real data untouched
 ```
 
-### A10 — File Sync Audit
-
+**C11 Toasts:**
 ```
-[ ] In Firefox: "File backup requires Chrome/Edge/Brave" message shown (not error)
-[ ] In Chrome: Link file dialog opens
-[ ] Link file → file name displayed, auto-backup timer starts
-[ ] Add transaction → backup file updates within 30 minutes
-[ ] Manual "Backup Now" → file updates immediately
-[ ] Unlink → file no longer updated
-[ ] Reopen app after closing → linked file status restored (if handle still valid)
-```
-
-### A11 — Three-Layer Backup Audit
-
-```
-LAYER 1:
-[ ] Add/edit transaction → snapshot auto-created after 3 seconds
-[ ] Maximum 5 snapshots kept (older ones discarded)
-[ ] Restore snapshot → transactions replaced with snapshot data
-[ ] Download snapshot → JSON file downloads correctly
-[ ] Fill localStorage to quota → app doesn't crash (trims snapshots gracefully)
-
-LAYER 3 (if implemented):
-[ ] Sign in with Google → OAuth flow completes
-[ ] Link Google Sheet → transactions push to sheet
-[ ] Pull from sheet → transactions sync to app
-[ ] Conflict: local newer than sheet → local wins
+[ ] Success toast → correct color
+[ ] Error toast → correct color
+[ ] Toast auto-dismisses after ~3 seconds
+[ ] Click toast → dismisses immediately
+[ ] Multiple toasts → stack vertically
+[ ] Undo toast stays 6 seconds (not 3)
+[ ] Mobile: toasts appear above bottom nav bar
 ```
 
-### A12 — Settings Audit
-
+**C13 Theme:**
 ```
-[ ] Save business name → appears in sidebar
-[ ] Change fiscal year to 2024 → dashboard shows 2024 data
-[ ] Change currency to "€" → all amounts show "€" symbol
-[ ] Settings persist after page reload
-[ ] Empty currency → defaults to "$"
-```
-
-### A14 — Theme Toggle Audit
-
-```
-[ ] Click theme toggle → page switches between dark and light
+[ ] Toggle switches dark ↔ light
 [ ] Theme persists after reload
-[ ] All text readable in both themes (check muted text contrast)
+[ ] All text readable in both themes (no invisible text)
 [ ] Charts re-render with correct colors after toggle
 ```
 
-### A15 — Toast Notifications Audit
-
+**C15 PWA:**
 ```
-[ ] Success toast → green background
-[ ] Error toast → red background
-[ ] Info toast → neutral background
-[ ] Toast auto-dismisses after ~3 seconds
-[ ] Click toast → dismisses immediately
-[ ] Multiple toasts → stack vertically (don't overlap)
-[ ] Undo toast stays for 6 seconds (not 3)
-[ ] Mobile: toasts appear above bottom navigation bar
+[ ] manifest.json accessible at /manifest.json (no 404)
+[ ] App installs in Chrome (install icon in address bar)
+[ ] Installed app opens in standalone mode (no browser chrome)
+[ ] Offline: disconnect internet, reload → app still loads
+[ ] Offline: add record → saves to IndexedDB (no server needed)
+[ ] PWA shortcuts appear (long-press icon on Android)
 ```
 
-### A17 — Keyboard Shortcuts Audit
-
+**C16 Export:**
 ```
-[ ] Press "n" → navigates to Add Transaction
-[ ] Press "/" → focuses search input
-[ ] Press "g" then "d" → navigates to Dashboard
-[ ] Press "g" then "r" → navigates to Revenue
-[ ] Press Escape → closes open modal
-[ ] Press "?" → opens shortcuts modal
-[ ] Typing in input field → shortcuts do NOT fire
-```
-
-### A18 — PWA / Offline Audit
-
-```
-[ ] First visit online → all assets load
-[ ] Disconnect internet → app still loads on refresh
-[ ] Add transaction offline → saves to IndexedDB (no server needed)
-[ ] manifest.json accessible at /manifest.json
-[ ] Install prompt appears in Chrome after using the app
-[ ] Installed app → opens without browser UI (standalone mode)
-[ ] PWA shortcuts appear (long-press app icon on mobile)
-```
-
-### End-to-End Smoke Test (Run on Every Build)
-
-```
-1. Fresh open (clear all browser data first)
-2. Verify app loads and shows empty state
-3. Go to Settings → set business name "Test Co", currency "€"
-4. Go to Add Transaction → add revenue of €100 (category: Product Sales)
-5. Add expense of €30 (category: Rent)
-6. Go to Dashboard → verify Revenue=€100, Expenses=€30, Net=€70, Margin=70%
-7. Go to Revenue → verify 1 entry for €100
-8. Go to Expenses → verify 1 entry for €30
-9. Go to Monthly P&L → verify current month row is correct
-10. Go to Add Transaction → delete the revenue entry → click Undo → verify restored
-11. Export CSV → open in spreadsheet → verify data correct, no formula injection
-12. Go to Settings → change year to 2024 → dashboard shows €0 (no 2024 data)
-13. Change year back → dashboard shows correct data again
-14. Toggle theme → app switches theme, charts update
-15. Reload page → all data and settings persist
-PASS: All 15 steps complete without errors
+[ ] Export CSV → file downloads
+[ ] Open exported CSV in Excel → all data present, correct
+[ ] Description containing "=SUM(A1)" → exported as "'=SUM(A1)" (formula blocked)
+[ ] Export JSON → valid JSON with records array
+[ ] Import JSON backup → records added (no duplicates by ID)
 ```
 
 ---
 
-## COMMON BUGS AND HOW TO AVOID THEM
+### End-to-End Smoke Test (Run Before Every Release)
+
+```
+1. Open app fresh (clear all browser data first)
+2. Verify empty state shown
+3. Go to Settings → set app name, save → verify name appears in header
+4. Go to Add → add 3 records with valid data
+5. Go to main list → verify 3 records appear
+6. Search for one record by name → verify only that record shown
+7. Clear search → all 3 records return
+8. Sort by a column → verify order changes
+9. Select 2 records → bulk bar shows "2 selected" → delete → undo → verify restored
+10. Go to Import → upload a 5-row CSV → map columns → import → verify 5 records added
+11. Export CSV → verify file downloads, open it, verify data correct
+12. Toggle theme → app switches correctly, charts update
+13. Go to Backup → verify snapshot was auto-created → restore snapshot
+14. Reload page → all data and settings still present
+15. Open in mobile viewport (375px) → bottom nav visible, layout usable
+
+PASS: All 15 steps complete without errors or console warnings.
+```
+
+---
+
+## PART 5 — COMMON BUGS PREVENTION TABLE
 
 | Bug | Cause | Prevention |
 |-----|-------|-----------|
-| XSS (script injection in UI) | `innerHTML` with raw user data | Always use `escapeHtml()` before inserting user data into DOM |
-| Float display error ($0.30000000000001) | Raw floating-point arithmetic | Always use `Math.round(x * 100) / 100` before storing or displaying |
-| Date off by one day | `new Date("2025-01-15")` parses as UTC midnight, displays as Jan 14 in UTC-5 | Parse date as `[y,m,d] = isoDate.split('-').map(Number)` without Date constructor |
-| Blank chart after theme toggle | Old Chart.js instance not destroyed | Always call `chart.destroy()` before `new Chart()` |
-| Search not resetting pagination | Page stays at 5, filtered results only have 1 page | Always set `page = 1` when search or filter changes |
-| Duplicate IDs on bulk import | Using sequential counter that resets | Use `Date.now() + Math.random()` for all IDs |
-| CSV formula injection | `=SUM(...)` in exported cell runs in Excel | Wrap all CSV values with `csvSanitize()` |
-| IndexedDB unavailable | Private browsing, Firefox with enhanced tracking, iOS Safari limits | Show user-friendly error on `req.onerror`, don't crash silently |
-| localStorage quota exceeded | Too many large snapshots | Catch `QuotaExceededError`, trim oldest snapshots, retry |
-| Stale selection after bulk delete | `selectedIds` Set not cleared | Clear the Set after any bulk operation completes |
-| Bulk delete undo wrong data | Deleted array mutated before undo fires | Clone array: `saved = deletedTxns.map(t => ({...t}))` before async delete |
-| Category rename misses transactions | Case-sensitive comparison | Always compare `category === oldName` (exact match, not toLowerCase) |
-| Charts blank when dashboard not visible | Chart.js renders to 0px container | Only call `renderCharts()` when dashboard-view is visible |
+| XSS — script executes in table cell | `innerHTML` used with raw user data | `escapeHtml()` on every user string in every `render()` function |
+| XSS — script executes in toast | `innerHTML` or string concat used for toast message | Use `document.createTextNode(msg)` in toast, never `innerHTML` |
+| CSV formula injection | `=SUM(...)` in description field opens in Excel | `csvSanitize()` on every cell in every export |
+| Float display error (`$0.30000000000000004`) | Raw floating-point arithmetic | `Math.round(x * 100) / 100` before any display |
+| Date off by one day | `new Date("2025-01-15")` = UTC midnight → displays as Jan 14 in UTC-5 | Parse as `[y,m,d] = date.split('-').map(Number)` — no Date constructor |
+| Duplicate chart canvas error | `new Chart()` on canvas that already has a chart | Always `destroyChart(key)` before `new Chart()` |
+| Search stuck on wrong page | Search fires but `page` stays at 5 | Always reset `page = 1` when search or filter changes |
+| Duplicate record IDs on import | Sequential counter reset on each reload | Always use `newId()` = `Date.now() + Math.random()` |
+| IndexedDB silent failure | `onerror` only logs to console | Show user-visible error UI in `req.onerror` — never just `console.error` |
+| localStorage quota crash | Too many/large snapshots | Catch `QuotaExceededError`, trim, retry, warn user |
+| Stale bulk selection after delete | `selectedIds` Set not cleared | `selectedIds.clear()` after every bulk operation |
+| Undo restores wrong data | Deleted array mutated before undo fires | Clone before deleting: `saved = records.map(r => ({...r}))` |
+| Tag rename misses some records | Wrong field name in propagation query | Double-check field name (`r.category`, `r.tag`, etc.) matches your record schema |
+| Chart blank when view not visible | Chart.js renders to 0px container | Only call `renderChart()` inside `VIEW_RENDERERS` — never on app load |
+| File picker cancel shows error | `AbortError` not caught separately | `if (e.name !== 'AbortError') toast(...)` |
+| File backup lost after reload | FileSystemFileHandle not serializable | Store only filename string in localStorage for UI — handle must be re-linked |
+| Auth session never expires | No TTL check on cached session | Always check `Date.now() - sess.ts > SESSION_TTL` before trusting cache |
+| PWA install prompt in standalone | Already installed but still showing prompt | Check `window.matchMedia('(display-mode: standalone)').matches` first |
+| CSV BOM corrupts first header | Excel exports UTF-8 BOM (`﻿`) | `text.replace(/^﻿/, '')` before parsing |
+| CSV quoted field with embedded `""` | Parser treats `""` as end of field | RFC 4180: if `inQuotes && ch==='"' && nextCh==='"'`, append `"` and skip both |
+
+---
+
+## APPENDIX — P&L DASHBOARD REFERENCE IMPLEMENTATION
+
+The P&L Dashboard (`pl-dashboard-v8.html`) uses all components in this blueprint. Here is how it maps each component to financial concepts — use as a concrete example when implementing financial apps.
+
+| Component | P&L Implementation | Your App Could Use It For |
+|-----------|-------------------|--------------------------|
+| **F0 DB Schema** | `{ id, date, type, category, description, amount, month, year }` | Any record with dates + numeric fields |
+| **C02 KPI Cards** | Revenue, Expenses, Net Profit, Margin %, Avg Monthly Revenue, Gross Profit | Sales totals, task counts, inventory value |
+| **C03 Bar Chart** | Revenue vs Expenses by month | Any two metrics over time |
+| **C03 Line Chart** | Net Profit trend by month | Any single metric trend |
+| **C03 Pie Charts** | Revenue by Category, Expenses by Category | Record breakdown by any grouping field |
+| **C04 Table** | All Transactions (date, type, category, description, amount) | Any list of records |
+| **C04 Filters** | Year, Month, Type (Revenue/Expense) | Status, date range, category |
+| **C05 Add Form** | Date, Type toggle, Category, Amount, Description | Any record creation form |
+| **C05 Autocomplete** | Category name from past transactions | Tags, labels, names from history |
+| **C08 Tags** | Revenue categories + Expense categories, industry templates | Task tags, product categories, client types |
+| **C09 Snapshots** | Auto-snapshot after every transaction add/edit/delete | Universal — use verbatim |
+| **C10 Settings** | Business name, fiscal year, currency symbol | Any app-level config |
+| **C16 Export CSV** | Date, Type, Category, Description, Amount, Month, Year | Any tabular data |
+
+**P&L-specific logic NOT in this blueprint** (only needed for financial apps):
+- COGS detection via keyword matching on category name
+- Fiscal year filtering (non-calendar year support)
+- Accounting format parsing `(1,234.56)` = negative
+- Currency symbol in KPI cards
+- Monthly P&L rollup table (revenue vs expenses per month)
+- Net Profit = Revenue total − Expense total (type-based sum)
+
+These patterns exist in the reference implementation at `pl-dashboard-v8.html` but are intentionally excluded from this universal blueprint because they are domain-specific.
