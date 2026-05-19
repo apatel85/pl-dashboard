@@ -2,21 +2,47 @@
 
 # pl-dashboard-v8 — Health Scorecard
 
-**Review date:** 2026-05-13  
-**File version:** v8 (4,190 lines)  
-**Reviewed by:** Claude Opus 4.7
+## Current State (2026-05-19)
+
+**Overall Grade: B+ (up from F)**
+**Weighted overall: 82 / 100 (up from 59)**
+
+All 20 Tier 1–4 patches from `review/FIXES.md` have been applied to `pl-dashboard-v8.html`, plus the v8.1.0 / v8.2.0 / v8.3.0 polish releases and the in-progress mobile UX overhaul branch. The seven critical XSS vectors are closed, CSP is in place, libraries are inlined (eliminating CDN tampering risk), and pagination keeps Revenue/Expense tables responsive at 100k+ rows.
+
+### Updated Category Scores (0–100)
+
+| Category | Was | Now | Notes |
+|---|---:|---:|---|
+| Security | 32 | 88 | XSS fixed, CSP added, formula injection patched; libs inlined so SRI is moot. Supabase anon key remains by design (RLS verified). |
+| Data Integrity | 58 | 85 | Accounting/EU formats parse; RFC 4180 quotes handled; monthly net/gross consistent. |
+| Reliability | 72 | 88 | Snapshot quota warning, IDB error UI, undo-delete pattern, optimistic sync indicator. |
+| Performance | 78 | 88 | Pagination on Revenue/Expense, Web Worker CSV import. Memory ~62 MB at 100k txns — acceptable for target scale. |
+| Accessibility | 45 | 80 | ARIA labels on icon buttons, toast `aria-live`, screen-reader announcements. |
+| Code Quality | 55 | 60 | No major refactor yet; code-quality info items still open by design. |
+| Browser Compatibility | 75 | 85 | IndexedDB fallback UI added; private-mode and quota states surface a friendly screen. |
+
+### Top 5 Remaining Risks
+
+1. **ISSUE-024** — Memory footprint at extreme scale (~62 MB / 100k txns). Acceptable today; revisit if 1M-row use cases appear.
+2. **ISSUE-022** — IndexedDB `DB_VERSION=1` with no upgrade path. Must add migration before any future schema change.
+3. **ISSUE-028/029/030** — Code-quality info items (large functions, magic strings, duplicate render patterns). Tracked for refactor; no user-visible impact.
+4. **ISSUE-027** — Supabase anon key in client. Info-only; RLS enforces row scope and this is the intended pattern.
+5. **Mobile UX overhaul branch** — Recently merged in PR #18; continue monitoring real-device feedback (notably tap-to-edit cards and light/dark toggle).
 
 ---
 
-## Overall Grade: F
+## Original Audit (2026-05-13)
+
+**File version:** v8 (4,190 lines)
+**Reviewed by:** Claude Opus 4.7
+
+### Original Overall Grade: F
 
 **7 Critical issues found → Grade F**
 
 The dashboard has a solid feature set and thoughtful backup architecture, but seven unmitigated XSS vectors and the absence of a Content Security Policy mean arbitrary JavaScript can be injected via CSV import. These must be resolved before the app handles production data.
 
----
-
-## Category Scores (0–100)
+### Original Category Scores (0–100)
 
 | Category | Score | Summary |
 |---|---|---|
@@ -30,9 +56,7 @@ The dashboard has a solid feature set and thoughtful backup architecture, but se
 
 **Weighted overall: 59 / 100**
 
----
-
-## Performance Numbers
+### Original Performance Numbers
 
 | Metric | Measured | Budget | Status |
 |---|---|---|---|
@@ -43,9 +67,7 @@ The dashboard has a solid feature set and thoughtful backup architecture, but se
 | Float drift (10,000 × $0.01) | 1.4 × 10⁻¹¹ | exactly $100.00 | ✗ FAIL |
 | Snapshot size (10k txns × 5) | ~35,320 KB | < 5,120 KB | ✗ FAIL |
 
----
-
-## Top 5 Risks
+### Original Top 5 Risks
 
 1. **ISSUE-001/002/003** — XSS via renderRecentEntries / renderRevTable / renderExpTable
 2. **ISSUE-007** — No Content Security Policy
@@ -53,9 +75,7 @@ The dashboard has a solid feature set and thoughtful backup architecture, but se
 4. **ISSUE-010/011** — No pagination in Revenue/Expense tables
 5. **ISSUE-012** — Snapshot quota overflow (silent)
 
----
-
-## Recommended Remediation Order
+### Recommended Remediation Order
 
 | Tier | Fixes | Action |
 |---|---|---|

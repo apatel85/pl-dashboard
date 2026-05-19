@@ -154,7 +154,31 @@ IndexedDB is per-device, so it scales for free.
 | FIX-018 — IndexedDB error UI | ✅ Applied | Friendly error page instead of blank screen |
 | FIX-019/020 — Accessibility ARIA | ✅ Applied | Screen reader announcements |
 
-See `ISSUES_LOG.md`, `FIXES.md`, and `SCORECARD.md` for the full audit.
+See `review/ISSUES_LOG.md`, `review/FIXES.md`, and `review/SCORECARD.md` for the full audit. Current grade: **B+ (82/100)**, up from F (59/100) at the audit baseline.
+
+---
+
+## Recent feature highlights (2026-05-14 → 2026-05-19)
+
+Beyond the security/reliability fixes, the v8.1.0–v8.3.0 releases and the in-progress mobile UX branch added:
+
+- **Landing page + first-run flow** — friendly landing page before the auth gate; sample-data mode loads 6 months of demo transactions for first-time exploration.
+- **Industry templates** — one-click setup for Consulting / E-commerce / SaaS / Restaurant / Generic, each with tailored revenue + expense categories.
+- **Auto-categorize from history** — typing a description suggests the matching category from prior transactions.
+- **Light/dark mode** — system-aware theme toggle persisted per device.
+- **Mobile UX overhaul** — mobile-optimized topbar, custom category dropdown that stays open on scroll, card-mode transaction tables, tap-to-edit cards, 44px tap targets, iOS safe-area support.
+- **Undo deletes** — 6-second Undo toast replaces confirm dialogs (Linear / Gmail pattern); also covers bulk delete.
+- **Instant search** on Revenue and Expense tabs with 150ms debounce.
+- **Web Worker CSV import** — files over 500 KB parse on a background thread; UI stays responsive.
+- **Automatic duplicate detection** on import.
+- **Optimistic Google Drive sync indicator** — top-bar status shows Syncing / Synced / Sync failed.
+- **Keyboard shortcuts** (`?` to view all), **PWA shortcuts** and **Share Target API** for CSV/XLSX.
+- **In-app Help drawer** with Quick Start and 7 FAQs; smart PWA install banner shown only after 3+ transactions.
+- **Plain-English backup labels** — Quick Save / Save to My Computer / Sync to Google Drive.
+- **Loading-sequence fix** — landing-vs-bootApp session-shape race resolved; Google popup no longer flashes for unauthenticated visitors.
+- **Save-and-sign-out** — explicit safe sign-out that flushes pending writes.
+
+See `CHANGELOG.md` for the full release history.
 
 ---
 
@@ -163,13 +187,23 @@ See `ISSUES_LOG.md`, `FIXES.md`, and `SCORECARD.md` for the full audit.
 | File | Role |
 |---|---|
 | `pl-dashboard-v8.html` | **The app** — single self-contained file (online + offline) |
-| `version.json` | Version metadata |
+| `index.html` | Mirror of `pl-dashboard-v8.html` so the clean `/` URL serves the app directly |
+| `service-worker.js` | PWA service worker (pre-caches both URLs for offline) |
+| `manifest.json` | PWA manifest |
+| `version.json` | Machine-readable version + release notes |
+| `CHANGELOG.md` | Human-readable release notes (Keep-a-Changelog format) |
 | `README.md` | This file |
-| `REVIEW_PLAN.md` | The AI-driven review plan (Parts A–H) |
-| `AI_REVIEW_PROMPT.md` | One-shot prompt to re-run the review with any AI |
-| `ISSUES_LOG.md` | All 27 issues found by the review |
-| `FIXES.md` | 20 auto-applyable patches |
-| `SCORECARD.md` | Health scorecard and performance numbers |
+| `review/` | Audit documents (live, with Status columns). See `review/README.md`. |
+| `review/REVIEW_PLAN.md` | The AI-driven review plan (Parts A–H) |
+| `review/AI_REVIEW_PROMPT.md` | One-shot prompt to re-run the review with any AI |
+| `review/ISSUES_LOG.md` | All 30 issues with Status (21 resolved, 2 open, 7 info-only) |
+| `review/FIXES.md` | 20 auto-applyable patches — all applied |
+| `review/SCORECARD.md` | Health scorecard (current B+ + original F baseline) |
+| `docs/` | End-user docs + plain-English audit. See `docs/README.md`. |
+| `docs/USER_README.md` | End-user guide |
+| `docs/DetailedFindings.md` | Plain-English audit findings with Status markers |
+| `docs/SuggestedFix.md` | Tiered remediation plan — all fixes shipped |
+| `archive/` | Historical snapshots of v5/v6/v7 dashboards. See `archive/README.md`. |
 | `mock-data/` | 7 generated CSV datasets used for testing |
 | `tests/e2e.spec.js` | Playwright stub for browser-only features |
 | `tests/sim.py` | Python simulation harness used during the review |

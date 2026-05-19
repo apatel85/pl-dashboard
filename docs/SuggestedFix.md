@@ -5,6 +5,8 @@
 **Goal:** Make the app safe, usable, and production-ready  
 **Total Issues to Fix:** 27 (7 Critical, 5 High, 9 Medium, 2 Low, 4 Info)
 
+> **All fixes in this document have shipped as of v8.3.0 (2026-05-14) plus the mobile UX overhaul branch (2026-05-19).** See `CHANGELOG.md` for details and `review/ISSUES_LOG.md` for the issue → fix traceability matrix.
+
 > 📁 This file has moved to `docs/SuggestedFix.md`
 
 ---
@@ -17,43 +19,43 @@ Fixes are organized into 4 tiers. **Do Tier 1 first — stop there and verify be
 
 ## 🔴 TIER 1 — Critical Security (Do These First)
 
-- **FIX-01:** Add `escapeHtml()` and use in all tables — stops XSS (FIND-S1, S2, S3)
-- **FIX-02:** Escape CSV preview headers and data — stops import XSS (FIND-S4)
-- **FIX-03:** Fix category pill — change `name` → `safe` (one word, FIND-S5)
-- **FIX-04:** Fix toast() to use textContent not innerHTML (FIND-S6)
-- **FIX-05:** Add Content Security Policy `<meta>` tag (FIND-S7)
+- ✅ **FIX-01:** Add `escapeHtml()` and use in all tables — stops XSS (FIND-S1, S2, S3)
+- ✅ **FIX-02:** Escape CSV preview headers and data — stops import XSS (FIND-S4)
+- ✅ **FIX-03:** Fix category pill — change `name` → `safe` (one word, FIND-S5)
+- ✅ **FIX-04:** Fix toast() to use textContent not innerHTML (FIND-S6)
+- ✅ **FIX-05:** Add Content Security Policy `<meta>` tag (FIND-S7)
 
 ---
 
 ## 🟠 TIER 2 — High Priority
 
-- **FIX-06:** Add `csvSanitize()` to prevent formula injection in exports
-- **FIX-07:** Add pagination to Revenue table (50 rows/page)
-- **FIX-08:** Add pagination to Expense table (50 rows/page)
-- **FIX-09:** Show toast error when backup snapshot fails silently
+- ✅ **FIX-06:** Add `csvSanitize()` to prevent formula injection in exports
+- ✅ **FIX-07:** Add pagination to Revenue table (50 rows/page)
+- ✅ **FIX-08:** Add pagination to Expense table (50 rows/page)
+- ✅ **FIX-09:** Show toast error when backup snapshot fails silently
 
 ---
 
 ## 🟡 TIER 3 — Medium Priority (Data Accuracy)
 
-- **FIX-10:** Support accounting `(500.00)` and EU `1.234,56` number formats
-- **FIX-11:** Add date format selector in CSV import wizard
-- **FIX-12:** Fix monthly table total row (gross vs net inconsistency)
-- **FIX-13:** Fix rounding display for dollar amounts
-- **FIX-14:** Fix CSV quote handling (RFC 4180 `""`)
-- **FIX-15:** Show error toast when inline edit fails
-- **FIX-16:** Use double-confirm for "Clear All Data"
-- **FIX-17:** Show user-friendly error when browser blocks storage
+- ✅ **FIX-10:** Support accounting `(500.00)` and EU `1.234,56` number formats
+- ✅ **FIX-11:** Add date format selector in CSV import wizard
+- ✅ **FIX-12:** Fix monthly table total row (gross vs net inconsistency)
+- ✅ **FIX-13:** Fix rounding display for dollar amounts
+- ✅ **FIX-14:** Fix CSV quote handling (RFC 4180 `""`)
+- ✅ **FIX-15:** Show error toast when inline edit fails
+- ✅ **FIX-16:** Use double-confirm for "Clear All Data"
+- ✅ **FIX-17:** Show user-friendly error when browser blocks storage
 
 ---
 
 ## 🔵 TIER 4 — Usability Polish
 
-- **FIX-18:** Add welcome / onboarding screen
-- **FIX-19:** Rename backup layers to plain English
-- **FIX-20:** Add accessibility labels (ARIA)
-- **FIX-21:** Add in-app help button
-- **FIX-22:** Add PWA install prompt inside app
+- ✅ **FIX-18:** Add welcome / onboarding screen (landing page + sample data + industry templates)
+- ✅ **FIX-19:** Rename backup layers to plain English (Quick Save / Save to My Computer / Sync to Google Drive — v8.1.0)
+- ✅ **FIX-20:** Add accessibility labels (ARIA)
+- ✅ **FIX-21:** Add in-app help button (help drawer with FAQ — v8.1.0)
+- ✅ **FIX-22:** Add PWA install prompt inside app (smart install banner after 3+ transactions — v8.1.0)
 
 ---
 

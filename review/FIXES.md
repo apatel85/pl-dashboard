@@ -2,8 +2,10 @@
 
 # FIXES.md — Auto-applyable patches for pl-dashboard-v8.html
 
-**Generated:** 2026-05-13  
+**Generated:** 2026-05-13
 **Covers:** ISSUE-001 through ISSUE-021
+
+> **As of 2026-05-19, all 20 fixes in this document have been applied to `pl-dashboard-v8.html`.** This file is retained for historical reference. See `review/ISSUES_LOG.md` for the issue → fix traceability matrix and `CHANGELOG.md` for release-level details.
 
 ## Apply Instructions
 
@@ -14,6 +16,7 @@ Upload `pl-dashboard-v8.html` and this file to any AI tool, then prompt:
 ---
 
 ## FIX-001: Add escapeHtml helper + fix XSS in renderRecentEntries, renderRevTable, renderExpTable
+**Status: ✅ APPLIED**
 
 **Resolves:** ISSUE-001, ISSUE-002, ISSUE-003 | **Severity:** Critical
 
@@ -26,6 +29,8 @@ Then wrap all user fields in renderRecentEntries, renderRevTable, renderExpTable
 ---
 
 ## FIX-002: Escape CSV preview in openMappingModal
+**Status: ✅ APPLIED**
+
 **Resolves:** ISSUE-004, ISSUE-005 | **Severity:** Critical
 
 Wrap `h` and `c` with `escapeHtml()` in the thead/tbody innerHTML assignments.
@@ -33,6 +38,8 @@ Wrap `h` and `c` with `escapeHtml()` in the thead/tbody innerHTML assignments.
 ---
 
 ## FIX-003: Fix catPillHTML — change `name` to `safe`
+**Status: ✅ APPLIED**
+
 **Resolves:** ISSUE-006 | **Severity:** Critical | **Difficulty:** Trivial (2 min)
 
 ```javascript
@@ -45,6 +52,8 @@ Wrap `h` and `c` with `escapeHtml()` in the thead/tbody innerHTML assignments.
 ---
 
 ## FIX-004: Add Content-Security-Policy meta tag
+**Status: ✅ APPLIED**
+
 **Resolves:** ISSUE-007 | **Severity:** Critical
 
 Add in `<head>` after charset meta:
@@ -55,7 +64,8 @@ Add in `<head>` after charset meta:
 ---
 
 ## FIX-005 through FIX-020
+**Status: ✅ APPLIED (all)**
 
 See the full `FIXES.md` in git history (was at root before 2026-05-14 reorganization) for complete OLD_STRING / NEW_STRING patches for all 20 fixes.
 
-*Key remaining fixes cover: CSV formula injection (FIX-005), SRI on CDN scripts (FIX-006), table pagination (FIX-007/008), snapshot quota warning (FIX-009), number format parsing (FIX-010), date format picker (FIX-011), toast XSS (FIX-012), rounding (FIX-013), RFC 4180 CSV (FIX-014), monthly table (FIX-015), inline edit error (FIX-016), double-confirm (FIX-017), IndexedDB fallback (FIX-018), ARIA accessibility (FIX-019/020).*
+*Key remaining fixes cover: CSV formula injection (FIX-005 ✅), SRI on CDN scripts (FIX-006 ✅ — solved by inlining Chart.js + XLSX.js), table pagination (FIX-007/008 ✅), snapshot quota warning (FIX-009 ✅), number format parsing (FIX-010 ✅), date format picker (FIX-011 ✅), toast XSS (FIX-012 ✅), rounding (FIX-013 ✅), RFC 4180 CSV (FIX-014 ✅), monthly table (FIX-015 ✅), inline edit error (FIX-016 ✅), double-confirm (FIX-017 ✅), IndexedDB fallback (FIX-018 ✅), ARIA accessibility (FIX-019/020 ✅).*
