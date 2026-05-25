@@ -14,11 +14,12 @@
  *    one cached file is enough to run.
  */
 
-const CACHE_VERSION = 'pl-dashboard-v8.10.0';
+const CACHE_VERSION = 'pl-dashboard-v8.11.0';
 const CORE_ASSETS = [
   './',
   './index.html',
   './pl-dashboard-v8.html',
+  './admin.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

@@ -1820,20 +1820,6 @@ tbody tr:hover { background: var(--surface2); }
   font-size: 13px; color: var(--muted);
   line-height: 1.55;
 }
-.landing-cta {
-  text-align: center;
-  padding: 72px 24px;
-  border-top: 1px solid var(--border);
-}
-.landing-cta h2 {
-  font-family: var(--serif);
-  font-size: 40px; font-weight: 400;
-  margin-bottom: 16px;
-}
-.landing-cta p {
-  font-size: 16px; color: var(--muted);
-  margin-bottom: 28px;
-}
 .landing-footer {
   padding: 28px 24px;
   text-align: center;
@@ -1851,8 +1837,6 @@ tbody tr:hover { background: var(--surface2); }
   .features-grid { grid-template-columns: 1fr; gap: 14px; }
   .landing-features { padding: 48px 18px; }
   .landing-features h2 { font-size: 28px; }
-  .landing-cta { padding: 48px 18px; }
-  .landing-cta h2 { font-size: 28px; }
 }
 </style>
 </head>
@@ -1916,12 +1900,6 @@ tbody tr:hover { background: var(--surface2); }
         <p>Beautiful in both. Follows your system preference, or pick your favorite manually.</p>
       </div>
     </div>
-  </section>
-
-  <section class="landing-cta">
-    <h2>Start tracking in minutes</h2>
-    <p>No data harvesting. Just clean books.</p>
-    <button class="btn btn-primary landing-hero-actions" onclick="goToSignIn()" style="font-size:16px;padding:14px 32px;min-height:50px">Get Started</button>
   </section>
 
   <footer class="landing-footer">
@@ -2328,6 +2306,7 @@ tbody tr:hover { background: var(--surface2); }
     <button class="btn btn-outline" onclick="exportCSV()">⬇ Export CSV</button>
     <button class="btn btn-outline" onclick="exportJSON()">⬇ Export JSON</button>
     <button class="btn btn-primary" onclick="showView('upload-view')">⬆ Import Data</button>
+    <button class="btn btn-outline" onclick="softRefresh()" aria-label="Refresh" title="Refresh dashboard" style="padding:6px 10px;font-size:15px">↻</button>
     <button class="btn btn-outline" onclick="openHelpDrawer()" aria-label="Help" title="Help &amp; Quick Start" style="padding:6px 10px;font-size:15px">?</button>
     <button class="topbar-icon-btn" id="mobile-search-btn" onclick="openMobileSearch()" aria-label="Search transactions" title="Search">🔍</button>
     <button class="topbar-icon-btn" id="mobile-help-btn" onclick="openHelpDrawer()" aria-label="Help" title="Help">?</button>
@@ -4433,6 +4412,13 @@ function updateStorageInfo() {
 // ═══════════════════════════════════════════════════════════════════
 
 const VIEWS = ['dashboard','transactions','revenue','expenses','monthly','add','upload','categories','sync','backup','settings'];
+
+function softRefresh() {
+  const active = document.querySelector('.view.active');
+  if (active) showView(active.id);
+  else showView('dashboard-view');
+  toast('Refreshed', 'info', { duration: 1500 });
+}
 
 function showView(viewId) {
   VIEWS.forEach(v => {
