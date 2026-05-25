@@ -933,8 +933,9 @@ tbody tr:hover { background: var(--surface2); }
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: 8px; padding: 8px 12px; gap: 8px;
     font-size: 13px; color: var(--text);
+    min-height: 42px; box-sizing: border-box;
   }
-  .cat-pill .cat-name { flex: 1; font-weight: 500; }
+  .cat-pill .cat-name { flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cat-pill .cat-actions { display: flex; gap: 4px; flex-shrink: 0; }
   .cat-pill .cat-btn {
     background: none; border: none; cursor: pointer;
@@ -945,6 +946,16 @@ tbody tr:hover { background: var(--surface2); }
   .cat-pill.revenue-pill { border-left: 3px solid var(--green); }
   .cat-pill.expense-pill { border-left: 3px solid var(--red, #f87171); }
   .cat-section-empty { font-size: 13px; color: var(--muted); padding: 8px 4px; }
+
+  /* ── PIN screen ── */
+  .pin-boxes { display: flex; gap: 12px; justify-content: center; }
+  .pin-box {
+    width: 52px; height: 60px; text-align: center; font-size: 24px;
+    background: #0f1117; color: #e8eaf0; border: 2px solid #2a3045;
+    border-radius: 10px; outline: none; font-family: 'DM Sans', sans-serif;
+    caret-color: #0ecfbe;
+  }
+  .pin-box:focus { border-color: #0ecfbe; }
 
   /* ── RESPONSIVE BASE: tablets 769–1024px ── */
   @media (max-width: 1024px) {
@@ -1861,11 +1872,10 @@ tbody tr:hover { background: var(--surface2); }
     <h1>Smart <span>P&amp;L tracking</span> for small businesses</h1>
     <p>Track revenue, expenses, and profit. Import any CSV. Sync to Google Drive. Works offline. Your data stays on your device.</p>
     <div class="landing-hero-actions">
-      <button class="btn btn-primary" onclick="goToSignIn()">Get Started — Free</button>
+      <button class="btn btn-primary" onclick="goToSignIn()">Get Started</button>
       <button class="btn btn-outline" onclick="goToSignIn()">Sign In</button>
     </div>
     <div class="landing-trust">
-      <span>No credit card required</span>
       <span>Privacy-first — data on your device</span>
       <span>Works offline</span>
     </div>
@@ -1910,8 +1920,8 @@ tbody tr:hover { background: var(--surface2); }
 
   <section class="landing-cta">
     <h2>Start tracking in minutes</h2>
-    <p>No credit card. No data harvesting. Just clean books.</p>
-    <button class="btn btn-primary landing-hero-actions" onclick="goToSignIn()" style="font-size:16px;padding:14px 32px;min-height:50px">Get Started — It's Free</button>
+    <p>No data harvesting. Just clean books.</p>
+    <button class="btn btn-primary landing-hero-actions" onclick="goToSignIn()" style="font-size:16px;padding:14px 32px;min-height:50px">Get Started</button>
   </section>
 
   <footer class="landing-footer">
@@ -2175,6 +2185,122 @@ tbody tr:hover { background: var(--surface2); }
       Your data stays in your browser — we never store your financial data on any server.<br>
       Powered by Google OAuth · Protected by Supabase
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PIN LOCK SCREEN ═══════════════ -->
+<div id="pin-screen" style="
+  display:none; position:fixed; inset:0; z-index:9998;
+  background:#0a0d14;
+  align-items:center; justify-content:center;
+  font-family:'DM Sans',system-ui,sans-serif;
+">
+  <div style="
+    width:min(400px,90vw);
+    background:#181c27; border:1px solid #2a3045;
+    border-radius:16px; padding:36px;
+    box-shadow:0 24px 80px rgba(0,0,0,.6);
+    text-align:center;
+  ">
+    <!-- PIN entry panel (returning user) -->
+    <div id="pin-entry-panel">
+      <div style="font-size:36px;margin-bottom:12px">🔐</div>
+      <div style="font-size:15px;font-weight:600;color:#e8eaf0;margin-bottom:6px">Enter your PIN</div>
+      <div style="font-size:13px;color:#6b7394;margin-bottom:24px" id="pin-entry-email"></div>
+
+      <div class="pin-boxes" id="pin-entry-boxes">
+        <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="0">
+        <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="1">
+        <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="2">
+        <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="3">
+      </div>
+
+      <div id="pin-entry-error" style="display:none;margin-top:14px;padding:10px 14px;background:#2a1515;border:1px solid #e74c3c;border-radius:8px;font-size:13px;color:#f1948a"></div>
+
+      <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px">
+        <a href="#" onclick="showPinReset(); return false;" style="color:#0ecfbe;font-size:12px;text-decoration:none">Forgot PIN?</a>
+        <button onclick="signOutFromPin()" style="background:none;border:none;color:#6b7394;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:underline">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- PIN setup panel (first time) -->
+    <div id="pin-setup-panel" style="display:none">
+      <div style="font-size:36px;margin-bottom:12px">🔑</div>
+      <div style="font-size:15px;font-weight:600;color:#e8eaf0;margin-bottom:8px">Create your PIN</div>
+      <div style="font-size:13px;color:#6b7394;margin-bottom:24px;line-height:1.6">
+        Set a 4-digit PIN for quick access.<br>You'll use this each time you open the app.
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;color:#6b7394;font-weight:600;text-align:left;margin-bottom:8px">Enter PIN</div>
+        <div class="pin-boxes" id="pin-setup-boxes">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="0">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="1">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="2">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="3">
+        </div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;color:#6b7394;font-weight:600;text-align:left;margin-bottom:8px">Confirm PIN</div>
+        <div class="pin-boxes" id="pin-confirm-boxes">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="0">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="1">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="2">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="3">
+        </div>
+      </div>
+
+      <div id="pin-setup-error" style="display:none;margin-top:8px;margin-bottom:8px;padding:10px 14px;background:#2a1515;border:1px solid #e74c3c;border-radius:8px;font-size:13px;color:#f1948a"></div>
+
+      <button onclick="submitPinSetup()" id="pin-setup-btn" style="
+        width:100%;padding:12px;border-radius:8px;border:none;
+        background:#0ecfbe;color:#0f1117;font-family:'DM Sans',sans-serif;
+        font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;
+      ">Set PIN</button>
+    </div>
+
+    <!-- PIN reset panel (forgot PIN) -->
+    <div id="pin-reset-panel" style="display:none">
+      <div style="font-size:36px;margin-bottom:12px">🔓</div>
+      <div style="font-size:15px;font-weight:600;color:#e8eaf0;margin-bottom:8px">Reset your PIN</div>
+      <div style="font-size:13px;color:#6b7394;margin-bottom:24px;line-height:1.6">
+        Enter the email linked to your account and set a new 4-digit PIN.
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;text-align:left;margin-bottom:16px">
+        <label style="font-size:12px;color:#6b7394;font-weight:600">
+          Registered email
+          <input id="pin-reset-email" type="email" autocomplete="email"
+            placeholder="you@example.com"
+            style="display:block;width:100%;margin-top:6px;padding:11px 12px;
+                   font-size:16px;background:#0f1117;color:#e8eaf0;
+                   border:1px solid #2a3045;border-radius:8px;outline:none;
+                   font-family:'DM Sans',sans-serif;box-sizing:border-box">
+        </label>
+        <div>
+          <div style="font-size:12px;color:#6b7394;font-weight:600;margin-bottom:8px">New PIN</div>
+          <div class="pin-boxes" id="pin-reset-boxes">
+            <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="0">
+            <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="1">
+            <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="2">
+            <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="3">
+          </div>
+        </div>
+      </div>
+
+      <div id="pin-reset-error" style="display:none;margin-top:8px;margin-bottom:8px;padding:10px 14px;background:#2a1515;border:1px solid #e74c3c;border-radius:8px;font-size:13px;color:#f1948a"></div>
+
+      <button onclick="submitPinReset()" id="pin-reset-btn" style="
+        width:100%;padding:12px;border-radius:8px;border:none;
+        background:#0ecfbe;color:#0f1117;font-family:'DM Sans',sans-serif;
+        font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;
+      ">Reset PIN</button>
+
+      <div style="margin-top:14px">
+        <a href="#" onclick="showPinEntry(authUser&&authUser.email||''); return false;" style="color:#0ecfbe;font-size:12px;text-decoration:none">← Back to PIN entry</a>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -6129,6 +6255,10 @@ function authResetAndRetry() {
 }
 
 // ── Unlock: hide gate, boot the app ──────────────────────────
+let _pinVerifiedThisSession = false;
+let _inactivityTimer = null;
+const PIN_TIMEOUT_MS = 10 * 60 * 1000;
+
 function unlockApp(user, isNewSignIn = false) {
   try {
     const gate = document.getElementById('auth-gate');
@@ -6137,10 +6267,16 @@ function unlockApp(user, isNewSignIn = false) {
       gate.style.opacity = '0';
       setTimeout(() => { if (gate) gate.style.display = 'none'; }, 420);
     }
-    // Always hide the landing page when app is unlocked
     hideLanding();
 
-    // Show user info in sidebar — defensive: every field optional, every DOM lookup nullable
+    // Show PIN screen unless already verified this session
+    if (!_pinVerifiedThisSession) {
+      const pinScreen = document.getElementById('pin-screen');
+      if (pinScreen) pinScreen.style.display = 'flex';
+      checkPinStatus(user.email);
+    }
+
+    // Set up sidebar
     if (user) {
       const sidebar = document.getElementById('biz-sidebar');
       if (sidebar) sidebar.style.display = 'block';
@@ -6155,12 +6291,9 @@ function unlockApp(user, isNewSignIn = false) {
       }
     }
 
-    // Boot the app if this is a fresh sign-in (cached session boots in load handler)
     if (isNewSignIn) bootApp();
   } catch(e) {
     console.error('[unlockApp]', e);
-    // Bad cached session shape — wipe it and restore the auth gate so the
-    // user can sign in fresh instead of being stuck on a blank screen.
     try { localStorage.removeItem(AUTH_SESSION_KEY); } catch(_) {}
     const gate = document.getElementById('auth-gate');
     if (gate) {
@@ -6203,6 +6336,243 @@ function authSignOut() {
   }
   // Reload page to show auth gate again
   window.location.reload();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PIN MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+
+function initPinBoxes(containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const boxes = c.querySelectorAll('.pin-box');
+  boxes.forEach((box, i) => {
+    box.value = '';
+    box.oninput = (e) => {
+      const v = e.target.value.replace(/\D/g, '');
+      e.target.value = v.slice(-1);
+      if (v && i < 3) boxes[i + 1].focus();
+      if (v && i === 3) autoSubmitPin(containerId);
+    };
+    box.onkeydown = (e) => {
+      if (e.key === 'Backspace' && !box.value && i > 0) {
+        boxes[i - 1].focus();
+        boxes[i - 1].value = '';
+      }
+    };
+    box.onpaste = (e) => {
+      e.preventDefault();
+      const paste = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 4);
+      for (let j = 0; j < 4; j++) { if (boxes[j]) boxes[j].value = paste[j] || ''; }
+      if (paste.length >= 4) { if (boxes[3]) boxes[3].focus(); autoSubmitPin(containerId); }
+    };
+  });
+}
+
+function autoSubmitPin(containerId) {
+  if (containerId === 'pin-entry-boxes') setTimeout(submitPinVerify, 80);
+}
+
+function getPinFromBoxes(containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return '';
+  return Array.from(c.querySelectorAll('.pin-box')).map(b => b.value).join('');
+}
+
+function clearPinBoxes(containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  c.querySelectorAll('.pin-box').forEach(b => { b.value = ''; });
+  const first = c.querySelector('.pin-box');
+  if (first) first.focus();
+}
+
+async function checkPinStatus(email) {
+  try {
+    const res = await supaFetch('/rest/v1/rpc/check_user_has_pin', {
+      method: 'POST',
+      body: JSON.stringify({ p_email: email })
+    });
+    if (res && res.has_pin) {
+      showPinEntry(email);
+    } else {
+      showPinSetup();
+    }
+  } catch {
+    _pinVerifiedThisSession = true;
+    dismissPinScreen();
+  }
+}
+
+function showPinEntry(email) {
+  const screen = document.getElementById('pin-screen');
+  if (screen) screen.style.display = 'flex';
+  document.getElementById('pin-entry-panel').style.display = 'block';
+  document.getElementById('pin-setup-panel').style.display = 'none';
+  document.getElementById('pin-reset-panel').style.display = 'none';
+  const emailEl = document.getElementById('pin-entry-email');
+  if (emailEl) emailEl.textContent = email || '';
+  const errEl = document.getElementById('pin-entry-error');
+  if (errEl) errEl.style.display = 'none';
+  setTimeout(() => { initPinBoxes('pin-entry-boxes'); clearPinBoxes('pin-entry-boxes'); }, 80);
+}
+
+function showPinSetup() {
+  const screen = document.getElementById('pin-screen');
+  if (screen) screen.style.display = 'flex';
+  document.getElementById('pin-entry-panel').style.display = 'none';
+  document.getElementById('pin-setup-panel').style.display = 'block';
+  document.getElementById('pin-reset-panel').style.display = 'none';
+  const errEl = document.getElementById('pin-setup-error');
+  if (errEl) errEl.style.display = 'none';
+  setTimeout(() => {
+    initPinBoxes('pin-setup-boxes');
+    initPinBoxes('pin-confirm-boxes');
+    clearPinBoxes('pin-setup-boxes');
+  }, 80);
+}
+
+function showPinReset() {
+  document.getElementById('pin-entry-panel').style.display = 'none';
+  document.getElementById('pin-setup-panel').style.display = 'none';
+  document.getElementById('pin-reset-panel').style.display = 'block';
+  const errEl = document.getElementById('pin-reset-error');
+  if (errEl) errEl.style.display = 'none';
+  const emailInput = document.getElementById('pin-reset-email');
+  if (emailInput && authUser) emailInput.value = authUser.email || '';
+  setTimeout(() => { initPinBoxes('pin-reset-boxes'); clearPinBoxes('pin-reset-boxes'); }, 80);
+}
+
+async function submitPinSetup() {
+  const pin = getPinFromBoxes('pin-setup-boxes');
+  const confirm = getPinFromBoxes('pin-confirm-boxes');
+  const errEl = document.getElementById('pin-setup-error');
+  if (pin.length !== 4) { errEl.textContent = 'Enter all 4 digits.'; errEl.style.display = 'block'; return; }
+  if (pin !== confirm) { errEl.textContent = 'PINs do not match.'; errEl.style.display = 'block'; clearPinBoxes('pin-confirm-boxes'); return; }
+  const btn = document.getElementById('pin-setup-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const res = await supaFetch('/rest/v1/rpc/set_user_pin', {
+      method: 'POST',
+      body: JSON.stringify({ p_email: authUser.email, p_pin: pin })
+    });
+    if (res && res.success) {
+      _pinVerifiedThisSession = true;
+      dismissPinScreen();
+      startInactivityTimer();
+    } else {
+      errEl.textContent = (res && res.error) || 'Failed to set PIN.';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = 'Network error — try again.';
+    errEl.style.display = 'block';
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Set PIN'; }
+}
+
+async function submitPinVerify() {
+  const pin = getPinFromBoxes('pin-entry-boxes');
+  const errEl = document.getElementById('pin-entry-error');
+  if (pin.length !== 4) return;
+  try {
+    const res = await supaFetch('/rest/v1/rpc/verify_user_pin', {
+      method: 'POST',
+      body: JSON.stringify({ p_email: authUser.email, p_pin: pin })
+    });
+    if (res && res.success) {
+      _pinVerifiedThisSession = true;
+      dismissPinScreen();
+      startInactivityTimer();
+    } else {
+      errEl.textContent = (res && res.error) || 'Incorrect PIN.';
+      errEl.style.display = 'block';
+      clearPinBoxes('pin-entry-boxes');
+    }
+  } catch(e) {
+    errEl.textContent = 'Network error — try again.';
+    errEl.style.display = 'block';
+  }
+}
+
+async function submitPinReset() {
+  const email = (document.getElementById('pin-reset-email').value || '').trim().toLowerCase();
+  const pin = getPinFromBoxes('pin-reset-boxes');
+  const errEl = document.getElementById('pin-reset-error');
+  if (!email || !email.includes('@')) { errEl.textContent = 'Enter your registered email.'; errEl.style.display = 'block'; return; }
+  if (pin.length !== 4) { errEl.textContent = 'Enter all 4 digits for your new PIN.'; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('pin-reset-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Resetting…'; }
+  try {
+    const res = await supaFetch('/rest/v1/rpc/reset_user_pin', {
+      method: 'POST',
+      body: JSON.stringify({ p_email: email, p_new_pin: pin })
+    });
+    if (res && res.success) {
+      showPinEntry(email);
+    } else {
+      errEl.textContent = (res && res.error) || 'Could not reset PIN.';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = 'Network error — try again.';
+    errEl.style.display = 'block';
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Reset PIN'; }
+}
+
+function dismissPinScreen() {
+  const screen = document.getElementById('pin-screen');
+  if (screen) {
+    screen.style.transition = 'opacity .3s ease';
+    screen.style.opacity = '0';
+    setTimeout(() => { screen.style.display = 'none'; screen.style.opacity = '1'; screen.style.transition = ''; }, 320);
+  }
+}
+
+function signOutFromPin() {
+  clearCachedSession();
+  authUser = null;
+  _pinVerifiedThisSession = false;
+  stopInactivityTimer();
+  const screen = document.getElementById('pin-screen');
+  if (screen) screen.style.display = 'none';
+  const gate = document.getElementById('auth-gate');
+  if (gate) gate.style.display = 'none';
+  showLanding();
+}
+
+function startInactivityTimer() {
+  stopInactivityTimer();
+  _inactivityTimer = setTimeout(lockAppForInactivity, PIN_TIMEOUT_MS);
+  ['click','keydown','touchstart','mousemove','scroll'].forEach(evt => {
+    document.addEventListener(evt, resetInactivityTimer, { passive: true });
+  });
+}
+
+function resetInactivityTimer() {
+  if (_inactivityTimer) {
+    clearTimeout(_inactivityTimer);
+    _inactivityTimer = setTimeout(lockAppForInactivity, PIN_TIMEOUT_MS);
+  }
+}
+
+function stopInactivityTimer() {
+  if (_inactivityTimer) {
+    clearTimeout(_inactivityTimer);
+    _inactivityTimer = null;
+  }
+  ['click','keydown','touchstart','mousemove','scroll'].forEach(evt => {
+    document.removeEventListener(evt, resetInactivityTimer);
+  });
+}
+
+function lockAppForInactivity() {
+  stopInactivityTimer();
+  _pinVerifiedThisSession = false;
+  if (authUser && authUser.email) {
+    showPinEntry(authUser.email);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -6600,7 +6970,7 @@ function addSignOutButton() {
   function catPillHTML(name, idx, type) {
     const safe = escapeHtml(name);
     return `<div class="cat-pill ${type}-pill">
-      <span class="cat-name">${safe}</span>
+      <span class="cat-name" title="${safe}">${safe}</span>
       <span class="cat-actions">
         <button class="cat-btn" title="Rename" aria-label="Rename category" onclick="openEditCategoryModal(${idx})">✏️</button>
         <button class="cat-btn" title="Delete" aria-label="Delete category" onclick="deleteCategory(${idx})">🗑</button>
