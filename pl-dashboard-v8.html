@@ -2306,7 +2306,7 @@ tbody tr:hover { background: var(--surface2); }
     <button class="btn btn-outline" onclick="exportCSV()">⬇ Export CSV</button>
     <button class="btn btn-outline" onclick="exportJSON()">⬇ Export JSON</button>
     <button class="btn btn-primary" onclick="showView('upload-view')">⬆ Import Data</button>
-    <button class="btn btn-outline" onclick="softRefresh()" aria-label="Refresh" title="Refresh dashboard" style="padding:6px 10px;font-size:15px">↻</button>
+    <button class="topbar-icon-btn" onclick="softRefresh()" aria-label="Refresh" title="Refresh dashboard">↻</button>
     <button class="btn btn-outline" onclick="openHelpDrawer()" aria-label="Help" title="Help &amp; Quick Start" style="padding:6px 10px;font-size:15px">?</button>
     <button class="topbar-icon-btn" id="mobile-search-btn" onclick="openMobileSearch()" aria-label="Search transactions" title="Search">🔍</button>
     <button class="topbar-icon-btn" id="mobile-help-btn" onclick="openHelpDrawer()" aria-label="Help" title="Help">?</button>
@@ -3349,15 +3349,68 @@ const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json'
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
 const LAST_CHECK_KEY    = 'pl_last_version_check';
-const SETTINGS_KEY      = 'pl_settings_v4';
-const SNAPSHOTS_KEY     = 'pl_snapshots_v4';
-const L2_META_KEY       = 'pl_l2_meta';
-const GSHEETS_KEY       = 'pl_gsheets_v4';
-const DB_NAME           = 'PLDashboard';
+let SETTINGS_KEY        = 'pl_settings_v4';
+let SNAPSHOTS_KEY       = 'pl_snapshots_v4';
+let L2_META_KEY         = 'pl_l2_meta';
+let GSHEETS_KEY         = 'pl_gsheets_v4';
+let DB_NAME             = 'PLDashboard';
 const DB_VERSION        = 1;
 const STORE_NAME        = 'transactions';
 const MAX_SNAPSHOTS     = 5;
 const AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000;
+
+function setUserStorageKeys(email) {
+  if (!email) return;
+  const s = '_' + email;
+  DB_NAME              = 'PLDashboard' + s;
+  SETTINGS_KEY         = 'pl_settings_v4' + s;
+  SNAPSHOTS_KEY        = 'pl_snapshots_v4' + s;
+  L2_META_KEY          = 'pl_l2_meta' + s;
+  GSHEETS_KEY          = 'pl_gsheets_v4' + s;
+  CATEGORIES_KEY       = 'pl_categories_v1' + s;
+  GSHEETS_AUTOSYNC_KEY = 'pl_gsheets_autosync_v1' + s;
+  INDUSTRY_PICKED_KEY  = 'pl_industry_picked' + s;
+  FS_HANDLE_KEY        = 'pl_fs_handle_name' + s;
+}
+
+async function migrateOldDataIfNeeded() {
+  const migKey = 'pl_data_migrated_to_user';
+  if (localStorage.getItem(migKey)) return;
+  try {
+    const oldDb = await new Promise((resolve) => {
+      const req = indexedDB.open('PLDashboard', 1);
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = () => resolve(null);
+      req.onupgradeneeded = e => { e.target.transaction.abort(); resolve(null); };
+    });
+    if (!oldDb) { localStorage.setItem(migKey, '1'); return; }
+    const oldTxns = await new Promise((resolve) => {
+      try {
+        const tx = oldDb.transaction('transactions', 'readonly');
+        const req = tx.objectStore('transactions').getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      } catch { resolve([]); }
+    });
+    oldDb.close();
+    if (oldTxns.length === 0) { localStorage.setItem(migKey, '1'); return; }
+    const count = await dbCount();
+    if (count > 0) { localStorage.setItem(migKey, '1'); return; }
+    for (const txn of oldTxns) await dbPut(txn);
+    const oldKeys = [
+      ['pl_settings_v4', SETTINGS_KEY], ['pl_snapshots_v4', SNAPSHOTS_KEY],
+      ['pl_l2_meta', L2_META_KEY], ['pl_gsheets_v4', GSHEETS_KEY],
+      ['pl_categories_v1', CATEGORIES_KEY], ['pl_gsheets_autosync_v1', GSHEETS_AUTOSYNC_KEY],
+      ['pl_industry_picked', INDUSTRY_PICKED_KEY], ['pl_fs_handle_name', FS_HANDLE_KEY]
+    ];
+    for (const [ok, nk] of oldKeys) {
+      const v = localStorage.getItem(ok);
+      if (v !== null && ok !== nk) localStorage.setItem(nk, v);
+    }
+    localStorage.setItem(migKey, '1');
+    console.log('[migration] Migrated', oldTxns.length, 'transactions for', authUser.email);
+  } catch(e) { console.warn('[migration]', e); localStorage.setItem(migKey, '1'); }
+}
 
 // ── Supabase config (P&L auth) ─────────────────────────────────
 const SUPA_URL  = 'https://iknfvddnevudpjtyxkbh.supabase.co';
@@ -3398,7 +3451,7 @@ let txnTotal = 0;
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function escapeHtml(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function csvSanitize(v){const s=String(v==null?'':v);return /^[=+\-@\t\r]/.test(s)?'\''+s:s;}
-const CATEGORIES_KEY = 'pl_categories_v1';
+let CATEGORIES_KEY = 'pl_categories_v1';
 const DEFAULT_CATEGORIES = [
   'Product Sales','Service Revenue','Consulting / Retainers','Online / Digital Sales',
   'Subscription Income','Other Revenue',
@@ -3443,7 +3496,7 @@ const INDUSTRY_TEMPLATES = {
     categories: [...DEFAULT_CATEGORIES]
   }
 };
-const INDUSTRY_PICKED_KEY = 'pl_industry_picked';
+let INDUSTRY_PICKED_KEY = 'pl_industry_picked';
 function loadCategories() {
   try {
     const raw = localStorage.getItem(CATEGORIES_KEY);
@@ -4177,7 +4230,7 @@ function gsheetsUnlink() {
 //  LAYER 3 — AUTO-SYNC (event-driven, conflict-aware)
 // ═══════════════════════════════════════════════════════════════════
 
-const GSHEETS_AUTOSYNC_KEY = 'pl_gsheets_autosync_v1';
+let GSHEETS_AUTOSYNC_KEY = 'pl_gsheets_autosync_v1';
 let autoSyncEnabled = localStorage.getItem(GSHEETS_AUTOSYNC_KEY) === 'true';
 let autoPushTimer = null;
 let autoPullTimer = null;
@@ -5340,7 +5393,7 @@ function txnHash(t){
 //  FILE SYNC (existing feature, unchanged)
 // ═══════════════════════════════════════════════════════════════════
 
-const FS_HANDLE_KEY='pl_fs_handle_name';
+let FS_HANDLE_KEY='pl_fs_handle_name';
 let linkedFileHandle=null;
 
 async function linkLocalFile(){
@@ -6247,6 +6300,8 @@ const PIN_TIMEOUT_MS = 10 * 60 * 1000;
 
 function unlockApp(user, isNewSignIn = false) {
   try {
+    setUserStorageKeys(user && user.email);
+
     const gate = document.getElementById('auth-gate');
     if (gate) {
       gate.style.transition = 'opacity .4s ease';
@@ -6713,9 +6768,10 @@ function clearLayer3Data() {
 }
 
 async function bootApp() {
-  // 1. Open IndexedDB
+  // 1. Open per-user IndexedDB
   try {
     await openDB();
+    await migrateOldDataIfNeeded();
   } catch(e) {
     document.getElementById('db-status-bar').className  = 'err';
     document.getElementById('db-status-bar').textContent = '✕ DB error: ' + e.message;
