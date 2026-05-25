@@ -1210,7 +1210,7 @@ tbody tr:hover { background: var(--surface2); }
       <div style="font-size:15px;font-weight:600;color:#e8eaf0;margin-bottom:8px">Sign in to access your dashboard</div>
       <div style="font-size:13px;color:#6b7394;margin-bottom:28px;line-height:1.6">
         Use the Google account associated with your purchase.<br>
-        New customer? <a href="https://gumroad.com" target="_blank" style="color:#0ecfbe">Purchase a license →</a>
+        Have a coupon code? <a href="#" onclick="showCouponPanel(); return false;" style="color:#0ecfbe;text-decoration:none;font-weight:600">Redeem it here →</a>
       </div>
 
       <button id="auth-google-btn" onclick="authSignIn()" style="
@@ -1303,15 +1303,75 @@ tbody tr:hover { background: var(--surface2); }
       </div>
     </div>
 
+    <!-- Coupon code redemption panel -->
+    <div id="auth-coupon-panel" style="display:none">
+      <div style="font-size:36px;margin-bottom:12px">🎟</div>
+      <div style="font-size:15px;font-weight:600;color:#e8eaf0;margin-bottom:8px">Activate with coupon</div>
+      <div style="font-size:13px;color:#6b7394;margin-bottom:24px;line-height:1.6">
+        Enter your email and coupon code to get instant access.
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;text-align:left;margin-bottom:16px">
+        <label style="font-size:12px;color:#6b7394;font-weight:600">
+          Email address
+          <input id="auth-coupon-email" type="email" autocomplete="email" inputmode="email"
+            placeholder="you@example.com"
+            style="display:block;width:100%;margin-top:6px;padding:11px 12px;
+                   font-size:16px;background:#0f1117;color:#e8eaf0;
+                   border:1px solid #2a3045;border-radius:8px;outline:none;
+                   font-family:'DM Sans',sans-serif;box-sizing:border-box">
+        </label>
+        <label style="font-size:12px;color:#6b7394;font-weight:600">
+          Coupon code
+          <div style="position:relative;margin-top:6px">
+            <input id="auth-coupon-code" type="text" autocomplete="off" spellcheck="false"
+              placeholder="e.g. LAUNCH2025"
+              oninput="checkCouponLive(this.value)"
+              style="display:block;width:100%;padding:11px 36px 11px 12px;
+                     font-size:16px;background:#0f1117;color:#e8eaf0;
+                     border:1px solid #2a3045;border-radius:8px;outline:none;
+                     font-family:'DM Sans',sans-serif;letter-spacing:1px;box-sizing:border-box">
+            <span id="auth-coupon-indicator" style="position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none"></span>
+          </div>
+        </label>
+      </div>
+
+      <button onclick="authRedeemCoupon()" id="auth-coupon-submit" style="
+        display:inline-flex;align-items:center;justify-content:center;
+        width:100%;padding:12px 20px;border-radius:8px;
+        background:#0ecfbe;color:#0f1117;border:none;
+        font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;
+        cursor:pointer;transition:filter .15s;
+      " onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
+        Activate Access
+      </button>
+
+      <div id="auth-coupon-loading" style="display:none;margin-top:18px;font-size:13px;color:#6b7394">
+        <span style="display:inline-block;animation:spin .8s linear infinite">↻</span>
+        Verifying your coupon…
+      </div>
+
+      <div id="auth-coupon-error" style="
+        display:none;margin-top:16px;padding:12px 16px;
+        background:#2a1515;border:1px solid #e74c3c;border-radius:8px;
+        font-size:13px;color:#f1948a;line-height:1.6;text-align:left;
+      "></div>
+
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid #2a3045;font-size:12px;color:#6b7394">
+        <a href="#" onclick="showGoogleSignInPanel(); return false;" style="color:#0ecfbe;text-decoration:none">← Back to sign-in</a>
+      </div>
+    </div>
+
     <!-- Access denied panel -->
     <div id="auth-denied-panel" style="display:none">
       <div style="font-size:36px;margin-bottom:12px">🔒</div>
       <div style="font-size:15px;font-weight:600;color:#e74c3c;margin-bottom:10px">Access not found</div>
       <div id="auth-denied-msg" style="font-size:13px;color:#6b7394;margin-bottom:24px;line-height:1.7"></div>
-      <a href="https://gumroad.com" target="_blank" style="
+      <button onclick="authResetAndRetry(); setTimeout(showCouponPanel, 50);" style="
         display:inline-block;padding:10px 22px;background:#0ecfbe;color:#0f1117;
-        border-radius:7px;font-weight:600;font-size:13px;text-decoration:none;margin-bottom:12px;
-      ">Purchase a License →</a>
+        border-radius:7px;font-weight:600;font-size:13px;border:none;cursor:pointer;
+        margin-bottom:12px;font-family:'DM Sans',sans-serif;
+      ">Redeem a Coupon Code →</button>
       <div style="margin-top:8px">
         <button onclick="authResetAndRetry()" style="
           background:none;border:none;color:#6b7394;font-size:12px;
@@ -4465,7 +4525,9 @@ function showLicenseKeyPanel() {
 function showGoogleSignInPanel() {
   const signin  = document.getElementById('auth-signin-panel');
   const lkPanel = document.getElementById('auth-licensekey-panel');
+  const cpPanel = document.getElementById('auth-coupon-panel');
   if (lkPanel) lkPanel.style.display = 'none';
+  if (cpPanel) cpPanel.style.display = 'none';
   if (signin)  signin.style.display  = 'block';
 }
 
@@ -4485,6 +4547,104 @@ function showLkError(msg) {
   if (btn) btn.style.display = 'inline-flex';
   const load = document.getElementById('auth-lk-loading');
   if (load) load.style.display = 'none';
+}
+
+// ── Coupon code redemption ─────────────────────────────────────
+function showCouponPanel() {
+  ['auth-signin-panel','auth-licensekey-panel','auth-denied-panel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const panel = document.getElementById('auth-coupon-panel');
+  if (panel) panel.style.display = 'block';
+  setTimeout(() => { const em = document.getElementById('auth-coupon-email'); if (em) em.focus(); }, 50);
+}
+
+function setCouponLoading(on) {
+  const btn  = document.getElementById('auth-coupon-submit');
+  const load = document.getElementById('auth-coupon-loading');
+  const err  = document.getElementById('auth-coupon-error');
+  if (btn)  btn.style.display  = on ? 'none'        : 'inline-flex';
+  if (load) load.style.display = on ? 'block'       : 'none';
+  if (on && err) err.style.display = 'none';
+}
+
+function showCouponError(msg) {
+  const el = document.getElementById('auth-coupon-error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+  const btn  = document.getElementById('auth-coupon-submit');
+  if (btn)  btn.style.display  = 'inline-flex';
+  const load = document.getElementById('auth-coupon-loading');
+  if (load) load.style.display = 'none';
+}
+
+let _couponCheckTimer = null;
+function checkCouponLive(code) {
+  const indicator = document.getElementById('auth-coupon-indicator');
+  if (!indicator) return;
+  code = code.trim().toUpperCase();
+  indicator.textContent = '';
+  if (code.length < 4) return;
+  indicator.textContent = '…';
+  indicator.style.color = '#6b7394';
+  clearTimeout(_couponCheckTimer);
+  _couponCheckTimer = setTimeout(async () => {
+    try {
+      const res = await supaFetch('/rest/v1/rpc/check_coupon', {
+        method: 'POST',
+        body: JSON.stringify({ p_code: code })
+      });
+      if (res && res.valid) {
+        indicator.textContent = '✓';
+        indicator.style.color = '#0ecfbe';
+      } else {
+        indicator.textContent = '✗';
+        indicator.style.color = '#e74c3c';
+      }
+    } catch { indicator.textContent = ''; }
+  }, 600);
+}
+
+async function authRedeemCoupon() {
+  const emailEl = document.getElementById('auth-coupon-email');
+  const codeEl  = document.getElementById('auth-coupon-code');
+  const email   = (emailEl ? emailEl.value : '').trim().toLowerCase();
+  const code    = (codeEl  ? codeEl.value  : '').trim().toUpperCase();
+
+  if (!email || !email.includes('@')) { showCouponError('Enter a valid email address.'); return; }
+  if (!code || code.length < 3)       { showCouponError('Enter your coupon code.'); return; }
+
+  setCouponLoading(true);
+
+  try {
+    const result = await supaFetch('/rest/v1/rpc/redeem_coupon', {
+      method: 'POST',
+      body: JSON.stringify({ p_code: code, p_email: email })
+    });
+
+    if (!result || !result.success) {
+      const msgs = {
+        invalid_code: 'Coupon code not found or no longer active.',
+        expired:      'This coupon code has expired.',
+        exhausted:    'This coupon code has reached its usage limit.'
+      };
+      showCouponError(msgs[result && result.error] || (result && result.message) || 'Could not activate — please contact support.');
+      return;
+    }
+
+    // ✅ Coupon redeemed — grant access immediately
+    const userData = {
+      email: result.email,
+      name:  result.name || result.email.split('@')[0],
+      plan:  result.plan || 'lifetime'
+    };
+    logAccessEvent(email, 'coupon:' + code, 'granted');
+    saveCachedSession(userData);
+    authUser = userData;
+    showAuthSuccess(userData);
+  } catch(e) {
+    showCouponError('Could not verify your coupon — check your connection and try again. (' + e.message + ')');
+  }
 }
 
 async function authSignInWithLicenseKey() {
