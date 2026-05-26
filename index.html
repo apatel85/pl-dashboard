@@ -2290,6 +2290,15 @@ tbody tr:hover { background: var(--surface2); }
           <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="3">
         </div>
       </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;color:#6b7394;font-weight:600;text-align:left;margin-bottom:8px">Confirm PIN</div>
+        <div class="pin-boxes" id="pin-token-confirm-boxes">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="0">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="1">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="2">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="3">
+        </div>
+      </div>
 
       <div id="pin-token-error" style="display:none;margin-top:8px;margin-bottom:8px;padding:10px 14px;background:#2a1515;border:1px solid #e74c3c;border-radius:8px;font-size:13px;color:#f1948a"></div>
 
@@ -6450,11 +6459,13 @@ function clearPinBoxes(containerId) {
 }
 
 async function checkPinStatus(email) {
+  if (_resetPinTokenActive) return;
   try {
     const res = await supaFetch('/rest/v1/rpc/check_user_has_pin', {
       method: 'POST',
       body: JSON.stringify({ p_email: email })
     });
+    if (_resetPinTokenActive) return;
     if (res && res.has_pin) {
       showPinEntry(email);
     } else {
@@ -6593,8 +6604,10 @@ async function submitPinReset() {
 }
 
 let _pinResetToken = null;
+let _resetPinTokenActive = false;
 function showTokenPinReset(token) {
   _pinResetToken = token;
+  _resetPinTokenActive = true;
   const screen = document.getElementById('pin-screen');
   if (screen) screen.style.display = 'flex';
   document.getElementById('pin-entry-panel').style.display = 'none';
@@ -6603,13 +6616,19 @@ function showTokenPinReset(token) {
   document.getElementById('pin-token-panel').style.display = 'block';
   const errEl = document.getElementById('pin-token-error');
   if (errEl) errEl.style.display = 'none';
-  setTimeout(() => { initPinBoxes('pin-token-boxes'); clearPinBoxes('pin-token-boxes'); }, 80);
+  setTimeout(() => {
+    initPinBoxes('pin-token-boxes');
+    initPinBoxes('pin-token-confirm-boxes');
+    clearPinBoxes('pin-token-boxes');
+  }, 80);
 }
 
 async function submitTokenPinReset() {
   const pin = getPinFromBoxes('pin-token-boxes');
+  const confirm = getPinFromBoxes('pin-token-confirm-boxes');
   const errEl = document.getElementById('pin-token-error');
   if (pin.length !== 4) { errEl.textContent = 'Enter all 4 digits.'; errEl.style.display = 'block'; return; }
+  if (pin !== confirm) { errEl.textContent = 'PINs do not match.'; errEl.style.display = 'block'; clearPinBoxes('pin-token-confirm-boxes'); return; }
   const btn = document.getElementById('pin-token-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   try {
