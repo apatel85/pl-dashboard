@@ -2238,14 +2238,15 @@ tbody tr:hover { background: var(--surface2); }
     </div>
 
     <!-- PIN reset panel (forgot PIN) -->
+    <!-- PIN reset: request email -->
     <div id="pin-reset-panel" style="display:none">
       <div style="font-size:36px;margin-bottom:12px">🔓</div>
       <div style="font-size:15px;font-weight:600;color:#e8eaf0;margin-bottom:8px">Reset your PIN</div>
       <div style="font-size:13px;color:#6b7394;margin-bottom:24px;line-height:1.6">
-        Enter the email linked to your account and set a new 4-digit PIN.
+        Enter the email linked to your account. We'll send you a link to set a new PIN.
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:14px;text-align:left;margin-bottom:16px">
+      <div style="text-align:left;margin-bottom:16px">
         <label style="font-size:12px;color:#6b7394;font-weight:600">
           Registered email
           <input id="pin-reset-email" type="email" autocomplete="email"
@@ -2255,28 +2256,48 @@ tbody tr:hover { background: var(--surface2); }
                    border:1px solid #2a3045;border-radius:8px;outline:none;
                    font-family:'DM Sans',sans-serif;box-sizing:border-box">
         </label>
-        <div>
-          <div style="font-size:12px;color:#6b7394;font-weight:600;margin-bottom:8px">New PIN</div>
-          <div class="pin-boxes" id="pin-reset-boxes">
-            <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="0">
-            <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="1">
-            <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="2">
-            <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="3">
-          </div>
-        </div>
       </div>
 
       <div id="pin-reset-error" style="display:none;margin-top:8px;margin-bottom:8px;padding:10px 14px;background:#2a1515;border:1px solid #e74c3c;border-radius:8px;font-size:13px;color:#f1948a"></div>
+
+      <div id="pin-reset-success" style="display:none;margin-top:8px;margin-bottom:8px;padding:12px 14px;background:#1a2a1a;border:1px solid #2ecc71;border-radius:8px;font-size:13px;color:#2ecc71;line-height:1.6"></div>
 
       <button onclick="submitPinReset()" id="pin-reset-btn" style="
         width:100%;padding:12px;border-radius:8px;border:none;
         background:#0ecfbe;color:#0f1117;font-family:'DM Sans',sans-serif;
         font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;
-      ">Reset PIN</button>
+      ">Send Reset Link</button>
 
       <div style="margin-top:14px">
         <a href="#" onclick="showPinEntry(authUser&&authUser.email||''); return false;" style="color:#0ecfbe;font-size:12px;text-decoration:none">← Back to PIN entry</a>
       </div>
+    </div>
+
+    <!-- PIN reset: set new PIN via token (from email link) -->
+    <div id="pin-token-panel" style="display:none">
+      <div style="font-size:36px;margin-bottom:12px">🔑</div>
+      <div style="font-size:15px;font-weight:600;color:#e8eaf0;margin-bottom:8px">Set your new PIN</div>
+      <div style="font-size:13px;color:#6b7394;margin-bottom:24px;line-height:1.6">
+        Choose a new 4-digit PIN for your account.
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;color:#6b7394;font-weight:600;text-align:left;margin-bottom:8px">New PIN</div>
+        <div class="pin-boxes" id="pin-token-boxes">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="0">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="1">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="2">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin-box" data-idx="3">
+        </div>
+      </div>
+
+      <div id="pin-token-error" style="display:none;margin-top:8px;margin-bottom:8px;padding:10px 14px;background:#2a1515;border:1px solid #e74c3c;border-radius:8px;font-size:13px;color:#f1948a"></div>
+
+      <button onclick="submitTokenPinReset()" id="pin-token-btn" style="
+        width:100%;padding:12px;border-radius:8px;border:none;
+        background:#0ecfbe;color:#0f1117;font-family:'DM Sans',sans-serif;
+        font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;
+      ">Set New PIN</button>
     </div>
 
   </div>
@@ -6477,11 +6498,15 @@ function showPinReset() {
   document.getElementById('pin-entry-panel').style.display = 'none';
   document.getElementById('pin-setup-panel').style.display = 'none';
   document.getElementById('pin-reset-panel').style.display = 'block';
+  const tokenPanel = document.getElementById('pin-token-panel');
+  if (tokenPanel) tokenPanel.style.display = 'none';
   const errEl = document.getElementById('pin-reset-error');
   if (errEl) errEl.style.display = 'none';
+  const sucEl = document.getElementById('pin-reset-success');
+  if (sucEl) sucEl.style.display = 'none';
   const emailInput = document.getElementById('pin-reset-email');
   if (emailInput && authUser) emailInput.value = authUser.email || '';
-  setTimeout(() => { initPinBoxes('pin-reset-boxes'); clearPinBoxes('pin-reset-boxes'); }, 80);
+  if (emailInput) setTimeout(() => emailInput.focus(), 80);
 }
 
 async function submitPinSetup() {
@@ -6538,19 +6563,68 @@ async function submitPinVerify() {
 
 async function submitPinReset() {
   const email = (document.getElementById('pin-reset-email').value || '').trim().toLowerCase();
-  const pin = getPinFromBoxes('pin-reset-boxes');
   const errEl = document.getElementById('pin-reset-error');
+  const sucEl = document.getElementById('pin-reset-success');
+  if (errEl) errEl.style.display = 'none';
+  if (sucEl) sucEl.style.display = 'none';
   if (!email || !email.includes('@')) { errEl.textContent = 'Enter your registered email.'; errEl.style.display = 'block'; return; }
-  if (pin.length !== 4) { errEl.textContent = 'Enter all 4 digits for your new PIN.'; errEl.style.display = 'block'; return; }
   const btn = document.getElementById('pin-reset-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Resetting…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
-    const res = await supaFetch('/rest/v1/rpc/reset_user_pin', {
+    const res = await fetch(SUPA_URL + '/functions/v1/send-pin-reset', {
       method: 'POST',
-      body: JSON.stringify({ p_email: email, p_new_pin: pin })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (data && data.success) {
+      sucEl.innerHTML = 'Check your inbox for <strong>' + escapeHtml(email) + '</strong>. Click the link in the email to set a new PIN.<br><br>The link expires in 15 minutes.';
+      sucEl.style.display = 'block';
+      if (btn) btn.style.display = 'none';
+    } else {
+      errEl.textContent = (data && data.error) || 'Could not send reset email.';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = 'Network error — try again.';
+    errEl.style.display = 'block';
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Send Reset Link'; }
+}
+
+let _pinResetToken = null;
+function showTokenPinReset(token) {
+  _pinResetToken = token;
+  const screen = document.getElementById('pin-screen');
+  if (screen) screen.style.display = 'flex';
+  document.getElementById('pin-entry-panel').style.display = 'none';
+  document.getElementById('pin-setup-panel').style.display = 'none';
+  document.getElementById('pin-reset-panel').style.display = 'none';
+  document.getElementById('pin-token-panel').style.display = 'block';
+  const errEl = document.getElementById('pin-token-error');
+  if (errEl) errEl.style.display = 'none';
+  setTimeout(() => { initPinBoxes('pin-token-boxes'); clearPinBoxes('pin-token-boxes'); }, 80);
+}
+
+async function submitTokenPinReset() {
+  const pin = getPinFromBoxes('pin-token-boxes');
+  const errEl = document.getElementById('pin-token-error');
+  if (pin.length !== 4) { errEl.textContent = 'Enter all 4 digits.'; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('pin-token-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const res = await supaFetch('/rest/v1/rpc/complete_pin_reset', {
+      method: 'POST',
+      body: JSON.stringify({ p_token: _pinResetToken, p_new_pin: pin })
     });
     if (res && res.success) {
-      showPinEntry(email);
+      _pinResetToken = null;
+      const url = new URL(window.location);
+      url.searchParams.delete('reset_pin');
+      window.history.replaceState({}, '', url);
+      document.getElementById('pin-token-panel').style.display = 'none';
+      document.getElementById('pin-screen').style.display = 'none';
+      toast('PIN has been reset. Sign in to continue.', 'success', { duration: 5000 });
     } else {
       errEl.textContent = (res && res.error) || 'Could not reset PIN.';
       errEl.style.display = 'block';
@@ -6559,7 +6633,7 @@ async function submitPinReset() {
     errEl.textContent = 'Network error — try again.';
     errEl.style.display = 'block';
   }
-  if (btn) { btn.disabled = false; btn.textContent = 'Reset PIN'; }
+  if (btn) { btn.disabled = false; btn.textContent = 'Set New PIN'; }
 }
 
 function dismissPinScreen() {
@@ -6576,11 +6650,10 @@ function signOutFromPin() {
   authUser = null;
   _pinVerifiedThisSession = false;
   stopInactivityTimer();
-  const screen = document.getElementById('pin-screen');
-  if (screen) screen.style.display = 'none';
-  const gate = document.getElementById('auth-gate');
-  if (gate) gate.style.display = 'none';
-  showLanding();
+  if (window.google && google.accounts) {
+    google.accounts.id.disableAutoSelect();
+  }
+  window.location.reload();
 }
 
 function startInactivityTimer() {
@@ -7383,8 +7456,22 @@ function addSignOutButton() {
 
   // On load, decide: cached session → straight to app; no session + first
   // visit → landing; no session + already dismissed landing → show auth gate.
+  (function checkResetPinToken() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('reset_pin');
+    if (token) {
+      const gate = document.getElementById('auth-gate');
+      if (gate) gate.style.display = 'none';
+      const landing = document.getElementById('landing-page');
+      if (landing) landing.classList.remove('show');
+      showTokenPinReset(token);
+      return;
+    }
+  })();
+
   (function decideLandingOrAuth() {
     function check() {
+      if (new URLSearchParams(window.location.search).get('reset_pin')) return;
       let hasSession = false;
       try {
         const raw = localStorage.getItem('pl_auth_session_v1');
