@@ -299,6 +299,9 @@ body {
 .chart-title span { font-size: 10px; color: var(--muted); font-weight: 400; }
 .chart-wrap { position: relative; height: 220px; }
 
+/* Reports: category breakdown split (chart + table) collapses on narrow screens */
+@media (max-width: 760px) { .rpt-split { grid-template-columns: 1fr !important; } }
+
 /* ── Tables ── */
 .table-card {
   background: var(--surface);
@@ -2414,6 +2417,7 @@ tbody tr:hover { background: var(--surface2); }
   <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:8px auto 16px"></div>
   <div onclick="showView('transactions-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">📋</span> All Transactions</div>
   <div onclick="showView('monthly-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">📅</span> Monthly P&L</div>
+  <div onclick="showView('reports-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">📈</span> Reports</div>
   <div onclick="showView('upload-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">⬆</span> Import CSV/Excel</div>
   <div onclick="showView('categories-view');renderCategoryManager();closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">🏷</span> Categories</div>
   <div onclick="showView('sync-view');closeMoreDrawer()" style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;color:var(--text);font-size:14px"><span style="width:24px;text-align:center">🔄</span> File Sync</div>
@@ -2451,6 +2455,9 @@ tbody tr:hover { background: var(--surface2); }
       </div>
       <div class="nav-item" onclick="showView('monthly-view')" id="nav-monthly">
         <span class="nav-icon">📅</span> Monthly P&amp;L
+      </div>
+      <div class="nav-item" onclick="showView('reports-view')" id="nav-reports">
+        <span class="nav-icon">📈</span> Reports
       </div>
     </div>
     <hr class="sidebar-divider">
@@ -2627,6 +2634,42 @@ tbody tr:hover { background: var(--surface2); }
           </table>
         </div>
       </div>
+    </div>
+
+    <!-- ═══════════════ REPORTS ═══════════════ -->
+    <div id="reports-view" class="view">
+      <div class="page-header">
+        <div class="page-title">Reports <small>Financial statements &amp; analysis — pick a report and time frame</small></div>
+        <div class="page-actions">
+          <button class="btn btn-outline" id="report-print-btn" onclick="printReport()" style="display:none">🖨 Print</button>
+          <button class="btn btn-outline" id="report-export-btn" onclick="exportReportCSV()" style="display:none">⬇ Export CSV</button>
+        </div>
+      </div>
+
+      <!-- Report + time-frame controls -->
+      <div class="table-card" style="padding:16px 20px;margin-bottom:16px">
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end">
+          <div>
+            <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px">Report</label>
+            <select id="report-type" onchange="onReportTypeChange()" style="min-width:220px">
+              <option value="pl">P&amp;L Statement</option>
+              <option value="pl-yoy">P&amp;L — Year-over-Year</option>
+              <option value="expense-breakdown">Expense Breakdown</option>
+              <option value="revenue-breakdown">Revenue Breakdown</option>
+              <option value="monthly-trend">Monthly Trend</option>
+              <option value="quarterly">Quarterly Summary</option>
+            </select>
+          </div>
+          <div id="report-timeframe" style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end"></div>
+          <button class="btn btn-primary" onclick="generateReport()">Generate Report</button>
+        </div>
+      </div>
+
+      <!-- Report output -->
+      <div id="report-output"></div>
+
+      <!-- Suggested reports for this industry -->
+      <div id="report-suggestions" style="margin-top:20px"></div>
     </div>
 
     <!-- ═══════════════ UPLOAD ═══════════════ -->
@@ -3324,6 +3367,7 @@ tbody tr:hover { background: var(--surface2); }
       <div style="display:flex;justify-content:space-between"><span>Backup &amp; Restore</span><span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">g</kbd> <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">b</kbd></span></div>
       <div style="display:flex;justify-content:space-between"><span>Settings</span><span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">g</kbd> <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">s</kbd></span></div>
       <div style="display:flex;justify-content:space-between"><span>Import CSV</span><span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">g</kbd> <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">i</kbd></span></div>
+      <div style="display:flex;justify-content:space-between"><span>Reports</span><span><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">g</kbd> <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">p</kbd></span></div>
     </div>
     <div style="padding:12px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);text-align:center">
       Shortcuts are disabled while typing in inputs. Press <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-family:monospace">Esc</kbd> to close any dialog.
@@ -3374,7 +3418,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.3.0';
+const APP_VERSION       = '8.4.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -4494,7 +4538,7 @@ function updateStorageInfo() {
 //  NAVIGATION
 // ═══════════════════════════════════════════════════════════════════
 
-const VIEWS = ['dashboard','transactions','revenue','expenses','monthly','add','upload','categories','sync','backup','settings'];
+const VIEWS = ['dashboard','transactions','revenue','expenses','monthly','reports','add','upload','categories','sync','backup','settings'];
 
 function softRefresh() {
   const active = document.querySelector('.view.active');
@@ -4516,7 +4560,7 @@ function showView(viewId) {
   if (nav) nav.classList.add('active');
   // sync bottom tab bar
   document.querySelectorAll('.bb-btn').forEach(b=>b.classList.remove('active'));
-  const bbMap={'dashboard-view':'bb-dashboard','revenue-view':'bb-revenue','expenses-view':'bb-expenses','add-view':'bb-add','transactions-view':'bb-more','monthly-view':'bb-more','upload-view':'bb-more','categories-view':'bb-more','sync-view':'bb-more','backup-view':'bb-more','settings-view':'bb-more'};
+  const bbMap={'dashboard-view':'bb-dashboard','revenue-view':'bb-revenue','expenses-view':'bb-expenses','add-view':'bb-add','transactions-view':'bb-more','monthly-view':'bb-more','reports-view':'bb-more','upload-view':'bb-more','categories-view':'bb-more','sync-view':'bb-more','backup-view':'bb-more','settings-view':'bb-more'};
   if(bbMap[viewId]){const bb=document.getElementById(bbMap[viewId]);if(bb)bb.classList.add('active');}
 
   if (viewId==='dashboard-view')    refreshDashboard();
@@ -4524,6 +4568,7 @@ function showView(viewId) {
   if (viewId==='revenue-view')      renderRevTable();
   if (viewId==='expenses-view')     renderExpTable();
   if (viewId==='monthly-view')      renderMonthlyTable();
+  if (viewId==='reports-view')      renderReportsView();
   if (viewId==='add-view')          { renderRecentEntries(); updateCatDatalist(); }
   if (viewId==='backup-view')       { renderSnapshotList(); renderGSheetsPanel(); refreshStorageHealth(); }
   if (viewId==='settings-view')     loadSettingsForm();
@@ -4984,6 +5029,418 @@ async function renderMonthlyTable() {
   if(!monthly.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">No data yet</td></tr>';return;}
   const totRev=monthly.reduce((s,m)=>s+m.revenue,0),totExp=monthly.reduce((s,m)=>s+m.expenses,0),totNet=totRev-totExp;
   tbody.innerHTML=monthly.map(m=>{const mg=m.revenue>0?((m.net/m.revenue)*100).toFixed(1):'0.0';return`<tr><td data-label="Month"><strong>${escapeHtml(m.month)}</strong></td><td data-label="Revenue" class="positive-val">${fmt(m.revenue)}</td><td data-label="Expenses" class="negative-val">${fmt(m.expenses)}</td><td data-label="Net Profit" class="${m.net>=0?'positive-val':'negative-val'}"><strong>${fmt(m.net)}</strong></td><td data-label="Margin %">${mg}%</td></tr>`;}).join('')+`<tr class="total-row"><td data-label="Month">FULL YEAR</td><td data-label="Revenue">${fmt(totRev)}</td><td data-label="Expenses">${fmt(totExp)}</td><td data-label="Net Profit" class="${totNet>=0?'positive-val':'negative-val'}">${fmt(totNet)}</td><td data-label="Margin %">${totRev>0?((totNet/totRev)*100).toFixed(1):'0.0'}%</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  REPORTS
+//  P&L Statement, YoY comparison, and industry-aware analysis reports.
+//  All computation runs client-side over the same IndexedDB records.
+// ═══════════════════════════════════════════════════════════════════
+
+let _reportCharts = {};          // Chart.js instances for the active report
+let _lastReport   = null;        // { title, subtitle, csv:[[...]] } for export/print
+
+// COGS uses the same heuristic as the dashboard so numbers reconcile.
+function isCOGS(cat){ return String(cat||'').toLowerCase().includes('cog'); }
+
+// Parse a transaction's date to a Date, falling back to month/year fields.
+function txnDate(t){
+  if (t.date){ const d=new Date(t.date+(t.date.length===10?'T00:00:00':'')); if(!isNaN(d)) return d; }
+  const mi = MONTHS.indexOf(t.month);
+  if (t.year && mi>=0) return new Date(t.year, mi, 15);
+  return null;
+}
+function txnYear(t){ const d=txnDate(t); return d?d.getFullYear():(t.year||null); }
+
+// Distinct years present in the data, newest first.
+function availableYears(all){
+  const ys=[...new Set(all.map(txnYear).filter(Boolean))].sort((a,b)=>b-a);
+  return ys.length?ys:[new Date().getFullYear()];
+}
+
+function fmtPctOf(v,base){ return base>0 ? (v/base*100).toFixed(1)+'%' : '—'; }
+function fmtPctChange(cur,prev){
+  if(prev===0) return cur===0?'—':(cur>0?'▲ new':'▼');
+  const p=((cur-prev)/Math.abs(prev))*100;
+  return (p>=0?'▲ ':'▼ ')+Math.abs(p).toFixed(1)+'%';
+}
+
+// ── Time-frame resolution ────────────────────────────────────────
+// Returns {start:Date|null, end:Date|null, label:string}; null bounds = unbounded.
+function resolvePreset(preset){
+  const now=new Date(), y=now.getFullYear(), m=now.getMonth(), q=Math.floor(m/3);
+  const eod=d=>{ d.setHours(23,59,59,999); return d; };
+  switch(preset){
+    case 'this-year':    return {start:new Date(y,0,1),       end:eod(new Date(y,11,31)),        label:`FY ${y}`};
+    case 'last-year':    return {start:new Date(y-1,0,1),     end:eod(new Date(y-1,11,31)),      label:`FY ${y-1}`};
+    case 'ytd':          return {start:new Date(y,0,1),       end:eod(new Date()),               label:`YTD ${y}`};
+    case 'this-quarter': return {start:new Date(y,q*3,1),     end:eod(new Date(y,q*3+3,0)),      label:`Q${q+1} ${y}`};
+    case 'last-quarter':{const lq=q===0?3:q-1, ly=q===0?y-1:y;
+                         return {start:new Date(ly,lq*3,1),   end:eod(new Date(ly,lq*3+3,0)),    label:`Q${lq+1} ${ly}`};}
+    case 'this-month':   return {start:new Date(y,m,1),       end:eod(new Date(y,m+1,0)),        label:`${MONTHS[m]} ${y}`};
+    case 'last-month':  {const lm=m===0?11:m-1, ly=m===0?y-1:y;
+                         return {start:new Date(ly,lm,1),     end:eod(new Date(ly,lm+1,0)),      label:`${MONTHS[lm]} ${ly}`};}
+    case 'all':          return {start:null, end:null, label:'All Time'};
+    default:             return {start:new Date(y,0,1),       end:eod(new Date(y,11,31)),        label:`FY ${y}`};
+  }
+}
+function filterByRange(all, start, end){
+  return all.filter(t=>{ const d=txnDate(t); if(!d) return start===null&&end===null;
+    if(start && d<start) return false; if(end && d>end) return false; return true; });
+}
+
+// ── P&L computation ──────────────────────────────────────────────
+function computePL(txns){
+  const rev={}, cogs={}, opex={};
+  txns.forEach(t=>{
+    const cat=t.category||'Uncategorized', amt=+t.amount||0;
+    if(t.type==='revenue') rev[cat]=(rev[cat]||0)+amt;
+    else if(isCOGS(cat))   cogs[cat]=(cogs[cat]||0)+amt;
+    else                   opex[cat]=(opex[cat]||0)+amt;
+  });
+  const sum=o=>Object.values(o).reduce((s,v)=>s+v,0);
+  const totalRev=sum(rev), totalCogs=sum(cogs), totalOpex=sum(opex);
+  const grossProfit=totalRev-totalCogs, netProfit=grossProfit-totalOpex;
+  return {rev,cogs,opex,totalRev,totalCogs,totalOpex,grossProfit,netProfit,count:txns.length};
+}
+const _sortCats=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
+
+// ── View lifecycle ───────────────────────────────────────────────
+async function renderReportsView(){
+  const all=await dbGetAll();
+  buildTimeframeControls();
+  renderReportSuggestions(all);
+  if(!all.length){
+    document.getElementById('report-output').innerHTML=
+      '<div class="table-card" style="padding:40px;text-align:center;color:var(--muted)">'+
+      '<div style="font-size:32px;margin-bottom:8px">📈</div>No data yet — import or add transactions to generate reports.</div>';
+    document.getElementById('report-print-btn').style.display='none';
+    document.getElementById('report-export-btn').style.display='none';
+    return;
+  }
+  generateReport();
+}
+
+function onReportTypeChange(){ buildTimeframeControls(); }
+
+// Build the time-frame selector appropriate to the chosen report.
+async function buildTimeframeControls(){
+  const type=document.getElementById('report-type').value;
+  const wrap=document.getElementById('report-timeframe');
+  const all=await dbGetAll();
+  const years=availableYears(all);
+  const lbl=t=>`<label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px">${t}</label>`;
+  if(type==='pl' || type==='expense-breakdown' || type==='revenue-breakdown'){
+    wrap.innerHTML=
+      `<div>${lbl('Time Frame')}<select id="rt-preset" onchange="onPresetChange()" style="min-width:170px">
+         <option value="this-year">This Year</option>
+         <option value="last-year">Last Year</option>
+         <option value="ytd">Year to Date</option>
+         <option value="this-quarter">This Quarter</option>
+         <option value="last-quarter">Last Quarter</option>
+         <option value="this-month">This Month</option>
+         <option value="last-month">Last Month</option>
+         <option value="all">All Time</option>
+         <option value="custom">Custom Range…</option>
+       </select></div>
+       <div id="rt-custom" style="display:none;gap:12px;align-items:flex-end">
+         <div>${lbl('From')}<input type="date" id="rt-start"></div>
+         <div>${lbl('To')}<input type="date" id="rt-end"></div>
+       </div>`;
+  } else { // pl-yoy, monthly-trend, quarterly → a single year selector
+    const opts=years.map(y=>`<option value="${y}">${y}</option>`).join('');
+    wrap.innerHTML=`<div>${lbl(type==='pl-yoy'?'Compare Year':'Year')}<select id="rt-year" style="min-width:130px">${opts}</select></div>`+
+      (type==='pl-yoy'?`<div style="font-size:12px;color:var(--muted);padding-bottom:9px">vs. prior year</div>`:'');
+  }
+}
+function onPresetChange(){
+  const c=document.getElementById('rt-custom');
+  if(c) c.style.display=document.getElementById('rt-preset').value==='custom'?'flex':'none';
+}
+
+// Read current time-frame controls into {start,end,label}.
+function readTimeframe(){
+  const preset=document.getElementById('rt-preset');
+  if(!preset) return resolvePreset('this-year');
+  if(preset.value==='custom'){
+    const sv=document.getElementById('rt-start').value, ev=document.getElementById('rt-end').value;
+    const start=sv?new Date(sv+'T00:00:00'):null;
+    const end=ev?new Date(ev+'T23:59:59'):null;
+    const label=`${sv||'start'} → ${ev||'today'}`;
+    return {start,end,label};
+  }
+  return resolvePreset(preset.value);
+}
+
+// ── Report dispatch ──────────────────────────────────────────────
+async function generateReport(){
+  const all=await dbGetAll();
+  if(!all.length){ renderReportsView(); return; }
+  Object.values(_reportCharts).forEach(c=>{try{c.destroy();}catch(e){}}); _reportCharts={};
+  const type=document.getElementById('report-type').value;
+  const out=document.getElementById('report-output');
+  let model;
+  try{
+    if(type==='pl')                    model=buildPLReport(all);
+    else if(type==='pl-yoy')           model=buildYoYReport(all);
+    else if(type==='expense-breakdown')model=buildBreakdownReport(all,'expense');
+    else if(type==='revenue-breakdown')model=buildBreakdownReport(all,'revenue');
+    else if(type==='monthly-trend')    model=buildMonthlyTrendReport(all);
+    else if(type==='quarterly')        model=buildQuarterlyReport(all);
+  }catch(e){ out.innerHTML=`<div class="table-card" style="padding:24px;color:var(--red)">Failed to build report: ${escapeHtml(e.message)}</div>`; return; }
+  _lastReport={title:model.title, subtitle:model.subtitle, csv:model.csv};
+  out.innerHTML=
+    `<div class="page-header" style="margin-bottom:12px">
+       <div class="page-title" style="font-size:22px">${escapeHtml(model.title)}
+         <small>${escapeHtml(settings.bizName||'Your Business')} · ${escapeHtml(model.subtitle)}</small></div>
+     </div>${model.html}`;
+  (model.charts||[]).forEach(fn=>{try{fn();}catch(e){}});
+  document.getElementById('report-print-btn').style.display='';
+  document.getElementById('report-export-btn').style.display='';
+}
+
+// ── Shared statement renderer ────────────────────────────────────
+const _secRow=(t)=>`<tr><td colspan="3" style="padding:14px 12px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600">${escapeHtml(t)}</td></tr>`;
+const _lineRow=(name,amt,base)=>`<tr><td style="padding:5px 12px 5px 28px">${escapeHtml(name)}</td><td style="text-align:right;padding:5px 12px">${fmt(amt)}</td><td style="text-align:right;padding:5px 12px;color:var(--muted)">${fmtPctOf(amt,base)}</td></tr>`;
+const _subRow=(name,amt,base,cls='')=>`<tr class="total-row"><td style="padding:8px 12px"><strong>${escapeHtml(name)}</strong></td><td class="${cls}" style="text-align:right;padding:8px 12px"><strong>${fmt(amt)}</strong></td><td style="text-align:right;padding:8px 12px">${fmtPctOf(amt,base)}</td></tr>`;
+
+function buildPLReport(all){
+  const tf=readTimeframe();
+  const p=computePL(filterByRange(all,tf.start,tf.end));
+  const R=p.totalRev;
+  let rows=_secRow('Revenue');
+  _sortCats(p.rev).forEach(([c,v])=>rows+=_lineRow(c,v,R));
+  rows+=_subRow('Total Revenue',R,R,'positive-val');
+  if(p.totalCogs>0){
+    rows+=_secRow('Cost of Goods Sold');
+    _sortCats(p.cogs).forEach(([c,v])=>rows+=_lineRow(c,v,R));
+    rows+=_subRow('Total COGS',p.totalCogs,R,'negative-val');
+    rows+=_subRow('Gross Profit',p.grossProfit,R,p.grossProfit>=0?'positive-val':'negative-val');
+  }
+  rows+=_secRow('Operating Expenses');
+  _sortCats(p.opex).forEach(([c,v])=>rows+=_lineRow(c,v,R));
+  rows+=_subRow('Total Operating Expenses',p.totalOpex,R,'negative-val');
+  rows+=`<tr class="total-row" style="border-top:2px solid var(--border)"><td style="padding:12px"><strong style="font-size:15px">Net ${p.netProfit>=0?'Profit':'Loss'}</strong></td><td class="${p.netProfit>=0?'positive-val':'negative-val'}" style="text-align:right;padding:12px"><strong style="font-size:15px">${fmt(p.netProfit)}</strong></td><td style="text-align:right;padding:12px"><strong>${fmtPctOf(p.netProfit,R)}</strong></td></tr>`;
+  const html=
+    `<div class="kpi-grid" style="margin-bottom:16px">
+       <div class="kpi-card teal"><div class="kpi-label">Total Revenue</div><div class="kpi-value positive">${fmt(R)}</div><div class="kpi-sub">${p.count.toLocaleString()} transactions</div></div>
+       <div class="kpi-card amber"><div class="kpi-label">Gross Profit</div><div class="kpi-value amber">${fmt(p.grossProfit)}</div><div class="kpi-sub">Margin ${fmtPctOf(p.grossProfit,R)}</div></div>
+       <div class="kpi-card red"><div class="kpi-label">Total Expenses</div><div class="kpi-value negative">${fmt(p.totalCogs+p.totalOpex)}</div><div class="kpi-sub">COGS + operating</div></div>
+       <div class="kpi-card ${p.netProfit>=0?'green':'red'}"><div class="kpi-label">Net ${p.netProfit>=0?'Profit':'Loss'}</div><div class="kpi-value ${p.netProfit>=0?'positive':'negative'}">${fmt(p.netProfit)}</div><div class="kpi-sub">Net margin ${fmtPctOf(p.netProfit,R)}</div></div>
+     </div>
+     <div class="table-card"><div class="table-wrap"><table>
+       <thead><tr><th>Line Item</th><th style="text-align:right">Amount</th><th style="text-align:right">% of Revenue</th></tr></thead>
+       <tbody>${rows}</tbody></table></div></div>`;
+  const csv=[['Line Item','Amount','% of Revenue']];
+  csv.push(['REVENUE','','']); _sortCats(p.rev).forEach(([c,v])=>csv.push([c,v.toFixed(2),fmtPctOf(v,R)]));
+  csv.push(['Total Revenue',R.toFixed(2),'100%']);
+  if(p.totalCogs>0){ csv.push(['COST OF GOODS SOLD','','']); _sortCats(p.cogs).forEach(([c,v])=>csv.push([c,v.toFixed(2),fmtPctOf(v,R)]));
+    csv.push(['Total COGS',p.totalCogs.toFixed(2),fmtPctOf(p.totalCogs,R)]); csv.push(['Gross Profit',p.grossProfit.toFixed(2),fmtPctOf(p.grossProfit,R)]); }
+  csv.push(['OPERATING EXPENSES','','']); _sortCats(p.opex).forEach(([c,v])=>csv.push([c,v.toFixed(2),fmtPctOf(v,R)]));
+  csv.push(['Total Operating Expenses',p.totalOpex.toFixed(2),fmtPctOf(p.totalOpex,R)]);
+  csv.push([`Net ${p.netProfit>=0?'Profit':'Loss'}`,p.netProfit.toFixed(2),fmtPctOf(p.netProfit,R)]);
+  return {title:'Profit & Loss Statement', subtitle:tf.label, html, csv};
+}
+
+function buildYoYReport(all){
+  const year=parseInt(document.getElementById('rt-year').value)||new Date().getFullYear();
+  const prev=year-1;
+  const curTx=all.filter(t=>txnYear(t)===year), prevTx=all.filter(t=>txnYear(t)===prev);
+  const pc=computePL(curTx), pp=computePL(prevTx);
+  const chgCell=(c,p)=>{const d=c-p; return `<td style="text-align:right;padding:6px 12px" class="${d>=0?'positive-val':'negative-val'}">${d>=0?'+':'−'}${fmt(Math.abs(d)).replace(/^[^\d(]*/,'')}</td><td style="text-align:right;padding:6px 12px;color:var(--muted)">${fmtPctChange(c,p)}</td>`;};
+  const line=(name,c,p,bold)=>`<tr${bold?' class="total-row"':''}><td style="padding:${bold?8:5}px 12px${bold?'':' 5px 28px'}">${bold?'<strong>'+escapeHtml(name)+'</strong>':escapeHtml(name)}</td><td style="text-align:right;padding:6px 12px">${fmt(p)}</td><td style="text-align:right;padding:6px 12px">${fmt(c)}</td>${chgCell(c,p)}</tr>`;
+  // Union of categories per section, ordered by current-year size.
+  const union=(a,b)=>[...new Set([...Object.keys(a),...Object.keys(b)])].sort((x,y)=>(b[y]||0)+(a[y]||0)-((b[x]||0)+(a[x]||0)));
+  let rows=_secRow('Revenue');
+  union(pc.rev,pp.rev).forEach(c=>rows+=line(c,pc.rev[c]||0,pp.rev[c]||0));
+  rows+=line('Total Revenue',pc.totalRev,pp.totalRev,true);
+  if(pc.totalCogs>0||pp.totalCogs>0){
+    rows+=_secRow('Cost of Goods Sold');
+    union(pc.cogs,pp.cogs).forEach(c=>rows+=line(c,pc.cogs[c]||0,pp.cogs[c]||0));
+    rows+=line('Total COGS',pc.totalCogs,pp.totalCogs,true);
+    rows+=line('Gross Profit',pc.grossProfit,pp.grossProfit,true);
+  }
+  rows+=_secRow('Operating Expenses');
+  union(pc.opex,pp.opex).forEach(c=>rows+=line(c,pc.opex[c]||0,pp.opex[c]||0));
+  rows+=line('Total Operating Expenses',pc.totalOpex,pp.totalOpex,true);
+  rows+=`<tr class="total-row" style="border-top:2px solid var(--border)"><td style="padding:12px"><strong>Net ${pc.netProfit>=0?'Profit':'Loss'}</strong></td><td style="text-align:right;padding:12px">${fmt(pp.netProfit)}</td><td style="text-align:right;padding:12px">${fmt(pc.netProfit)}</td>${chgCell(pc.netProfit,pp.netProfit)}</tr>`;
+  const html=
+    `<div class="chart-card" style="margin-bottom:16px"><div class="chart-title">${prev} vs ${year} <span>Key metrics</span></div><div class="chart-wrap"><canvas id="rpt-yoy-chart"></canvas></div></div>
+     <div class="table-card"><div class="table-wrap"><table>
+       <thead><tr><th>Line Item</th><th style="text-align:right">${prev}</th><th style="text-align:right">${year}</th><th style="text-align:right">Change</th><th style="text-align:right">%</th></tr></thead>
+       <tbody>${rows}</tbody></table></div></div>`;
+  const charts=[()=>{
+    const tc=themeColors();
+    _reportCharts.yoy=new Chart(document.getElementById('rpt-yoy-chart'),{type:'bar',
+      data:{labels:['Revenue','Gross Profit','Op. Expenses','Net Profit'],
+        datasets:[{label:String(prev),data:[pp.totalRev,pp.grossProfit,pp.totalOpex,pp.netProfit],backgroundColor:'#6b739499',borderColor:'#6b7394',borderWidth:1.5,borderRadius:4},
+                  {label:String(year),data:[pc.totalRev,pc.grossProfit,pc.totalOpex,pc.netProfit],backgroundColor:'#0ecfbe99',borderColor:'#0ecfbe',borderWidth:1.5,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11},color:tc.muted}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}}},scales:{x:{grid:{color:tc.gridLine},ticks:{color:tc.muted,font:{size:11}}},y:{grid:{color:tc.gridLine},ticks:{color:tc.muted,font:{size:11},callback:v=>fmt(v)}}}}});
+  }];
+  const csv=[['Line Item',String(prev),String(year),'Change','% Change']];
+  const cRow=(n,c,p)=>csv.push([n,p.toFixed(2),c.toFixed(2),(c-p).toFixed(2),fmtPctChange(c,p).replace(/[▲▼]/g,'').trim()]);
+  cRow('Total Revenue',pc.totalRev,pp.totalRev);
+  cRow('Total COGS',pc.totalCogs,pp.totalCogs);
+  cRow('Gross Profit',pc.grossProfit,pp.grossProfit);
+  cRow('Total Operating Expenses',pc.totalOpex,pp.totalOpex);
+  cRow('Net Profit',pc.netProfit,pp.netProfit);
+  return {title:'P&L — Year-over-Year', subtitle:`${prev} vs ${year}`, html, charts, csv};
+}
+
+function buildBreakdownReport(all,type){
+  const tf=readTimeframe();
+  const txns=filterByRange(all,tf.start,tf.end).filter(t=>t.type===type);
+  const map={}; txns.forEach(t=>{const c=t.category||'Uncategorized'; map[c]=(map[c]||0)+(+t.amount||0);});
+  const rows=_sortCats(map); const total=rows.reduce((s,r)=>s+r[1],0);
+  const COLS=['#0ecfbe','#f5a623','#e74c3c','#27ae60','#3498db','#9b59b6','#e67e22','#e91e63','#8bc34a','#ff9800'];
+  const pos=type==='revenue';
+  let body=rows.map(([c,v],i)=>`<tr><td style="padding:8px 12px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${COLS[i%COLS.length]};margin-right:8px"></span>${escapeHtml(c)}</td><td class="${pos?'positive-val':'negative-val'}" style="text-align:right;padding:8px 12px">${fmt(v)}</td><td style="text-align:right;padding:8px 12px;color:var(--muted)">${fmtPctOf(v,total)}</td></tr>`).join('');
+  body+=`<tr class="total-row"><td style="padding:10px 12px"><strong>Total</strong></td><td style="text-align:right;padding:10px 12px"><strong>${fmt(total)}</strong></td><td style="text-align:right;padding:10px 12px">100%</td></tr>`;
+  const html=
+    `<div style="display:grid;grid-template-columns:minmax(260px,1fr) 2fr;gap:16px" class="rpt-split">
+       <div class="chart-card"><div class="chart-title">${pos?'Revenue':'Expenses'} by Category</div><div class="chart-wrap"><canvas id="rpt-bd-chart"></canvas></div></div>
+       <div class="table-card"><div class="table-wrap"><table>
+         <thead><tr><th>Category</th><th style="text-align:right">Amount</th><th style="text-align:right">% of Total</th></tr></thead>
+         <tbody>${body}</tbody></table></div></div>
+     </div>`;
+  const charts=[()=>{
+    const tc=themeColors();
+    _reportCharts.bd=new Chart(document.getElementById('rpt-bd-chart'),{type:'doughnut',
+      data:{labels:rows.map(r=>r[0]),datasets:[{data:rows.map(r=>r[1]),backgroundColor:rows.map((_,i)=>COLS[i%COLS.length]),borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:8,font:{size:11},color:tc.muted}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.raw)} (${fmtPctOf(ctx.raw,total)})`}}}}});
+  }];
+  const csv=[['Category','Amount','% of Total'],...rows.map(([c,v])=>[c,v.toFixed(2),fmtPctOf(v,total)]),['Total',total.toFixed(2),'100%']];
+  return {title:(pos?'Revenue':'Expense')+' Breakdown', subtitle:tf.label, html, charts, csv};
+}
+
+function buildMonthlyTrendReport(all){
+  const year=parseInt(document.getElementById('rt-year').value)||new Date().getFullYear();
+  const map={}; MONTHS.forEach(m=>map[m]={revenue:0,expenses:0});
+  all.filter(t=>txnYear(t)===year).forEach(t=>{const d=txnDate(t); const mo=d?MONTHS[d.getMonth()]:t.month; if(!map[mo])map[mo]={revenue:0,expenses:0}; if(t.type==='revenue')map[mo].revenue+=(+t.amount||0); else map[mo].expenses+=(+t.amount||0);});
+  const data=MONTHS.map(m=>({month:m,...map[m],net:map[m].revenue-map[m].expenses}));
+  const active=data.filter(m=>m.revenue>0||m.expenses>0);
+  const tR=active.reduce((s,m)=>s+m.revenue,0),tE=active.reduce((s,m)=>s+m.expenses,0),tN=tR-tE;
+  let body=active.map(m=>{const mg=m.revenue>0?((m.net/m.revenue)*100).toFixed(1):'0.0';return`<tr><td style="padding:7px 12px"><strong>${m.month}</strong></td><td class="positive-val" style="text-align:right;padding:7px 12px">${fmt(m.revenue)}</td><td class="negative-val" style="text-align:right;padding:7px 12px">${fmt(m.expenses)}</td><td class="${m.net>=0?'positive-val':'negative-val'}" style="text-align:right;padding:7px 12px"><strong>${fmt(m.net)}</strong></td><td style="text-align:right;padding:7px 12px;color:var(--muted)">${mg}%</td></tr>`;}).join('');
+  body+=`<tr class="total-row"><td style="padding:9px 12px">FY ${year}</td><td style="text-align:right;padding:9px 12px">${fmt(tR)}</td><td style="text-align:right;padding:9px 12px">${fmt(tE)}</td><td class="${tN>=0?'positive-val':'negative-val'}" style="text-align:right;padding:9px 12px">${fmt(tN)}</td><td style="text-align:right;padding:9px 12px">${tR>0?((tN/tR)*100).toFixed(1):'0.0'}%</td></tr>`;
+  const html=
+    `<div class="chart-card" style="margin-bottom:16px"><div class="chart-title">Monthly Trend <span>${year}</span></div><div class="chart-wrap"><canvas id="rpt-trend-chart"></canvas></div></div>
+     <div class="table-card"><div class="table-wrap"><table>
+       <thead><tr><th>Month</th><th style="text-align:right">Revenue</th><th style="text-align:right">Expenses</th><th style="text-align:right">Net Profit</th><th style="text-align:right">Margin</th></tr></thead>
+       <tbody>${body}</tbody></table></div></div>`;
+  const charts=[()=>{
+    const tc=themeColors(); const lbls=active.map(m=>m.month);
+    _reportCharts.trend=new Chart(document.getElementById('rpt-trend-chart'),{type:'line',
+      data:{labels:lbls,datasets:[
+        {label:'Revenue',data:active.map(m=>m.revenue),borderColor:'#0ecfbe',backgroundColor:'#0ecfbe20',borderWidth:2,tension:.3,pointRadius:3},
+        {label:'Expenses',data:active.map(m=>m.expenses),borderColor:'#e74c3c',backgroundColor:'#e74c3c20',borderWidth:2,tension:.3,pointRadius:3},
+        {label:'Net',data:active.map(m=>m.net),borderColor:'#f5a623',backgroundColor:'#f5a62320',borderWidth:2.5,tension:.3,pointRadius:3,fill:true}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11},color:tc.muted}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}}},scales:{x:{grid:{color:tc.gridLine},ticks:{color:tc.muted,font:{size:11}}},y:{grid:{color:tc.gridLine},ticks:{color:tc.muted,font:{size:11},callback:v=>fmt(v)}}}}});
+  }];
+  const csv=[['Month','Revenue','Expenses','Net Profit','Margin %'],
+    ...active.map(m=>[m.month,m.revenue.toFixed(2),m.expenses.toFixed(2),m.net.toFixed(2),(m.revenue>0?((m.net/m.revenue)*100).toFixed(1):'0.0')]),
+    [`FY ${year}`,tR.toFixed(2),tE.toFixed(2),tN.toFixed(2),(tR>0?((tN/tR)*100).toFixed(1):'0.0')]];
+  return {title:'Monthly Trend', subtitle:`FY ${year}`, html, charts, csv};
+}
+
+function buildQuarterlyReport(all){
+  const year=parseInt(document.getElementById('rt-year').value)||new Date().getFullYear();
+  const qs=[0,1,2,3].map(q=>{
+    const tx=all.filter(t=>{const d=txnDate(t); return d&&d.getFullYear()===year&&Math.floor(d.getMonth()/3)===q;});
+    return {q:'Q'+(q+1), ...computePL(tx)};
+  });
+  const tot=computePL(all.filter(t=>txnYear(t)===year));
+  const cell=v=>`<td class="${v>=0?'positive-val':'negative-val'}" style="text-align:right;padding:8px 12px">${fmt(v)}</td>`;
+  let body=qs.map(q=>`<tr><td style="padding:8px 12px"><strong>${q.q}</strong></td><td class="positive-val" style="text-align:right;padding:8px 12px">${fmt(q.totalRev)}</td>${cell(q.grossProfit)}<td class="negative-val" style="text-align:right;padding:8px 12px">${fmt(q.totalOpex)}</td>${cell(q.netProfit)}<td style="text-align:right;padding:8px 12px;color:var(--muted)">${fmtPctOf(q.netProfit,q.totalRev)}</td></tr>`).join('');
+  body+=`<tr class="total-row"><td style="padding:9px 12px">FY ${year}</td><td style="text-align:right;padding:9px 12px">${fmt(tot.totalRev)}</td><td style="text-align:right;padding:9px 12px">${fmt(tot.grossProfit)}</td><td style="text-align:right;padding:9px 12px">${fmt(tot.totalOpex)}</td><td class="${tot.netProfit>=0?'positive-val':'negative-val'}" style="text-align:right;padding:9px 12px">${fmt(tot.netProfit)}</td><td style="text-align:right;padding:9px 12px">${fmtPctOf(tot.netProfit,tot.totalRev)}</td></tr>`;
+  const html=
+    `<div class="chart-card" style="margin-bottom:16px"><div class="chart-title">Quarterly Revenue vs Net <span>${year}</span></div><div class="chart-wrap"><canvas id="rpt-q-chart"></canvas></div></div>
+     <div class="table-card"><div class="table-wrap"><table>
+       <thead><tr><th>Quarter</th><th style="text-align:right">Revenue</th><th style="text-align:right">Gross Profit</th><th style="text-align:right">Op. Expenses</th><th style="text-align:right">Net Profit</th><th style="text-align:right">Net Margin</th></tr></thead>
+       <tbody>${body}</tbody></table></div></div>`;
+  const charts=[()=>{
+    const tc=themeColors();
+    _reportCharts.q=new Chart(document.getElementById('rpt-q-chart'),{type:'bar',
+      data:{labels:qs.map(q=>q.q),datasets:[
+        {label:'Revenue',data:qs.map(q=>q.totalRev),backgroundColor:'#0ecfbe99',borderColor:'#0ecfbe',borderWidth:1.5,borderRadius:4},
+        {label:'Net Profit',data:qs.map(q=>q.netProfit),backgroundColor:'#f5a62399',borderColor:'#f5a623',borderWidth:1.5,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11},color:tc.muted}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}}},scales:{x:{grid:{color:tc.gridLine},ticks:{color:tc.muted,font:{size:11}}},y:{grid:{color:tc.gridLine},ticks:{color:tc.muted,font:{size:11},callback:v=>fmt(v)}}}}});
+  }];
+  const csv=[['Quarter','Revenue','Gross Profit','Operating Expenses','Net Profit','Net Margin %'],
+    ...qs.map(q=>[q.q,q.totalRev.toFixed(2),q.grossProfit.toFixed(2),q.totalOpex.toFixed(2),q.netProfit.toFixed(2),(q.totalRev>0?((q.netProfit/q.totalRev)*100).toFixed(1):'0.0')]),
+    [`FY ${year}`,tot.totalRev.toFixed(2),tot.grossProfit.toFixed(2),tot.totalOpex.toFixed(2),tot.netProfit.toFixed(2),(tot.totalRev>0?((tot.netProfit/tot.totalRev)*100).toFixed(1):'0.0')]];
+  return {title:'Quarterly Summary', subtitle:`FY ${year}`, html, charts, csv};
+}
+
+// ── Industry-aware report suggestions ────────────────────────────
+function renderReportSuggestions(all){
+  const industry=localStorage.getItem(INDUSTRY_PICKED_KEY)||'generic';
+  const hasCOGS=all.some(t=>t.type==='expense'&&isCOGS(t.category));
+  const yrs=availableYears(all);
+  const S=[];
+  S.push({icon:'📉',title:'Expense Breakdown',desc:'Where the money goes, by category — catch cost creep early.',type:'expense-breakdown'});
+  S.push({icon:'📈',title:'Monthly Trend',desc:'Revenue, expenses and net profit month over month.',type:'monthly-trend'});
+  S.push({icon:'🧭',title:'Quarterly Summary',desc:'Q1–Q4 performance for board reviews or tax prep.',type:'quarterly'});
+  if(yrs.length>1) S.push({icon:'📊',title:'Year-over-Year P&L',desc:'Compare this year against last, line by line.',type:'pl-yoy'});
+  const byIndustry={
+    ecommerce:{icon:'📦',title:'Gross Margin & COGS',desc:'Product profitability after cost of goods — the retail lifeline.',type:'pl'},
+    restaurant:{icon:'🍽',title:'Food Cost / Gross Margin',desc:'COGS as a share of sales — the #1 restaurant KPI.',type:'pl'},
+    saas:{icon:'🔁',title:'Recurring Revenue Trend',desc:'Track subscription (MRR) growth month over month.',type:'monthly-trend'},
+    consulting:{icon:'👥',title:'Revenue Concentration',desc:'Which clients & services drive income — cut dependency risk.',type:'revenue-breakdown'}
+  };
+  if(byIndustry[industry]) S.unshift(byIndustry[industry]);
+  if(hasCOGS && industry==='generic') S.push({icon:'💹',title:'Gross Profit Analysis',desc:'Revenue minus COGS, with margin — you have COGS entries.',type:'pl'});
+  const seen=new Set(); const uniq=S.filter(s=>{const k=s.title;if(seen.has(k))return false;seen.add(k);return true;});
+  const cards=uniq.map(s=>
+    `<div onclick="jumpToReport('${s.type}')" style="cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;transition:border-color .15s" onmouseover="this.style.borderColor='var(--teal)'" onmouseout="this.style.borderColor='var(--border)'">
+       <div style="font-size:22px;margin-bottom:6px">${s.icon}</div>
+       <div style="font-weight:600;font-size:14px;margin-bottom:4px">${escapeHtml(s.title)}</div>
+       <div style="font-size:12px;color:var(--muted);line-height:1.5">${escapeHtml(s.desc)}</div>
+     </div>`).join('');
+  document.getElementById('report-suggestions').innerHTML=
+    `<div class="page-title" style="font-size:18px;margin-bottom:4px">Suggested for your business</div>
+     <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Tailored to your ${escapeHtml((INDUSTRY_TEMPLATES[industry]||INDUSTRY_TEMPLATES.generic).name)} data. Click to generate.</div>
+     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">${cards}</div>`;
+}
+function jumpToReport(type){
+  document.getElementById('report-type').value=type;
+  buildTimeframeControls();
+  generateReport();
+  document.getElementById('report-output').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── Export & print ───────────────────────────────────────────────
+function exportReportCSV(){
+  if(!_lastReport){ toast('Generate a report first','info'); return; }
+  const rows=[[_lastReport.title],[settings.bizName||'Your Business',_lastReport.subtitle],[],..._lastReport.csv];
+  const csv=rows.map(r=>r.map(c=>{const s=csvSanitize(c);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\n');
+  const fn=_lastReport.title.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+_lastReport.subtitle.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')+'.csv';
+  download(csv,fn,'text/csv');
+  toast('✓ Report exported','success');
+}
+function printReport(){
+  if(!_lastReport){ toast('Generate a report first','info'); return; }
+  const out=document.getElementById('report-output').cloneNode(true);
+  out.querySelectorAll('canvas, .chart-card').forEach(el=>el.remove());
+  const w=window.open('','_blank');
+  if(!w){ toast('Pop-up blocked — allow pop-ups to print','error'); return; }
+  w.document.write(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(_lastReport.title)}</title>
+     <style>body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:32px;font-size:13px}
+       h1{font-size:20px;margin:0 0 2px}h2{font-size:13px;font-weight:400;color:#555;margin:0 0 20px}
+       table{width:100%;border-collapse:collapse;margin-top:8px}
+       th,td{border-bottom:1px solid #ddd;padding:6px 10px;text-align:left}
+       th{background:#f4f4f4}td:not(:first-child),th:not(:first-child){text-align:right}
+       .total-row td{font-weight:700;background:#f7f7f7}
+       .kpi-grid{display:flex;gap:12px;margin:0 0 16px;flex-wrap:wrap}
+       .kpi-card{border:1px solid #ddd;border-radius:6px;padding:10px 14px;min-width:120px}
+       .kpi-label{font-size:10px;text-transform:uppercase;color:#777}.kpi-value{font-size:16px;font-weight:700;margin:2px 0}.kpi-sub{font-size:10px;color:#777}
+       .positive-val{color:#0a7c4a}.negative-val{color:#b91c1c}
+       @media print{button{display:none}}</style></head>
+     <body><h1>${escapeHtml(_lastReport.title)}</h1>
+     <h2>${escapeHtml(settings.bizName||'Your Business')} &middot; ${escapeHtml(_lastReport.subtitle)} &middot; Generated ${new Date().toLocaleDateString()}</h2>
+     ${out.innerHTML}</body></html>`);
+  w.document.close();
+  setTimeout(()=>{ try{w.focus();w.print();}catch(e){} },300);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -7312,6 +7769,7 @@ function addSignOutButton() {
       else if (k === 'i') showView('upload-view');
       else if (k === 't') showView('transactions-view');
       else if (k === 'm') showView('monthly-view');
+      else if (k === 'p') showView('reports-view');
       e.preventDefault();
       return;
     }
