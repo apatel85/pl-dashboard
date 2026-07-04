@@ -6,15 +6,18 @@
     {
       "version": "8.4.0",
       "date": "2026-07-04",
-      "title": "Reports Tab — P&L Statement, Year-over-Year & Industry Analysis",
-      "summary": "New Reports tab with a proper Profit & Loss statement, a line-by-line Year-over-Year comparison, and four analysis reports. Pick any report, choose a time frame (year, quarter, month, YTD, or a custom date range), then print or export to CSV. Suggested reports adapt to your industry.",
+      "title": "Reports Tab, PDF Export & Configurable Auto Sign-Out",
+      "summary": "New Reports tab with a proper Profit & Loss statement, a line-by-line Year-over-Year comparison, and four analysis reports — printable and exportable to letter-size PDF or CSV. Plus: refreshing the page no longer signs you out (configurable inactivity timer, default 5 min) and a always-visible Sign Out button.",
       "changes": [
         { "type": "new", "text": "P&L Statement: industry-standard common-size income statement — Revenue, COGS, Gross Profit, Operating Expenses and Net Profit, each shown as a dollar amount and as a % of revenue, with KPI summary cards on top." },
         { "type": "new", "text": "P&L Year-over-Year: compares any year against the prior year line by line, with dollar change, % change and up/down arrows, plus a grouped bar chart of Revenue, Gross Profit, Op. Expenses and Net Profit." },
         { "type": "new", "text": "Time-frame selector: This Year, Last Year, Year to Date, This/Last Quarter, This/Last Month, All Time, or a custom From/To date range — resolved consistently across every report." },
         { "type": "new", "text": "Four analysis reports: Expense Breakdown and Revenue Breakdown (doughnut + ranked table with % of total), Monthly Trend (revenue/expense/net line chart), and Quarterly Summary (Q1–Q4 P&L)." },
         { "type": "new", "text": "Industry-aware suggestions: the Reports tab recommends the most useful next reports based on your selected industry template and whether you track COGS." },
-        { "type": "new", "text": "Print & Export: every report exports to a clean CSV (formula-injection sanitized) or opens a print-ready statement in a new window. Jump to Reports with g then p." }
+        { "type": "new", "text": "Save as PDF and Print: every report opens a print-friendly US Letter (8.5 x 11 in) statement — use Print, or Save PDF to save one via the browser's built-in PDF export. CSV export (formula-injection sanitized) is also available. Jump to Reports with g then p." },
+        { "type": "new", "text": "Refreshing the page no longer signs you out. You stay signed in and are only asked to re-enter your PIN (or sign in again) after a period of inactivity." },
+        { "type": "new", "text": "Configurable auto sign-out timer in Settings → Security & Session: choose 1, 5, 15, 30, 60 minutes or Never. Default is 5 minutes. Reduces reliance on the auth server on every refresh." },
+        { "type": "new", "text": "Always-visible Sign Out button in the sidebar (desktop) and the More menu (mobile)." }
       ]
     },
     {

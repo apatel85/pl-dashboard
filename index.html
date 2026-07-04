@@ -2484,6 +2484,9 @@ tbody tr:hover { background: var(--surface2); }
     </div>
     <hr class="sidebar-divider">
     <div class="sidebar-section">
+      <div class="nav-item" onclick="saveAndSignOut()" id="nav-signout" style="margin-top:4px">
+        <span class="nav-icon">🚪</span> Sign Out
+      </div>
       <div class="nav-item btn-danger" onclick="confirmClearData()" style="margin-top:4px">
         <span class="nav-icon">🗑</span> Clear All Data
       </div>
@@ -2642,6 +2645,7 @@ tbody tr:hover { background: var(--surface2); }
         <div class="page-title">Reports <small>Financial statements &amp; analysis — pick a report and time frame</small></div>
         <div class="page-actions">
           <button class="btn btn-outline" id="report-print-btn" onclick="printReport()" style="display:none">🖨 Print</button>
+          <button class="btn btn-outline" id="report-pdf-btn" onclick="exportReportPDF()" style="display:none">📄 Save PDF</button>
           <button class="btn btn-outline" id="report-export-btn" onclick="exportReportCSV()" style="display:none">⬇ Export CSV</button>
         </div>
       </div>
@@ -3140,6 +3144,28 @@ tbody tr:hover { background: var(--surface2); }
       </div>
 
       <div class="settings-card">
+        <h3>Security &amp; Session</h3>
+        <div class="form-row">
+          <label class="form-label">Auto sign-out after inactivity</label>
+          <select class="form-input" id="setting-logout-timer" onchange="onLogoutTimerChange()" style="max-width:220px">
+            <option value="1">1 minute</option>
+            <option value="5">5 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">1 hour</option>
+            <option value="0">Never</option>
+          </select>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.6">
+          Refreshing the page keeps you signed in. You're only asked to re-enter your PIN
+          (or sign in again if you haven't set one) after this much inactivity. Default is 5 minutes.
+        </div>
+        <div style="margin-top:14px">
+          <button class="btn btn-outline" onclick="saveAndSignOut()">🚪 Sign Out Now</button>
+        </div>
+      </div>
+
+      <div class="settings-card">
         <h3>Data Management</h3>
         <div style="font-size:13px;color:var(--muted);margin-bottom:12px" id="data-summary-text">No data loaded.</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -3505,7 +3531,7 @@ const GSHEETS_TOKEN_SESS_KEY = 'pl_gsheets_token_sess';
 
 // ── Global state ──────────────────────────────────────────────────
 let db              = null;
-let settings        = { bizName:'', fiscalYear: new Date().getFullYear(), currency:'$' };
+let settings        = { bizName:'', fiscalYear: new Date().getFullYear(), currency:'$', logoutMinutes: 5 };
 let charts          = {};
 let saveTimer       = null;
 let searchTimer     = null;
@@ -4494,7 +4520,10 @@ function saveSettings() {
   settings.bizName    = document.getElementById('setting-biz-name').value.trim();
   settings.fiscalYear = parseInt(document.getElementById('setting-fiscal-year').value) || new Date().getFullYear();
   settings.currency   = document.getElementById('setting-currency').value.trim() || '$';
+  const ltEl = document.getElementById('setting-logout-timer');
+  if (ltEl) { const v = parseInt(ltEl.value); settings.logoutMinutes = isNaN(v) ? 5 : v; }
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  applyLogoutTimer();
   updateSidebarBiz();
   document.getElementById('qa-currency-prefix').textContent = settings.currency;
   toast('Settings saved', 'success');
@@ -5115,6 +5144,7 @@ async function renderReportsView(){
       '<div class="table-card" style="padding:40px;text-align:center;color:var(--muted)">'+
       '<div style="font-size:32px;margin-bottom:8px">📈</div>No data yet — import or add transactions to generate reports.</div>';
     document.getElementById('report-print-btn').style.display='none';
+    document.getElementById('report-pdf-btn').style.display='none';
     document.getElementById('report-export-btn').style.display='none';
     return;
   }
@@ -5196,6 +5226,7 @@ async function generateReport(){
      </div>${model.html}`;
   (model.charts||[]).forEach(fn=>{try{fn();}catch(e){}});
   document.getElementById('report-print-btn').style.display='';
+  document.getElementById('report-pdf-btn').style.display='';
   document.getElementById('report-export-btn').style.display='';
 }
 
@@ -5417,31 +5448,62 @@ function exportReportCSV(){
   download(csv,fn,'text/csv');
   toast('✓ Report exported','success');
 }
-function printReport(){
+// Build a print-friendly US-Letter (8.5" × 11") document for the current
+// report and open it in a new window. Used by both Print and Save-as-PDF —
+// the only difference is a one-line hint bar shown for the PDF path.
+function openReportDoc(forPdf){
   if(!_lastReport){ toast('Generate a report first','info'); return; }
   const out=document.getElementById('report-output').cloneNode(true);
-  out.querySelectorAll('canvas, .chart-card').forEach(el=>el.remove());
+  // Charts don't reproduce in a cloned window (canvas isn't copied) and the
+  // statement/tables are the print deliverable — drop chart cards cleanly.
+  // The in-app page-header is replaced by the print doc's own h1/h2, so drop it too.
+  out.querySelectorAll('canvas, .chart-card, .page-header').forEach(el=>el.remove());
   const w=window.open('','_blank');
-  if(!w){ toast('Pop-up blocked — allow pop-ups to print','error'); return; }
+  if(!w){ toast('Pop-up blocked — allow pop-ups to '+(forPdf?'save a PDF':'print'),'error'); return; }
+  // The document title becomes the default "Save as PDF" filename.
+  const docTitle=`${_lastReport.title} — ${settings.bizName||'Your Business'} — ${_lastReport.subtitle}`;
+  const hint=forPdf
+    ? `<div class="pdf-hint">📄 To save as PDF: in the print dialog, set <strong>Destination</strong> to <strong>“Save as PDF”</strong>, keep paper size <strong>Letter</strong>, then click Save.
+         <button onclick="window.print()">Open print dialog</button></div>`
+    : '';
   w.document.write(
-    `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(_lastReport.title)}</title>
-     <style>body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:32px;font-size:13px}
-       h1{font-size:20px;margin:0 0 2px}h2{font-size:13px;font-weight:400;color:#555;margin:0 0 20px}
-       table{width:100%;border-collapse:collapse;margin-top:8px}
-       th,td{border-bottom:1px solid #ddd;padding:6px 10px;text-align:left}
+    `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(docTitle)}</title>
+     <style>
+       /* US Letter, 8.5in x 11in, with comfortable print margins */
+       @page { size: 8.5in 11in; margin: 0.5in; }
+       html,body{background:#fff}
+       body{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:12px;line-height:1.5;
+         width:7.5in;margin:0 auto;padding:0.25in 0}
+       h1{font-size:20px;margin:0 0 2px}
+       h2{font-size:12px;font-weight:400;color:#555;margin:0 0 18px}
+       table{width:100%;border-collapse:collapse;margin-top:8px;page-break-inside:auto}
+       tr{page-break-inside:avoid;page-break-after:auto}
+       thead{display:table-header-group}
+       th,td{border-bottom:1px solid #ddd;padding:5px 10px;text-align:left}
        th{background:#f4f4f4}td:not(:first-child),th:not(:first-child){text-align:right}
        .total-row td{font-weight:700;background:#f7f7f7}
-       .kpi-grid{display:flex;gap:12px;margin:0 0 16px;flex-wrap:wrap}
-       .kpi-card{border:1px solid #ddd;border-radius:6px;padding:10px 14px;min-width:120px}
-       .kpi-label{font-size:10px;text-transform:uppercase;color:#777}.kpi-value{font-size:16px;font-weight:700;margin:2px 0}.kpi-sub{font-size:10px;color:#777}
+       .kpi-grid{display:flex;gap:10px;margin:0 0 14px;flex-wrap:wrap}
+       .kpi-card{border:1px solid #ddd;border-radius:6px;padding:8px 12px;min-width:1.4in;flex:1}
+       .kpi-label{font-size:9px;text-transform:uppercase;color:#777}
+       .kpi-value{font-size:15px;font-weight:700;margin:2px 0}.kpi-sub{font-size:9px;color:#777}
        .positive-val{color:#0a7c4a}.negative-val{color:#b91c1c}
-       @media print{button{display:none}}</style></head>
-     <body><h1>${escapeHtml(_lastReport.title)}</h1>
+       .rpt-split{display:block !important}
+       .pdf-hint{background:#eef6ff;border:1px solid #b9d6f5;border-radius:6px;padding:10px 12px;
+         margin-bottom:16px;font-size:12px;color:#1a4d80}
+       .pdf-hint button{margin-left:10px;padding:4px 12px;border:1px solid #1a4d80;background:#fff;
+         color:#1a4d80;border-radius:4px;font-size:12px;cursor:pointer}
+       @media print{ .pdf-hint{display:none} button{display:none} body{width:auto;margin:0} }
+     </style></head>
+     <body>${hint}<h1>${escapeHtml(_lastReport.title)}</h1>
      <h2>${escapeHtml(settings.bizName||'Your Business')} &middot; ${escapeHtml(_lastReport.subtitle)} &middot; Generated ${new Date().toLocaleDateString()}</h2>
      ${out.innerHTML}</body></html>`);
   w.document.close();
-  setTimeout(()=>{ try{w.focus();w.print();}catch(e){} },300);
+  // For direct printing, auto-open the dialog. For PDF, let the user read the
+  // one-line hint first, then trigger it too (they pick "Save as PDF").
+  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, forPdf?450:300);
 }
+function printReport(){ openReportDoc(false); }
+function exportReportPDF(){ openReportDoc(true); toast('Save as PDF in the print dialog (Letter size)','info',{duration:3500}); }
 
 // ═══════════════════════════════════════════════════════════════════
 //  DASHBOARD + CHARTS
@@ -6026,6 +6088,8 @@ async function loadSettingsForm(){
   document.getElementById('setting-biz-name').value=settings.bizName||'';
   document.getElementById('setting-fiscal-year').value=settings.fiscalYear||'';
   document.getElementById('setting-currency').value=settings.currency||'$';
+  const ltEl=document.getElementById('setting-logout-timer');
+  if(ltEl)ltEl.value=String(getLogoutMinutes());
   const n=await dbCount();
   document.getElementById('data-summary-text').textContent=`${n.toLocaleString()} total transactions in IndexedDB`;
   document.getElementById('settings-current-ver').textContent=APP_VERSION;
@@ -6783,7 +6847,29 @@ function authResetAndRetry() {
 // ── Unlock: hide gate, boot the app ──────────────────────────
 let _pinVerifiedThisSession = false;
 let _inactivityTimer = null;
-const PIN_TIMEOUT_MS = 10 * 60 * 1000;
+const LAST_ACTIVE_KEY  = 'pl_last_active_v1';   // timestamp of last user activity
+const PIN_SET_FLAG_KEY = 'pl_pin_set_v1';       // '1' if this user has a PIN configured
+let _lastActiveWrite = 0;
+
+// Configured auto sign-out window (minutes). 0 = never. Default 5.
+function getLogoutMinutes(){ const m = settings && settings.logoutMinutes; return (m === 0 || m) ? m : 5; }
+function getLogoutMs(){ const m = getLogoutMinutes(); return m > 0 ? m * 60 * 1000 : 0; }
+
+// Persist "last activity" so a page refresh within the window keeps the user
+// signed in instead of re-prompting for the PIN (and without any Supabase call).
+function markActive(force){
+  const now = Date.now();
+  if (!force && now - _lastActiveWrite < 15000) return; // throttle writes
+  _lastActiveWrite = now;
+  try { localStorage.setItem(LAST_ACTIVE_KEY, String(now)); } catch(e) {}
+}
+function withinActiveWindow(){
+  const ms = getLogoutMs();
+  if (ms === 0) return true;                     // "Never" → always considered active
+  let last = 0;
+  try { last = parseInt(localStorage.getItem(LAST_ACTIVE_KEY)) || 0; } catch(e) {}
+  return last > 0 && (Date.now() - last) <= ms;
+}
 
 function unlockApp(user, isNewSignIn = false) {
   try {
@@ -6797,8 +6883,17 @@ function unlockApp(user, isNewSignIn = false) {
     }
     hideLanding();
 
-    // Show PIN screen unless already verified this session
-    if (!_pinVerifiedThisSession) {
+    // Keep the user signed in across refreshes: only require the PIN on a
+    // brand-new sign-in or after the inactivity window has lapsed. Refreshing
+    // within the window (default 5 min) re-enters without re-prompting — and
+    // without any Supabase round-trip.
+    if (_pinVerifiedThisSession || (!isNewSignIn && withinActiveWindow())) {
+      _pinVerifiedThisSession = true;
+      const pinScreen = document.getElementById('pin-screen');
+      if (pinScreen) pinScreen.style.display = 'none';
+      markActive(true);
+      startInactivityTimer();
+    } else {
       const pinScreen = document.getElementById('pin-screen');
       if (pinScreen) pinScreen.style.display = 'flex';
       checkPinStatus(user.email);
@@ -6924,13 +7019,18 @@ async function checkPinStatus(email) {
     });
     if (_resetPinTokenActive) return;
     if (res && res.has_pin) {
+      try { localStorage.setItem(PIN_SET_FLAG_KEY, '1'); } catch(e) {}
       showPinEntry(email);
     } else {
+      try { localStorage.setItem(PIN_SET_FLAG_KEY, '0'); } catch(e) {}
       showPinSetup();
     }
   } catch {
+    // Supabase unreachable (e.g. project paused) — don't hard-lock the user out.
     _pinVerifiedThisSession = true;
     dismissPinScreen();
+    markActive(true);
+    startInactivityTimer();
   }
 }
 
@@ -6991,8 +7091,10 @@ async function submitPinSetup() {
       body: JSON.stringify({ p_email: authUser.email, p_pin: pin })
     });
     if (res && res.success) {
+      try { localStorage.setItem(PIN_SET_FLAG_KEY, '1'); } catch(e) {}
       _pinVerifiedThisSession = true;
       dismissPinScreen();
+      markActive(true);
       startInactivityTimer();
     } else {
       errEl.textContent = (res && res.error) || 'Failed to set PIN.';
@@ -7015,8 +7117,10 @@ async function submitPinVerify() {
       body: JSON.stringify({ p_email: authUser.email, p_pin: pin })
     });
     if (res && res.success) {
+      try { localStorage.setItem(PIN_SET_FLAG_KEY, '1'); } catch(e) {}
       _pinVerifiedThisSession = true;
       dismissPinScreen();
+      markActive(true);
       startInactivityTimer();
     } else {
       errEl.textContent = (res && res.error) || 'Incorrect PIN.';
@@ -7134,17 +7238,23 @@ function signOutFromPin() {
 
 function startInactivityTimer() {
   stopInactivityTimer();
-  _inactivityTimer = setTimeout(lockAppForInactivity, PIN_TIMEOUT_MS);
+  markActive(true);
+  const ms = getLogoutMs();
+  if (ms > 0) _inactivityTimer = setTimeout(lockAppForInactivity, ms);
   ['click','keydown','touchstart','mousemove','scroll'].forEach(evt => {
     document.addEventListener(evt, resetInactivityTimer, { passive: true });
   });
 }
 
 function resetInactivityTimer() {
-  if (_inactivityTimer) {
-    clearTimeout(_inactivityTimer);
-    _inactivityTimer = setTimeout(lockAppForInactivity, PIN_TIMEOUT_MS);
+  markActive(false);
+  const ms = getLogoutMs();
+  if (ms <= 0) { // "Never" — no auto sign-out
+    if (_inactivityTimer) { clearTimeout(_inactivityTimer); _inactivityTimer = null; }
+    return;
   }
+  if (_inactivityTimer) clearTimeout(_inactivityTimer);
+  _inactivityTimer = setTimeout(lockAppForInactivity, ms);
 }
 
 function stopInactivityTimer() {
@@ -7160,9 +7270,33 @@ function stopInactivityTimer() {
 function lockAppForInactivity() {
   stopInactivityTimer();
   _pinVerifiedThisSession = false;
-  if (authUser && authUser.email) {
+  try { localStorage.removeItem(LAST_ACTIVE_KEY); } catch(e) {}
+  let hasPin = false;
+  try { hasPin = localStorage.getItem(PIN_SET_FLAG_KEY) === '1'; } catch(e) {}
+  if (hasPin && authUser && authUser.email) {
+    // Re-lock behind the PIN (fast re-entry, no full re-auth).
     showPinEntry(authUser.email);
+  } else {
+    // No second-factor PIN configured → sign out completely after inactivity.
+    authSignOut();
   }
+}
+
+// Re-arm the inactivity timer after the setting changes (also handles "Never").
+function applyLogoutTimer() {
+  if (_pinVerifiedThisSession) startInactivityTimer();
+}
+
+function onLogoutTimerChange() {
+  const el = document.getElementById('setting-logout-timer');
+  const v = parseInt(el && el.value);
+  settings.logoutMinutes = isNaN(v) ? 5 : v;
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
+  setSaveStatus('saved');
+  applyLogoutTimer();
+  toast(settings.logoutMinutes > 0
+    ? `Auto sign-out set to ${settings.logoutMinutes} minute${settings.logoutMinutes===1?'':'s'} of inactivity`
+    : 'Auto sign-out disabled', 'success', { duration: 2200 });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -7379,11 +7513,12 @@ async function bootApp() {
   // 8. Auto-backup & beforeunload
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
+      if (_pinVerifiedThisSession) markActive(true);
       takeSnapshot(true);
       if (autoFileHandle) runFileBackupNow();
     }
   });
-  window.addEventListener('beforeunload', () => { takeSnapshot(true); });
+  window.addEventListener('beforeunload', () => { if (_pinVerifiedThisSession) markActive(true); takeSnapshot(true); });
 
   // 9. Auto file backup timer
   if (l2meta.fileName) startAutoFileBackupTimer();
