@@ -3454,7 +3454,7 @@ let SNAPSHOTS_KEY       = 'pl_snapshots_v4';
 let L2_META_KEY         = 'pl_l2_meta';
 let GSHEETS_KEY         = 'pl_gsheets_v4';
 let DB_NAME             = 'PLDashboard';
-const DB_VERSION        = 1;
+const DB_VERSION        = 2;
 const STORE_NAME        = 'transactions';
 const MAX_SNAPSHOTS     = 5;
 const AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000;
@@ -3551,6 +3551,8 @@ let txnTotal = 0;
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function escapeHtml(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function csvSanitize(v){const s=String(v==null?'':v);return /^[=+\-@\t\r]/.test(s)?'\''+s:s;}
+// One CSV cell: formula-injection safe AND RFC 4180 quoted (double any inner ").
+function csvCell(v){return '"'+csvSanitize(v).replace(/"/g,'""')+'"';}
 let CATEGORIES_KEY = 'pl_categories_v1';
 const DEFAULT_CATEGORIES = [
   'Product Sales','Service Revenue','Consulting / Retainers','Online / Digital Sales',
@@ -3629,14 +3631,16 @@ function openDB() {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = e => {
       const d = e.target.result;
-      if (!d.objectStoreNames.contains(STORE_NAME)) {
-        const s = d.createObjectStore(STORE_NAME, { keyPath:'id' });
-        s.createIndex('date',      'date',      { unique:false });
-        s.createIndex('type',      'type',      { unique:false });
-        s.createIndex('month',     'month',     { unique:false });
-        s.createIndex('year',      'year',      { unique:false });
-        s.createIndex('category',  'category',  { unique:false });
-      }
+      const s = d.objectStoreNames.contains(STORE_NAME)
+        ? e.target.transaction.objectStore(STORE_NAME)
+        : d.createObjectStore(STORE_NAME, { keyPath:'id' });
+      // ponytail: no secondary indexes. Every read is dbGetAll() + JS filter
+      // (grep confirms nothing calls store.index()), so these only cost write
+      // time — index maintenance made a 100k import ~5x slower and superlinear.
+      // Drop any left over from DB_VERSION 1.
+      ['date','type','month','year','category'].forEach(k => {
+        if (s.indexNames.contains(k)) s.deleteIndex(k);
+      });
     };
     req.onsuccess = e => { db = e.target.result; resolve(db); };
     req.onerror   = e => {
@@ -5879,11 +5883,12 @@ async function applyMapping(){
     const _amtStr=String(amountRaw).trim();
     const _numFmt=document.getElementById('map-num-fmt')?document.getElementById('map-num-fmt').value:'auto';
     const _acct=/^\(([0-9.,]+)\)$/.exec(_amtStr);
-    const _isEU=_numFmt==='eu'||(_numFmt==='auto'&&/^-?[0-9]{1,3}(\.[0-9]{3})+(,[0-9]{2})$/.test(_amtStr.replace(/^-/,'')));
-    let amount;
-    if(_acct){amount=-parseFloat(_acct[1].replace(/[.,\s]/g,m=>m===','&&_isEU?'.':''));}
-    else if(_isEU){amount=parseFloat(_amtStr.replace(/\./g,'').replace(',','.'));}
-    else{amount=parseFloat(_amtStr.replace(/[$€£,\s]/g,''));}
+    const _core=_acct?_acct[1]:_amtStr;   // strip accounting parens, keep the number as-is
+    const _isEU=_numFmt==='eu'||(_numFmt==='auto'&&/^-?[0-9]{1,3}(\.[0-9]{3})+(,[0-9]{2})$/.test(_core.replace(/^-/,'')));
+    // Normalize the magnitude the same way whether or not it was in parens, so
+    // the decimal point is preserved: (99.00) → 99.00, not 9900.
+    let amount=_isEU?parseFloat(_core.replace(/\./g,'').replace(',','.')):parseFloat(_core.replace(/[$€£,\s]/g,''));
+    if(_acct)amount=-amount;   // parentheses = accounting negative
     if(isNaN(amount)){skipped++;return;}
     const tl=String(typeRaw).toLowerCase().trim();
     const type=['revenue','income','credit','sale','sales','cr'].some(k=>tl.includes(k))?'revenue':['expense','cost','debit','purchase','payment','dr'].some(k=>tl.includes(k))?'expense':(amount>=0?'revenue':'expense');
@@ -5971,7 +5976,7 @@ async function syncToFile(){
   if(!linkedFileHandle){toast('No file linked','error');return;}
   try{const all=await dbGetAll();let content;const name=linkedFileHandle.name.toLowerCase();
     if(name.endsWith('.xlsx')){const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet(all.map(t=>({Date:t.date,Type:t.type,Category:t.category,Description:t.description,Amount:t.amount,Month:t.month,Year:t.year})));XLSX.utils.book_append_sheet(wb,ws,'Transactions');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});content=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});}
-    else{const csv=[['Date','Type','Category','Description','Amount','Month','Year'].join(','),...all.map(t=>[t.date,t.type,`"${csvSanitize(t.category)}"`,`"${csvSanitize(t.description||'')}"`,t.amount,t.month,t.year].join(','))].join('\n');content=new Blob([csv],{type:'text/csv'});}
+    else{const csv=[['Date','Type','Category','Description','Amount','Month','Year'].join(','),...all.map(t=>[t.date,t.type,csvCell(t.category),csvCell(t.description||''),t.amount,t.month,t.year].join(','))].join('\n');content=new Blob([csv],{type:'text/csv'});}
     const w=await linkedFileHandle.createWritable();await w.write(content);await w.close();
     document.getElementById('last-sync-time').textContent=new Date().toLocaleString();
     toast(`✓ Synced to ${linkedFileHandle.name}`,'success');
@@ -5984,7 +5989,7 @@ function unlinkFile(){linkedFileHandle=null;localStorage.removeItem(FS_HANDLE_KE
 //  EXPORT
 // ═══════════════════════════════════════════════════════════════════
 
-async function exportCSV(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const csv=[['Date','Type','Category','Description','Amount','Month','Year'].join(','),...all.map(t=>[t.date,t.type,`"${csvSanitize(t.category)}"`,`"${csvSanitize(t.description||'')}"`,t.amount,t.month,t.year].join(','))].join('\n');download(csv,`pl_export_${Date.now()}.csv`,'text/csv');toast('CSV exported','success');}
+async function exportCSV(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const csv=[['Date','Type','Category','Description','Amount','Month','Year'].join(','),...all.map(t=>[t.date,t.type,csvCell(t.category),csvCell(t.description||''),t.amount,t.month,t.year].join(','))].join('\n');download(csv,`pl_export_${Date.now()}.csv`,'text/csv');toast('CSV exported','success');}
 
 async function exportXLSX(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const wb=XLSX.utils.book_new();const txData=all.map(t=>({Date:t.date,Type:t.type,Category:csvSanitize(t.category||''),Description:csvSanitize(t.description||''),Amount:t.amount,Month:t.month,Year:t.year}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(txData),'Transactions');const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else map[t.month].expenses+=t.amount;});const sumData=MONTHS.filter(m=>map[m].revenue>0||map[m].expenses>0).map(m=>({Month:m,Revenue:map[m].revenue,Expenses:map[m].expenses,'Net Profit':map[m].revenue-map[m].expenses,'Margin %':map[m].revenue>0?((map[m].revenue-map[m].expenses)/map[m].revenue*100).toFixed(1)+'%':'0.0%'}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sumData),'Monthly Summary');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});download(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`pl_export_${Date.now()}.xlsx`,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');toast('Excel file exported','success');}
 
@@ -6823,7 +6828,7 @@ async function confirmCloudRestore() {
     document.getElementById('auth-restoring-panel').style.display = 'none';
     document.getElementById('auth-restore-panel').style.display   = 'block';
     document.getElementById('auth-restore-msg').innerHTML =
-      `<span style="color:#e74c3c">Restore failed: ${e.message}</span><br><br>
+      `<span style="color:#e74c3c">Restore failed: ${escapeHtml(e.message)}</span><br><br>
        You can try again or start fresh on this device.`;
   }
 }
