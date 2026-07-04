@@ -1,8 +1,22 @@
 {
-  "latest_version": "8.3.0",
+  "latest_version": "8.4.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.4.0",
+      "date": "2026-07-04",
+      "title": "Reports Tab — P&L Statement, Year-over-Year & Industry Analysis",
+      "summary": "New Reports tab with a proper Profit & Loss statement, a line-by-line Year-over-Year comparison, and four analysis reports. Pick any report, choose a time frame (year, quarter, month, YTD, or a custom date range), then print or export to CSV. Suggested reports adapt to your industry.",
+      "changes": [
+        { "type": "new", "text": "P&L Statement: industry-standard common-size income statement — Revenue, COGS, Gross Profit, Operating Expenses and Net Profit, each shown as a dollar amount and as a % of revenue, with KPI summary cards on top." },
+        { "type": "new", "text": "P&L Year-over-Year: compares any year against the prior year line by line, with dollar change, % change and up/down arrows, plus a grouped bar chart of Revenue, Gross Profit, Op. Expenses and Net Profit." },
+        { "type": "new", "text": "Time-frame selector: This Year, Last Year, Year to Date, This/Last Quarter, This/Last Month, All Time, or a custom From/To date range — resolved consistently across every report." },
+        { "type": "new", "text": "Four analysis reports: Expense Breakdown and Revenue Breakdown (doughnut + ranked table with % of total), Monthly Trend (revenue/expense/net line chart), and Quarterly Summary (Q1–Q4 P&L)." },
+        { "type": "new", "text": "Industry-aware suggestions: the Reports tab recommends the most useful next reports based on your selected industry template and whether you track COGS." },
+        { "type": "new", "text": "Print & Export: every report exports to a clean CSV (formula-injection sanitized) or opens a print-ready statement in a new window. Jump to Reports with g then p." }
+      ]
+    },
     {
       "version": "8.3.0",
       "date": "2026-05-14",
