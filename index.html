@@ -3458,6 +3458,7 @@ const DB_VERSION        = 2;
 const STORE_NAME        = 'transactions';
 const MAX_SNAPSHOTS     = 5;
 const AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000;
+const ACTIVE_VIEW_KEY   = 'pl_active_view';   // last tab, for refresh-stays-put
 
 function setUserStorageKeys(email) {
   if (!email) return;
@@ -4588,6 +4589,8 @@ function showView(viewId) {
     if (nav) nav.classList.remove('active');
   });
   document.getElementById(viewId).classList.add('active');
+  // Remember the tab so a browser refresh returns here instead of the overview.
+  try { sessionStorage.setItem(ACTIVE_VIEW_KEY, viewId); } catch(e) {}
   const key = viewId.replace('-view','');
   const nav = document.getElementById('nav-'+key);
   if (nav) nav.classList.add('active');
@@ -4618,6 +4621,9 @@ function setEntryType(t) {
   document.getElementById('qa-type').value = t;
   document.getElementById('qa-type-rev').className = 'type-btn rev'+(t==='revenue'?' active':'');
   document.getElementById('qa-type-exp').className = 'type-btn exp'+(t==='expense'?' active':'');
+  // If the category picker is open, re-order it to match the new type.
+  const pop = document.getElementById('qa-cat-popover');
+  if (pop && !pop.hidden) filterCatPicker(document.getElementById('qa-category').value);
 }
 
 // ── Auto-categorize from history ─────────────────────────────────
@@ -4726,9 +4732,18 @@ function renderCatPicker(cats) {
     pop.innerHTML = '<div class="cat-picker-empty">No categories yet — type to create one</div>';
     return;
   }
-  pop.innerHTML = cats.map(c =>
-    `<div class="cat-picker-option" role="option" data-value="${escapeHtml(c)}" onclick="selectCatPicker('${escapeHtml(c).replace(/'/g,"\\'")}')">${escapeHtml(c)}</div>`
-  ).join('');
+  // Show the categories matching the chosen Type first, then the rest, split by
+  // a labelled divider. Revenue selected → revenue first; Expense → expense first.
+  // guessType() is the same keyword heuristic the Category Manager uses.
+  const primaryType = currentEntryType === 'expense' ? 'expense' : 'revenue';
+  const opt = c => `<div class="cat-picker-option" role="option" data-value="${escapeHtml(c)}" onclick="selectCatPicker('${escapeHtml(c).replace(/'/g,"\\'")}')">${escapeHtml(c)}</div>`;
+  const label = t => `<div class="cat-picker-group" style="padding:6px 12px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--surface2)">${t}</div>`;
+  const primary   = cats.filter(c => guessType(c) === primaryType);
+  const secondary = cats.filter(c => guessType(c) !== primaryType);
+  let html = '';
+  if (primary.length)   html += label(primaryType === 'revenue' ? 'Revenue' : 'Expense') + primary.map(opt).join('');
+  if (secondary.length) html += label(primaryType === 'revenue' ? 'Expense' : 'Revenue') + secondary.map(opt).join('');
+  pop.innerHTML = html;
 }
 
 function openCatPicker(e) {
@@ -6421,12 +6436,12 @@ async function authSignInWithLicenseKey() {
   }).catch(() => {});
 
   try {
-    // Look up the email + license_key in Supabase
-    const rows = await supaFetch(
-      '/rest/v1/pl_licensed_users?email=eq.' + encodeURIComponent(email) +
-      '&license_key=eq.' + encodeURIComponent(key) +
-      '&select=email,name,plan,status,expires_at,license_key'
-    );
+    // Verify via SECURITY DEFINER RPC so the public anon key never reads the
+    // pl_licensed_users table directly (and never gets the license key back).
+    const rows = await supaFetch('/rest/v1/rpc/verify_license', {
+      method: 'POST',
+      body: JSON.stringify({ p_email: email, p_key: key })
+    });
 
     if (!rows || rows.length === 0) {
       logAccessEvent(email, 'license_key', 'denied');
@@ -6480,10 +6495,12 @@ async function verifyLicense(email, googleSub, displayName) {
   }).catch(() => {});  // non-blocking
 
   try {
-    // Look up the email in licensed users table
-    const rows = await supaFetch(
-      `/rest/v1/pl_licensed_users?email=eq.${encodeURIComponent(email)}&select=email,name,plan,status,expires_at,license_key`
-    );
+    // Verify via SECURITY DEFINER RPC so the public anon key never reads the
+    // pl_licensed_users table directly (and never gets the license key back).
+    const rows = await supaFetch('/rest/v1/rpc/verify_license', {
+      method: 'POST',
+      body: JSON.stringify({ p_email: email })
+    });
 
     if (!rows || rows.length === 0) {
       // Email not found
@@ -6518,8 +6535,7 @@ async function verifyLicense(email, googleSub, displayName) {
       email,
       name:       displayName || user.name || email,
       googleSub,
-      plan:       user.plan,
-      licenseKey: user.license_key
+      plan:       user.plan
     };
 
     saveCachedSession(authUser);
@@ -7546,7 +7562,10 @@ async function bootApp() {
       showView('upload-view');
       toast('Shared file received — tap "Import CSV" to continue', 'info');
     } else {
-      showView('dashboard-view');
+      // No shortcut: restore the tab the user was last on (survives refresh),
+      // falling back to the overview on a fresh session.
+      let saved; try { saved = sessionStorage.getItem(ACTIVE_VIEW_KEY); } catch(e) {}
+      showView(saved && document.getElementById(saved) ? saved : 'dashboard-view');
     }
   } catch(e) { showView('dashboard-view'); }
 }
