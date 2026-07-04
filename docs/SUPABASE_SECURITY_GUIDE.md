@@ -138,10 +138,11 @@ Everything after these calls already uses `rows[0].status`, `.plan`,
 changes. You can also delete the now-unused `licenseKey: user.license_key` line
 (the app never reads it back).
 
-> **Want me to make this HTML change for you?** Say the word and I'll apply it to
-> both files, keep them in sync, and add a regression test. I left it out of the
-> automatic fixes because it changes live sign-in behavior and can only be fully
-> tested against your real Supabase project.
+> **This client change is already applied** in both HTML files (a regression test
+> asserts no direct `pl_licensed_users` read remains). It stays inert until you run
+> the SQL in Step 1b — until the `verify_license` function exists, the calls will
+> just fail closed. So: **run the SQL first, then the sign-in paths light up.**
+> Once the function is live, test both Google and license-key sign-in.
 
 ### Step 1d — Confirm it worked
 

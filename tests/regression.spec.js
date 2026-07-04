@@ -62,3 +62,51 @@ test('transactions store has no secondary indexes', async ({ page }) => {
   });
   expect(idx).toEqual([]);
 });
+
+test('license verification goes through the RPC, not a direct table read', async ({ page }) => {
+  await open(page);
+  // The public anon key must never SELECT pl_licensed_users directly.
+  const src = await page.content();
+  expect(src).not.toMatch(/pl_licensed_users\?email/);
+  expect(src).toContain('/rest/v1/rpc/verify_license');
+});
+
+test('browser refresh returns to the last tab, fresh session opens overview', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => showView('reports-view'));
+  await page.reload();
+  await page.waitForFunction(() => typeof window.bootApp === 'function');
+  const restored = await page.evaluate(async () => {
+    await bootApp(); // simulate an authenticated boot
+    return document.querySelector('[id$="-view"].active')?.id;
+  });
+  expect(restored).toBe('reports-view');
+  const fresh = await page.evaluate(async () => {
+    sessionStorage.removeItem('pl_active_view');
+    await bootApp();
+    return document.querySelector('[id$="-view"].active')?.id;
+  });
+  expect(fresh).toBe('dashboard-view');
+});
+
+test('add-transaction categories are ordered by the selected Type', async ({ page }) => {
+  await open(page);
+  const labels = await page.evaluate(async (type) => {
+    await updateCatDatalist();
+    currentEntryType = type;
+    renderCatPicker(window._catList || []);
+    return [...document.getElementById('qa-cat-popover').children]
+      .filter(n => n.classList.contains('cat-picker-group'))
+      .map(n => n.textContent);
+  }, 'revenue');
+  expect(labels).toEqual(['Revenue', 'Expense']); // revenue group first
+
+  const labelsExp = await page.evaluate(async (type) => {
+    currentEntryType = type;
+    renderCatPicker(window._catList || []);
+    return [...document.getElementById('qa-cat-popover').children]
+      .filter(n => n.classList.contains('cat-picker-group'))
+      .map(n => n.textContent);
+  }, 'expense');
+  expect(labelsExp).toEqual(['Expense', 'Revenue']); // expense group first
+});
