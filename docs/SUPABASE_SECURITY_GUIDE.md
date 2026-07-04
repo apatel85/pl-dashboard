@@ -7,6 +7,12 @@ dashboard — nothing here touches customer data, and every step is reversible.
 **Time:** ~20 minutes. **You need:** access to the Supabase project
 (`iknfvddnevudpjtyxkbh`) and the ability to run SQL in it.
 
+> **In a hurry?** The SQL below is also packaged as ready-to-run, idempotent
+> migration files in [`supabase/migrations/`](../supabase/migrations/) (verified
+> against Postgres 16). Run them in order — see that folder's README — and skip
+> to the `curl` checks to confirm. The rest of this guide explains what each one
+> does and why.
+
 ---
 
 ## First, the one-minute background
