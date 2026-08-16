@@ -2477,6 +2477,10 @@ tbody tr:hover { background: var(--surface2); }
       <div class="nav-item" onclick="showView('upload-view')" id="nav-upload">
         <span class="nav-icon">⬆</span> Import CSV/Excel
       </div>
+      <div class="nav-item" onclick="showView('review-categories-view')" id="nav-review-categories">
+        <span class="nav-icon">🔍</span> Review Categories
+        <span id="nav-review-badge" style="display:none;margin-left:auto;background:var(--amber);color:#0f1117;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px"></span>
+      </div>
       <div class="nav-item" onclick="showView('categories-view');renderCategoryManager()" id="nav-categories">
         <span class="nav-icon">🏷</span> Categories
       </div>
@@ -3254,6 +3258,35 @@ tbody tr:hover { background: var(--surface2); }
       </div>
     </div>
 
+    <!-- ═══ REVIEW CATEGORIES ═══ -->
+    <div id="review-categories-view" class="view">
+      <div class="page-header">
+        <div class="page-title">Review Categories <small>Confirm auto-predicted categories before they're final</small></div>
+        <div class="page-actions">
+          <button class="btn btn-outline" onclick="predictUncategorizedNow()">🔮 Predict Categories</button>
+          <button class="btn btn-primary" onclick="confirmAllReviewRows()">✓ Confirm All</button>
+        </div>
+      </div>
+      <div class="settings-card" style="margin-bottom:16px">
+        <p style="font-size:13px;color:var(--muted);margin:0" id="review-cat-count">0 transactions need review</p>
+        <p style="font-size:12px;color:var(--muted);margin:6px 0 0">Categories here were predicted from your past entries and merchant keywords. Nothing is written as final until you confirm it — pick a different category from the dropdown first if a guess looks wrong.</p>
+      </div>
+      <div id="review-cat-empty" style="display:none;text-align:center;padding:50px 20px;color:var(--muted)">
+        <div style="font-size:32px;margin-bottom:10px">✅</div>
+        <div>Nothing needs review right now.</div>
+      </div>
+      <div class="table-wrap" id="review-cat-table-wrap">
+        <table class="txn-table">
+          <thead><tr>
+            <th>Date</th><th>Description</th><th>Type</th><th style="text-align:right">Amount</th><th>Predicted Category</th><th>Confidence</th><th></th>
+          </tr></thead>
+          <tbody id="review-cat-tbody">
+            <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- ═══ ADD / EDIT CATEGORY MODAL ═══ -->
     <div id="cat-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;display:none;align-items:center;justify-content:center">
       <div class="modal-box" style="width:min(420px,92vw);padding:24px">
@@ -3515,7 +3548,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.8.0';
+const APP_VERSION       = '8.9.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -3813,6 +3846,62 @@ function guessMerchantCategory(description, type){
     if(keywords.some(k=>d.includes(k))) return category;
   }
   return '';
+}
+
+// ── Category prediction engine ───────────────────────────────────
+// Combines two signals, most-reliable first:
+//  1. History: how similar descriptions were categorized before (same
+//     scoring as the Quick Add live-suggestion: exact match > substring >
+//     token overlap). This is the strongest signal because it reflects the
+//     business's own past choices, not a generic keyword list.
+//  2. Merchant keywords (guessMerchantCategory): industry-standard
+//     Schedule-C-style buckets for recognizable vendors, used when there's
+//     no matching history yet.
+// Rows still unconfirmed by a human (categoryConfirmed===false) are
+// excluded from the history signal so guesses can't reinforce themselves.
+function scoreCategoryFromHistory(description, type, historyTxns, excludeId){
+  const dl = String(description||'').trim().toLowerCase();
+  if(!dl) return null;
+  const counts = {};
+  (historyTxns||[]).forEach(t=>{
+    if(excludeId!=null && t.id===excludeId) return;
+    if(t.categoryConfirmed===false) return;
+    const td = (t.description||'').toLowerCase();
+    if(!td || !t.category || t.category==='Uncategorized' || t.type!==type) return;
+    let weight = 0;
+    if(td===dl) weight = 10;
+    else if(td.includes(dl) || dl.includes(td)) weight = 3;
+    else {
+      const dSet = new Set(dl.split(/\s+/).filter(w=>w.length>2));
+      const tSet = new Set(td.split(/\s+/).filter(w=>w.length>2));
+      const overlap = [...dSet].filter(w=>tSet.has(w)).length;
+      if(overlap>=1) weight = overlap;
+    }
+    if(weight>0) counts[t.category] = (counts[t.category]||0) + weight;
+  });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  if(!sorted.length) return null;
+  const [category, weight] = sorted[0];
+  const confidence = weight>=10 ? 'high' : weight>=3 ? 'medium' : 'low';
+  return { category, confidence, source:'history' };
+}
+
+// Sync entry point — takes an already-fetched transaction list so callers
+// looping over many rows (CSV import) don't refetch the whole DB per row.
+function predictCategoryFromRules(description, type, historyTxns, excludeId){
+  const fromHistory = scoreCategoryFromHistory(description, type, historyTxns, excludeId);
+  if(fromHistory) return fromHistory;
+  if(type==='revenue' || type==='expense'){
+    const merchant = guessMerchantCategory(description, type);
+    if(merchant) return { category:merchant, confidence:'medium', source:'merchant' };
+  }
+  return null;
+}
+
+// Async convenience wrapper for one-off predictions (fetches history itself).
+async function predictCategory(description, type, excludeId){
+  const all = await dbGetAll();
+  return predictCategoryFromRules(description, type, all, excludeId);
 }
 
 // Decide {type, signedAmount} — or {skip:true} for transfers like card
@@ -4859,7 +4948,7 @@ function updateStorageInfo() {
 //  NAVIGATION
 // ═══════════════════════════════════════════════════════════════════
 
-const VIEWS = ['dashboard','transactions','revenue','expenses','monthly','reports','add','upload','categories','sync','backup','settings'];
+const VIEWS = ['dashboard','transactions','revenue','expenses','monthly','reports','review-categories','add','upload','categories','sync','backup','settings'];
 
 function softRefresh() {
   const active = document.querySelector('.view.active');
@@ -4883,8 +4972,12 @@ function showView(viewId) {
   if (nav) nav.classList.add('active');
   // sync bottom tab bar
   document.querySelectorAll('.bb-btn').forEach(b=>b.classList.remove('active'));
-  const bbMap={'dashboard-view':'bb-dashboard','revenue-view':'bb-revenue','expenses-view':'bb-expenses','add-view':'bb-add','transactions-view':'bb-more','monthly-view':'bb-more','reports-view':'bb-more','upload-view':'bb-more','categories-view':'bb-more','sync-view':'bb-more','backup-view':'bb-more','settings-view':'bb-more'};
+  const bbMap={'dashboard-view':'bb-dashboard','revenue-view':'bb-revenue','expenses-view':'bb-expenses','add-view':'bb-add','transactions-view':'bb-more','monthly-view':'bb-more','reports-view':'bb-more','review-categories-view':'bb-more','upload-view':'bb-more','categories-view':'bb-more','sync-view':'bb-more','backup-view':'bb-more','settings-view':'bb-more'};
   if(bbMap[viewId]){const bb=document.getElementById(bbMap[viewId]);if(bb)bb.classList.add('active');}
+
+  // Refreshed on every navigation (not just when the view itself is open) so
+  // the sidebar badge stays current no matter where the user is looking.
+  updateReviewCategoryBadge();
 
   if (viewId==='dashboard-view')    refreshDashboard();
   if (viewId==='transactions-view') { buildFilterOptions(); renderTxnTable(); }
@@ -4892,9 +4985,138 @@ function showView(viewId) {
   if (viewId==='expenses-view')     renderExpTable();
   if (viewId==='monthly-view')      renderMonthlyTable();
   if (viewId==='reports-view')      renderReportsView();
+  if (viewId==='review-categories-view') renderReviewCategoriesView();
   if (viewId==='add-view')          { renderRecentEntries(); updateCatDatalist(); updateSourceDatalist(); }
   if (viewId==='backup-view')       { renderSnapshotList(); renderGSheetsPanel(); refreshStorageHealth(); }
   if (viewId==='settings-view')     loadSettingsForm();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  REVIEW CATEGORIES — confirm predicted categories before they're final
+// ═══════════════════════════════════════════════════════════════════
+
+// A row needs review if a prediction hasn't been confirmed yet, or if it
+// has no usable category at all (older data, or a prediction that found
+// nothing). categoryConfirmed is checked with === false (not falsy) so
+// pre-existing transactions that predate this feature — where the field is
+// simply undefined — are treated as already-trusted, not flagged in bulk.
+function needsCategoryReview(t){
+  return t.categoryConfirmed===false || !t.category || t.category==='Uncategorized';
+}
+
+function confidencePillHTML(conf){
+  if(conf==='high')   return `<span style="background:var(--teal-dim);color:var(--teal);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">High</span>`;
+  if(conf==='medium') return `<span style="background:var(--amber-dim);color:var(--amber);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">Medium</span>`;
+  if(conf==='low')    return `<span style="background:var(--red-dim);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">Low</span>`;
+  return `<span style="background:var(--surface2);color:var(--muted);padding:2px 8px;border-radius:4px;font-size:11px">—</span>`;
+}
+
+async function updateReviewCategoryBadge(count){
+  let n = count;
+  if(n===undefined){
+    const all = await dbGetAll();
+    n = all.filter(needsCategoryReview).length;
+  }
+  const badge = document.getElementById('nav-review-badge');
+  if(!badge) return;
+  if(n>0){ badge.textContent = n>99?'99+':String(n); badge.style.display='inline-block'; }
+  else badge.style.display='none';
+}
+
+let _reviewRows = [];
+
+async function renderReviewCategoriesView(){
+  const all = await dbGetAll();
+  const rows = all.filter(needsCategoryReview).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  _reviewRows = rows;
+  const tbody = document.getElementById('review-cat-tbody');
+  const empty = document.getElementById('review-cat-empty');
+  const wrap  = document.getElementById('review-cat-table-wrap');
+  const countEl = document.getElementById('review-cat-count');
+  if(countEl) countEl.textContent = `${rows.length} transaction${rows.length===1?'':'s'} need review`;
+  if(!rows.length){
+    if(wrap) wrap.style.display='none';
+    if(empty) empty.style.display='block';
+    updateReviewCategoryBadge(0);
+    return;
+  }
+  if(wrap) wrap.style.display='';
+  if(empty) empty.style.display='none';
+  if(tbody){
+    tbody.innerHTML = rows.map(t=>{
+      const a = fmtAmount(t.amount,t.type);
+      const idAttr = escapeHtml(String(t.id));
+      return `<tr data-review-id="${idAttr}">
+        <td data-label="Date">${escapeHtml(t.date||'')}</td>
+        <td data-label="Description" style="max-width:280px">${escapeHtml(t.description||'—')}</td>
+        <td data-label="Type"><span class="type-pill ${(TXN_TYPES[t.type]||TXN_TYPES.expense).badge}">${escapeHtml(txnTypeLabel(t.type))}</span></td>
+        <td data-label="Amount" class="${a.cls}" style="text-align:right;font-weight:600">${a.text}</td>
+        <td data-label="Predicted Category"><select class="editable-cell review-cat-select" data-prev="${escapeHtml(t.category||'')}" onchange="onCategorySelectChange(this,()=>{})">${categorySelectOptionsHTML(t.category,t.type)}</select></td>
+        <td data-label="Confidence">${confidencePillHTML(t.categoryConfidence)}</td>
+        <td data-label=""><button class="btn btn-primary" style="font-size:12px;padding:5px 10px;white-space:nowrap" onclick="confirmReviewRow(${JSON.stringify(t.id)})">✓ Confirm</button></td>
+      </tr>`;
+    }).join('');
+  }
+  updateReviewCategoryBadge(rows.length);
+}
+
+function _reviewRowSelectedCategory(id, fallback){
+  const row = document.querySelector(`#review-cat-tbody tr[data-review-id="${CSS.escape(String(id))}"]`);
+  const sel = row ? row.querySelector('select.review-cat-select') : null;
+  if(!sel) return fallback;
+  return sel.value===ADD_NEW_CATEGORY_SENTINEL ? (sel.dataset.prev||fallback) : sel.value;
+}
+
+async function confirmReviewRow(id){
+  const tx = await dbGet(id);
+  if(!tx) return;
+  const cat = _reviewRowSelectedCategory(id, tx.category);
+  tx.category = cat || 'Uncategorized';
+  tx.categoryConfirmed = true;
+  tx.categoryConfidence = null;
+  tx.categorySource = 'manual';
+  await dbPut(tx);
+  scheduleSnapshot();
+  toast(`✓ Category confirmed: ${tx.category}`,'success',{duration:1500});
+  await renderReviewCategoriesView();
+}
+
+async function confirmAllReviewRows(){
+  if(!_reviewRows.length){ toast('Nothing to confirm','info'); return; }
+  const updates = _reviewRows.map(t=>({
+    ...t,
+    category: _reviewRowSelectedCategory(t.id, t.category) || 'Uncategorized',
+    categoryConfirmed: true,
+    categoryConfidence: null,
+    categorySource: 'manual',
+  }));
+  await dbBulkPut(updates);
+  scheduleSnapshot();
+  toast(`✓ Confirmed ${updates.length} categor${updates.length===1?'y':'ies'}`,'success');
+  await renderReviewCategoriesView();
+}
+
+// Run the prediction engine over existing Uncategorized transactions (data
+// imported or entered before this feature existed, or that had no confident
+// guess at import time). Fills in a guess + confidence for review — nothing
+// is marked confirmed until the user reviews it below.
+async function predictUncategorizedNow(){
+  const all = await dbGetAll();
+  const targets = all.filter(t=>!t.category || t.category==='Uncategorized');
+  if(!targets.length){ toast('No uncategorized transactions found','info'); return; }
+  let updated = 0;
+  const updates = targets.map(t=>{
+    const predicted = predictCategoryFromRules(t.description, t.type, all, t.id);
+    if(!predicted) return null;
+    updated++;
+    return { ...t, category:predicted.category, categoryConfirmed:false, categoryConfidence:predicted.confidence, categorySource:predicted.source };
+  }).filter(Boolean);
+  if(updates.length) await dbBulkPut(updates);
+  scheduleSnapshot();
+  toast(updated
+    ? `🔮 Predicted categories for ${updated} transaction${updated===1?'':'s'} — review below`
+    : 'No confident predictions found for the remaining uncategorized transactions','info');
+  await renderReviewCategoriesView();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4977,7 +5199,7 @@ async function quickAddTransaction() {
   if (isNaN(amount)||amount===0) errs.push('Amount cannot be zero');
   if (errs.length) { errDiv.textContent=errs.join(' · '); errDiv.style.display='block'; return; }
   const d = new Date(dateVal);
-  const txn = { id:Date.now()+Math.random(), date:dateVal, type:currentEntryType, category:cat, description:desc, amount, month:MONTHS[d.getMonth()], year:d.getFullYear(), source };
+  const txn = { id:Date.now()+Math.random(), date:dateVal, type:currentEntryType, category:cat, description:desc, amount, month:MONTHS[d.getMonth()], year:d.getFullYear(), source, categoryConfirmed:true };
   setSaveStatus('saving');
   await dbPut(txn);
   setSaveStatus('saved');
@@ -5331,6 +5553,9 @@ async function inlineEdit(id, field, value) {
     const rec=e.target.result; if(!rec) return;
     if(field==='amount') rec.amount=parseFloat(value)||0; else rec[field]=value;
     if(field==='date'){const d=new Date(value);if(!isNaN(d)){rec.month=MONTHS[d.getMonth()];rec.year=d.getFullYear();}}
+    // Directly editing the category is an explicit human choice — it's final,
+    // whether or not it started life as an unconfirmed prediction.
+    if(field==='category'){ rec.categoryConfirmed=true; rec.categoryConfidence=null; rec.categorySource='manual'; }
     const putReq=tx.objectStore(STORE_NAME).put(rec);
     putReq.onerror=ev=>{console.warn('inlineEdit put error',ev.target.error);toast('Could not save edit: '+(ev.target.error&&ev.target.error.message?ev.target.error.message:'storage error'),'error');setSaveStatus('error');};
     tx.oncomplete=()=>{setSaveStatus('saved');scheduleSnapshot()};
@@ -6581,6 +6806,9 @@ async function applyMapping(){
   }
   const rows=getDataRows();const newTxns=[];let skipped=0,skippedTransfers=0;
   const usedGuessedCategories=new Set();
+  // Fetched once up front (not per row) — used both as the prediction
+  // engine's history signal below and for duplicate detection afterward.
+  const existing = await dbGetAll();
   rows.forEach((row,idx)=>{
     const dateVal=mapping.date!==null?row[mapping.date]:'';
     const amountRaw=mapping.amount!==null?row[mapping.amount]:'0';
@@ -6603,10 +6831,22 @@ async function applyMapping(){
     const type=resolved.type;
 
     let catVal=mapping.category!==null?(row[mapping.category]||'').trim():'';
+    let catConfirmed=true,catConfidence=null,catSource=null;
     if(!catVal){
-      const guess=guessMerchantCategory(descVal,type);
-      catVal=guess||'Uncategorized';
-      if(guess)usedGuessedCategories.add(guess);
+      // No category column mapped (or the cell was blank) — predict one from
+      // this business's own history first, merchant keywords second. Either
+      // way it's a guess, not a fact, so it's flagged for review rather than
+      // written as final (see Review Categories).
+      const predicted=predictCategoryFromRules(descVal,type,existing,null);
+      if(predicted){
+        catVal=predicted.category;
+        catConfidence=predicted.confidence;
+        catSource=predicted.source;
+        if(predicted.source==='merchant')usedGuessedCategories.add(predicted.category);
+      } else {
+        catVal='Uncategorized';
+      }
+      catConfirmed=false;
     }
 
     const _dateFmt=document.getElementById('map-date-fmt')?document.getElementById('map-date-fmt').value:'auto';
@@ -6618,7 +6858,7 @@ async function applyMapping(){
     const date=(!parsed||isNaN(parsed))?dateVal:parsed.toISOString().split('T')[0];
     const month=(!parsed||isNaN(parsed))?'Unknown':MONTHS[parsed.getMonth()];
     const year=(!parsed||isNaN(parsed))?'':parsed.getFullYear();
-    newTxns.push({id:Date.now()+idx+Math.random(),date,type,category:catVal,description:descVal,amount:resolved.signedAmount,month,year,source:srcVal});
+    newTxns.push({id:Date.now()+idx+Math.random(),date,type,category:catVal,description:descVal,amount:resolved.signedAmount,month,year,source:srcVal,categoryConfirmed:catConfirmed,categoryConfidence:catConfidence,categorySource:catSource});
   });
 
   // Remember this source's name so the next import of the same kind of file
@@ -6643,7 +6883,6 @@ async function applyMapping(){
   // Duplicate detection: hash incoming rows against existing transactions.
   // Same (date|amount|description|type) is treated as a duplicate. Use a
   // native confirm so we don't have to retrofit the shared confirm modal.
-  const existing = await dbGetAll();
   const existingHashes = new Set(existing.map(txnHash));
   const dupes = newTxns.filter(t => existingHashes.has(txnHash(t)));
   let finalTxns = newTxns;
@@ -6670,8 +6909,10 @@ async function applyMapping(){
   if(skippedTransfers)parts.push(`${skippedTransfers} transfer${skippedTransfers===1?'':'s'} skipped (not P&L)`);
   if(skipped)parts.push(`${skipped} unparseable`);
   if(skippedDupes)parts.push(`${skippedDupes} duplicates skipped`);
+  const unconfirmedCount = finalTxns.filter(t=>t.categoryConfirmed===false).length;
+  if(unconfirmedCount)parts.push(`${unconfirmedCount} categor${unconfirmedCount===1?'y needs':'ies need'} review`);
   toast(parts.join(' · '),'success');
-  showView('dashboard-view');
+  showView(unconfirmedCount ? 'review-categories-view' : 'dashboard-view');
 }
 
 function txnHash(t){

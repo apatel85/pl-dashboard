@@ -1,8 +1,24 @@
 {
-  "latest_version": "8.8.0",
+  "latest_version": "8.9.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.9.0",
+      "date": "2026-08-16",
+      "title": "Category Prediction Engine + Review Categories Page",
+      "summary": "When a CSV/Excel import has no category column (or a blank cell), the app now predicts one — first from how you've categorized similar descriptions before, then from an industry-standard merchant-keyword list — instead of dropping everything into \"Uncategorized.\" Predictions are never written as final: they land on a new Review Categories page where you confirm (or correct) each one before it's saved for good.",
+      "changes": [
+        { "type": "new", "text": "New category prediction engine: for any transaction with no explicit category, the app first checks how you've categorized similar descriptions before (exact match, then substring, then keyword-overlap scoring — the same logic as the Quick Add live-suggestion) and falls back to industry-standard merchant keywords (e.g. Shell/Chevron → Vehicle & Fuel, AWS/Zoom → Software & Subscriptions) when there's no matching history yet." },
+        { "type": "new", "text": "New Review Categories page: every transaction with a predicted-but-unconfirmed category (or no category at all) lands here, showing the predicted category in an editable dropdown alongside a High/Medium/Low confidence indicator. Nothing is final until you hit Confirm — pick a different category first if a guess is wrong." },
+        { "type": "new", "text": "Confirm All button on the Review Categories page commits every visible row's currently-selected category in one click." },
+        { "type": "new", "text": "Predict Categories button runs the prediction engine over existing Uncategorized transactions (from before this feature, or where no confident guess was available at import time) so older data can be caught up too." },
+        { "type": "new", "text": "Sidebar badge on the Review Categories nav item shows how many transactions are waiting for review, updated on every navigation." },
+        { "type": "imp", "text": "CSV/Excel import: after importing rows that needed a predicted category, the app now routes straight to Review Categories instead of the dashboard, and the import summary toast reports how many categories need review." },
+        { "type": "imp", "text": "Explicitly mapping a Category column during import is unaffected and still trusted as final — prediction only runs when a category cell is blank or no Category column was mapped at all." },
+        { "type": "imp", "text": "Directly editing a category (inline in All Transactions, the mobile edit sheet, or a manual Quick Add entry) always counts as an explicit, final choice — those never get flagged for review." }
+      ]
+    },
     {
       "version": "8.8.0",
       "date": "2026-08-16",
