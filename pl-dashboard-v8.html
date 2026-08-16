@@ -2571,13 +2571,13 @@ tbody tr:hover { background: var(--surface2); }
         <div class="table-header" style="flex-wrap:wrap;gap:10px">
           <h3>Revenue Entries</h3>
           <span id="rev-count" style="font-size:12px;color:var(--muted)"></span>
-          <input type="search" id="rev-search" placeholder="🔍 Search description, category, amount…" oninput="onRevSearchInput()" style="flex:1;min-width:200px;max-width:360px;margin-left:auto;padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
+          <input type="search" id="rev-search" placeholder="🔍 Search description, category, source, amount…" oninput="onRevSearchInput()" style="flex:1;min-width:200px;max-width:360px;margin-left:auto;padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
         </div>
         <div class="table-wrap">
           <table id="rev-table">
             <thead><tr>
               <th style="width:30px"><input type="checkbox" id="rev-select-all" onchange="toggleSelectAllRev(this.checked)" aria-label="Select all on page"></th>
-              <th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Month</th>
+              <th>Date</th><th>Category</th><th>Description</th><th>Source</th><th>Amount</th><th>Month</th>
             </tr></thead>
             <tbody id="rev-tbody"></tbody>
           </table>
@@ -2601,13 +2601,13 @@ tbody tr:hover { background: var(--surface2); }
         <div class="table-header" style="flex-wrap:wrap;gap:10px">
           <h3>Expense Entries</h3>
           <span id="exp-count" style="font-size:12px;color:var(--muted)"></span>
-          <input type="search" id="exp-search" placeholder="🔍 Search description, category, amount…" oninput="onExpSearchInput()" style="flex:1;min-width:200px;max-width:360px;margin-left:auto;padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
+          <input type="search" id="exp-search" placeholder="🔍 Search description, category, source, amount…" oninput="onExpSearchInput()" style="flex:1;min-width:200px;max-width:360px;margin-left:auto;padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
         </div>
         <div class="table-wrap">
           <table id="exp-table">
             <thead><tr>
               <th style="width:30px"><input type="checkbox" id="exp-select-all" onchange="toggleSelectAllExp(this.checked)" aria-label="Select all on page"></th>
-              <th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Month</th>
+              <th>Date</th><th>Category</th><th>Description</th><th>Source</th><th>Amount</th><th>Month</th>
             </tr></thead>
             <tbody id="exp-tbody"></tbody>
           </table>
@@ -2758,6 +2758,11 @@ tbody tr:hover { background: var(--surface2); }
             <input class="field-input" id="qa-description" placeholder="Optional — transaction details, reference, memo…" style="max-width:600px" oninput="onDescriptionInput()">
             <div id="qa-cat-suggestion" style="display:none;font-size:12px;color:var(--muted);margin-top:6px;padding:6px 10px;background:var(--surface2);border:1px solid var(--teal);border-radius:6px"></div>
           </div>
+          <div class="form-field" style="margin-top:10px">
+            <label class="field-label">Source / Account</label>
+            <input class="field-input" id="qa-source" list="qa-source-list" placeholder="e.g. Chase Checking, Cash, PayPal" style="max-width:320px">
+            <datalist id="qa-source-list"></datalist>
+          </div>
           <div id="qa-error" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div>
         </div>
       </div>
@@ -2810,6 +2815,9 @@ tbody tr:hover { background: var(--surface2); }
           <select class="page-size-select" id="txn-year-filter" onchange="renderTxnTable()">
             <option value="">All Years</option>
           </select>
+          <select class="page-size-select" id="txn-source-filter" onchange="renderTxnTable()">
+            <option value="">All Sources</option>
+          </select>
           <button class="btn btn-ghost" onclick="clearTxnFilters()" style="font-size:12px">✕ Clear</button>
         </div>
 
@@ -2821,11 +2829,12 @@ tbody tr:hover { background: var(--surface2); }
               <th onclick="sortTxnTable('type')"    id="th-type">Type</th>
               <th onclick="sortTxnTable('category')" id="th-category">Category</th>
               <th>Description</th>
+              <th onclick="sortTxnTable('source')"  id="th-source">Source</th>
               <th onclick="sortTxnTable('amount')"  id="th-amount" style="text-align:right">Amount</th>
               <th style="width:60px"></th>
             </tr></thead>
             <tbody id="txn-tbody">
-              <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted)">Loading…</td></tr>
+              <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -3303,6 +3312,11 @@ tbody tr:hover { background: var(--surface2); }
         <option value="bankstatement">Bank / checking account statement (mixed)</option>
       </select>
       <div id="import-source-hint" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <label for="import-source-name" style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px" id="import-source-name-label">Source / Account</label>
+        <input type="text" id="import-source-name" class="field-input" style="width:100%;box-sizing:border-box" placeholder="e.g. Chase Checking" maxlength="80">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Applied to every row in this file — tracks where the data came from. Import a "Source" column below instead if different rows have different accounts.</div>
+      </div>
       <div id="import-sign-row" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
         <label for="map-sign-convention" style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px" id="import-sign-label">Amount sign convention:</label>
         <select id="map-sign-convention" class="map-select" style="width:100%"></select>
@@ -3360,6 +3374,9 @@ tbody tr:hover { background: var(--surface2); }
       </label>
       <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Description
         <input type="text" id="edit-txn-description" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
+      </label>
+      <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Source / Account
+        <input type="text" id="edit-txn-source" placeholder="e.g. Chase Checking" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
       </label>
       <label style="display:block;margin-bottom:16px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Amount
         <input type="number" step="0.01" min="0" id="edit-txn-amount" required style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
@@ -3460,7 +3477,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.5.0';
+const APP_VERSION       = '8.6.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -3636,6 +3653,7 @@ const NATIVE_FIELDS = [
   { key:'amount',      label:'Amount',              required:true,  hint:'Numeric amount (positive)' },
   { key:'type',        label:'Type',                required:true,  hint:'Revenue / Income / Expense / Cost' },
   { key:'category',    label:'Category',            required:false, hint:'e.g. Product Sales, Rent' },
+  { key:'source',      label:'Source / Account',    required:false, hint:'Per-row override — otherwise uses the name below' },
   { key:'description', label:'Description / Notes', required:false, hint:'Transaction details' },
 ];
 
@@ -3652,11 +3670,13 @@ const LAST_IMPORT_SOURCE_KEY = 'pl_last_import_source';
 const IMPORT_SOURCE_META = {
   auto: {
     hint: 'Uses the Type column you map below (or, if none, guesses from the amount sign).',
-    needsTypeColumn: true, showSign: false
+    needsTypeColumn: true, showSign: false,
+    sourceLabel: 'Source / Account (optional)', sourcePlaceholder: 'e.g. Chase Checking, Shopify', sourceRequired: false
   },
   sales: {
     hint: 'Every row is imported as Revenue.',
-    needsTypeColumn: false, showSign: false
+    needsTypeColumn: false, showSign: false,
+    sourceLabel: 'Source name (optional)', sourcePlaceholder: 'e.g. Shopify, Square, QuickBooks', sourceRequired: false
   },
   creditcard: {
     hint: 'Charges import as Expense. Payments to the card are skipped (they’re a transfer, not income or a cost). Refunds import as a negative expense, reducing your total.',
@@ -3665,11 +3685,13 @@ const IMPORT_SOURCE_META = {
     signOptions: [
       { value:'pos', label:'Charges (most cards: Amex, Discover, Capital One, Bank of America)' },
       { value:'neg', label:'Payments/credits — charges are negative (Chase-style)' },
-    ]
+    ],
+    sourceLabel: 'Which card/bank is this?', sourcePlaceholder: 'e.g. Chase Sapphire, Amex Gold', sourceRequired: true
   },
   expense: {
     hint: 'Every row is imported as Expense.',
-    needsTypeColumn: false, showSign: false
+    needsTypeColumn: false, showSign: false,
+    sourceLabel: 'Source name (optional)', sourcePlaceholder: 'e.g. QuickBooks, Bill.com', sourceRequired: false
   },
   bankstatement: {
     hint: 'Deposits import as Revenue, withdrawals as Expense — set which sign is which below.',
@@ -3678,9 +3700,11 @@ const IMPORT_SOURCE_META = {
     signOptions: [
       { value:'pos', label:'Money in / deposits (Revenue)' },
       { value:'neg', label:'Money out / withdrawals (Expense) — deposits are negative' },
-    ]
+    ],
+    sourceLabel: 'Which bank is this?', sourcePlaceholder: 'e.g. Chase Checking, Wells Fargo Business', sourceRequired: true
   }
 };
+const LAST_IMPORT_SOURCE_NAMES_KEY = 'pl_last_import_source_names';
 
 // Keyword → category lookup for rows with no mapped/blank category. Ordered
 // by specificity; first match wins. Categories mirror the app's existing
@@ -3773,6 +3797,16 @@ function onImportSourceChange(){
   } else {
     signRow.style.display = 'none';
   }
+
+  // Source/account name — label, placeholder and required-ness change per
+  // source (e.g. "Which bank is this?" for a bank statement).
+  const nameLabel = document.getElementById('import-source-name-label');
+  const nameInput = document.getElementById('import-source-name');
+  nameLabel.innerHTML = escapeHtml(meta.sourceLabel) + (meta.sourceRequired ? ' <span style="color:var(--amber)">*</span>' : '');
+  nameInput.placeholder = meta.sourcePlaceholder;
+  let lastNames = {};
+  try { lastNames = JSON.parse(localStorage.getItem(LAST_IMPORT_SOURCE_NAMES_KEY)) || {}; } catch(e) {}
+  nameInput.value = lastNames[source] || '';
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3861,16 +3895,18 @@ function dbGetAll() {
   });
 }
 
-async function dbQuery({ search='', type='', month='', year='', sort='date', dir='desc', page=1, pageSize=25 }) {
+async function dbQuery({ search='', type='', month='', year='', source='', sort='date', dir='desc', page=1, pageSize=25 }) {
   let rows = await dbGetAll();
   rows = rows.filter(t => {
-    if (type  && t.type  !== type)  return false;
-    if (month && t.month !== month) return false;
-    if (year  && String(t.year) !== String(year)) return false;
+    if (type   && t.type   !== type)   return false;
+    if (month  && t.month  !== month)  return false;
+    if (year   && String(t.year) !== String(year)) return false;
+    if (source && (t.source||'') !== source) return false;
     if (search) {
       const s = search.toLowerCase();
       if (!((t.description||'').toLowerCase().includes(s) ||
             (t.category||'').toLowerCase().includes(s)    ||
+            (t.source||'').toLowerCase().includes(s)      ||
             String(t.amount).includes(s)                  ||
             (t.date||'').includes(s))) return false;
     }
@@ -4757,7 +4793,7 @@ function showView(viewId) {
   if (viewId==='expenses-view')     renderExpTable();
   if (viewId==='monthly-view')      renderMonthlyTable();
   if (viewId==='reports-view')      renderReportsView();
-  if (viewId==='add-view')          { renderRecentEntries(); updateCatDatalist(); }
+  if (viewId==='add-view')          { renderRecentEntries(); updateCatDatalist(); updateSourceDatalist(); }
   if (viewId==='backup-view')       { renderSnapshotList(); renderGSheetsPanel(); refreshStorageHealth(); }
   if (viewId==='settings-view')     loadSettingsForm();
 }
@@ -4823,11 +4859,14 @@ function acceptCategorySuggestion(cat){
   document.getElementById('qa-cat-suggestion').style.display = 'none';
 }
 
+const LAST_QA_SOURCE_KEY = 'pl_last_qa_source';
+
 async function quickAddTransaction() {
   const dateVal = document.getElementById('qa-date').value;
   const amount  = parseFloat(document.getElementById('qa-amount').value);
   const cat     = document.getElementById('qa-category').value.trim() || 'Uncategorized';
   const desc    = document.getElementById('qa-description').value.trim();
+  const source  = document.getElementById('qa-source').value.trim();
   const errDiv  = document.getElementById('qa-error');
   errDiv.style.display = 'none';
   let errs = [];
@@ -4835,17 +4874,31 @@ async function quickAddTransaction() {
   if (isNaN(amount)||amount<=0) errs.push('Amount must be a positive number');
   if (errs.length) { errDiv.textContent=errs.join(' · '); errDiv.style.display='block'; return; }
   const d = new Date(dateVal);
-  const txn = { id:Date.now()+Math.random(), date:dateVal, type:currentEntryType, category:cat, description:desc, amount, month:MONTHS[d.getMonth()], year:d.getFullYear() };
+  const txn = { id:Date.now()+Math.random(), date:dateVal, type:currentEntryType, category:cat, description:desc, amount, month:MONTHS[d.getMonth()], year:d.getFullYear(), source };
   setSaveStatus('saving');
   await dbPut(txn);
   setSaveStatus('saved');
   scheduleSnapshot();
   document.getElementById('qa-amount').value='';
   document.getElementById('qa-description').value='';
+  // Source is left as-is (not cleared) since consecutive quick-adds are
+  // usually for the same account — but remember it so it survives a reload.
+  if (source) { try { localStorage.setItem(LAST_QA_SOURCE_KEY, source); } catch(e) {} }
   const tipEl=document.getElementById('qa-cat-suggestion');if(tipEl)tipEl.style.display='none';
   document.getElementById('qa-amount').focus();
-  renderRecentEntries(); updateCatDatalist();
+  renderRecentEntries(); updateCatDatalist(); updateSourceDatalist();
   toast(`✓ ${currentEntryType==='revenue'?'Revenue':'Expense'} added — ${fmt(amount)}`, 'success');
+}
+
+async function updateSourceDatalist() {
+  const all = await dbGetAll();
+  const sources = [...new Set(all.map(t=>t.source).filter(Boolean))].sort();
+  const dl = document.getElementById('qa-source-list');
+  if (dl) dl.innerHTML = sources.map(s=>`<option value="${escapeHtml(s)}">`).join('');
+  const srcInput = document.getElementById('qa-source');
+  if (srcInput && !srcInput.value) {
+    try { const last = localStorage.getItem(LAST_QA_SOURCE_KEY); if (last) srcInput.value = last; } catch(e) {}
+  }
 }
 
 document.addEventListener('keydown', e => {
@@ -4986,10 +5039,12 @@ async function buildFilterOptions() {
   const all    = await dbGetAll();
   const months = [...new Set(all.map(t=>t.month).filter(Boolean))];
   const years  = [...new Set(all.map(t=>String(t.year)).filter(Boolean))].sort().reverse();
-  const mSel=document.getElementById('txn-month-filter'), ySel=document.getElementById('txn-year-filter');
-  const curM=mSel.value, curY=ySel.value;
+  const sources= [...new Set(all.map(t=>t.source).filter(Boolean))].sort();
+  const mSel=document.getElementById('txn-month-filter'), ySel=document.getElementById('txn-year-filter'), sSel=document.getElementById('txn-source-filter');
+  const curM=mSel.value, curY=ySel.value, curS=sSel.value;
   mSel.innerHTML='<option value="">All Months</option>'+MONTHS.filter(m=>months.includes(m)).map(m=>`<option value="${m}" ${curM===m?'selected':''}>${m}</option>`).join('');
   ySel.innerHTML='<option value="">All Years</option>'+years.map(y=>`<option value="${y}" ${curY===y?'selected':''}>${y}</option>`).join('');
+  sSel.innerHTML='<option value="">All Sources</option>'+sources.map(s=>`<option value="${escapeHtml(s)}" ${curS===s?'selected':''}>${escapeHtml(s)}</option>`).join('');
 }
 
 async function renderTxnTable() {
@@ -4997,13 +5052,14 @@ async function renderTxnTable() {
   const type  =document.getElementById('txn-type-filter').value;
   const month =document.getElementById('txn-month-filter').value;
   const year  =document.getElementById('txn-year-filter').value;
-  const { rows, total } = await dbQuery({ search, type, month, year, sort:txnSort.col, dir:txnSort.dir, page:txnPage, pageSize:txnPageSize });
+  const source=document.getElementById('txn-source-filter').value;
+  const { rows, total } = await dbQuery({ search, type, month, year, source, sort:txnSort.col, dir:txnSort.dir, page:txnPage, pageSize:txnPageSize });
   txnTotal = total;
   const totalPages = Math.max(1, Math.ceil(total/txnPageSize));
   if (txnPage>totalPages) txnPage=totalPages;
-  document.getElementById('txn-count-label').textContent = `${total.toLocaleString()} transaction${total!==1?'s':''}${search||type||month||year?' (filtered)':''}`;
+  document.getElementById('txn-count-label').textContent = `${total.toLocaleString()} transaction${total!==1?'s':''}${search||type||month||year||source?' (filtered)':''}`;
   const tbody=document.getElementById('txn-tbody');
-  if (!rows.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted)">No transactions match filters</td></tr>'; }
+  if (!rows.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">No transactions match filters</td></tr>'; }
   else {
     const isMobile = window.innerWidth <= 640;
     if (isMobile) {
@@ -5012,6 +5068,7 @@ async function renderTxnTable() {
         <td data-label="Type">${t.type === 'revenue' ? 'Revenue' : 'Expense'}</td>
         <td data-label="Category">${escapeHtml(t.category||'—')}</td>
         <td data-label="Description">${escapeHtml(t.description||'—')}</td>
+        <td data-label="Source" style="color:var(--muted)">${escapeHtml(t.source||'—')}</td>
         <td data-label="Amount" class="${t.type==='revenue'?'positive-val':'negative-val'}" style="text-align:right;font-weight:600">${fmt(t.amount)}</td>
         <td data-label=""><button onclick="event.stopPropagation();confirmDelete(${JSON.stringify(t.id)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'" aria-label="Delete">✕</button></td>
       </tr>`).join('');
@@ -5021,12 +5078,13 @@ async function renderTxnTable() {
         <td data-label="Type"><select class="editable-cell" onchange="inlineEdit(${JSON.stringify(t.id)},'type',this.value)"><option value="revenue" ${t.type==='revenue'?'selected':''}>Revenue</option><option value="expense" ${t.type==='expense'?'selected':''}>Expense</option></select></td>
         <td data-label="Category"><input class="editable-cell" value="${(t.category||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'category',this.value)"></td>
         <td data-label="Description"><input class="editable-cell" value="${(t.description||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'description',this.value)"></td>
+        <td data-label="Source"><input class="editable-cell" value="${(t.source||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'source',this.value)" placeholder="—"></td>
         <td data-label="Amount" class="${t.type==='revenue'?'positive-val':'negative-val'}" style="text-align:right;font-weight:600">${fmt(t.amount)}</td>
         <td data-label=""><button onclick="confirmDelete(${JSON.stringify(t.id)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'" aria-label="Delete">✕</button></td>
       </tr>`).join('');
     }
   }
-  ['date','type','category','amount'].forEach(c=>{const th=document.getElementById('th-'+c);if(th)th.className=txnSort.col===c?'sorted-'+txnSort.dir:'';});
+  ['date','type','category','source','amount'].forEach(c=>{const th=document.getElementById('th-'+c);if(th)th.className=txnSort.col===c?'sorted-'+txnSort.dir:'';});
   document.getElementById('txn-page-info').textContent=total?`Showing ${((txnPage-1)*txnPageSize+1).toLocaleString()}–${Math.min(txnPage*txnPageSize,total).toLocaleString()} of ${total.toLocaleString()}`:'No results';
   document.getElementById('pg-first').disabled=txnPage<=1;
   document.getElementById('pg-prev').disabled=txnPage<=1;
@@ -5042,7 +5100,7 @@ function goPage(dir) { const tp=Math.ceil(txnTotal/txnPageSize); if(dir==='first
 function goPageNum(n) { txnPage=n; renderTxnTable(); }
 function changePageSize() { txnPageSize=parseInt(document.getElementById('page-size-sel').value); txnPage=1; renderTxnTable(); }
 function debouncedSearch() { clearTimeout(searchTimer); searchTimer=setTimeout(()=>{txnPage=1;renderTxnTable();},250); }
-function clearTxnFilters() { ['txn-search','txn-type-filter','txn-month-filter','txn-year-filter'].forEach(id=>{document.getElementById(id).value='';}); txnPage=1; renderTxnTable(); }
+function clearTxnFilters() { ['txn-search','txn-type-filter','txn-month-filter','txn-year-filter','txn-source-filter'].forEach(id=>{document.getElementById(id).value='';}); txnPage=1; renderTxnTable(); }
 
 // Open Edit Transaction modal — mobile tap-to-edit
 function openEditTxnModal(id) {
@@ -5057,6 +5115,7 @@ function openEditTxnModal(id) {
     document.getElementById('edit-txn-type').value        = t.type || 'revenue';
     document.getElementById('edit-txn-category').value    = t.category || '';
     document.getElementById('edit-txn-description').value = t.description || '';
+    document.getElementById('edit-txn-source').value      = t.source || '';
     document.getElementById('edit-txn-amount').value      = t.amount || 0;
     const modal = document.getElementById('edit-txn-modal');
     modal.style.display = 'flex';
@@ -5073,12 +5132,14 @@ async function saveEditTxnModal() {
   const type  = document.getElementById('edit-txn-type').value;
   const cat   = document.getElementById('edit-txn-category').value.trim();
   const desc  = document.getElementById('edit-txn-description').value.trim();
+  const src   = document.getElementById('edit-txn-source').value.trim();
   const amt   = parseFloat(document.getElementById('edit-txn-amount').value);
   if (!date || isNaN(amt)) { toast('Date and amount required', 'error'); return; }
   await inlineEdit(id, 'date', date);
   await inlineEdit(id, 'type', type);
   await inlineEdit(id, 'category', cat);
   await inlineEdit(id, 'description', desc);
+  await inlineEdit(id, 'source', src);
   await inlineEdit(id, 'amount', amt);
   closeEditTxnModal();
   renderTxnTable();
@@ -5171,7 +5232,7 @@ async function bulkDeleteSelected(){
 
 let revPage=1,revPageSize=50,revSearchQuery='';let _revSearchT;
 function onRevSearchInput(){clearTimeout(_revSearchT);_revSearchT=setTimeout(()=>{revSearchQuery=(document.getElementById('rev-search').value||'').toLowerCase().trim();revPage=1;renderRevTable();},150);}
-function matchesSearch(t,q){if(!q)return true;return (t.description||'').toLowerCase().includes(q)||(t.category||'').toLowerCase().includes(q)||String(t.amount).includes(q)||(t.date||'').includes(q)||(t.month||'').toLowerCase().includes(q);}
+function matchesSearch(t,q){if(!q)return true;return (t.description||'').toLowerCase().includes(q)||(t.category||'').toLowerCase().includes(q)||(t.source||'').toLowerCase().includes(q)||String(t.amount).includes(q)||(t.date||'').includes(q)||(t.month||'').toLowerCase().includes(q);}
 async function renderRevTable() {
   const all=await dbGetAll(); let txns=all.filter(t=>t.type==='revenue');
   if(revSearchQuery)txns=txns.filter(t=>matchesSearch(t,revSearchQuery));
@@ -5179,8 +5240,8 @@ async function renderRevTable() {
   document.getElementById('rev-count').textContent=txns.length+' entries'+(revSearchQuery?` (filtered)`:'');
   const tbody=document.getElementById('rev-tbody');
   if(!txns.length){
-    if(revSearchQuery){tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">No matches for "${escapeHtml(revSearchQuery)}"</td></tr>`;return;}
-    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No revenue entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Revenue</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;
+    if(revSearchQuery){tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted)">No matches for "${escapeHtml(revSearchQuery)}"</td></tr>`;return;}
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No revenue entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Revenue</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;
   }
   const totalPages=Math.max(1,Math.ceil(txns.length/revPageSize));
   if(revPage>totalPages)revPage=totalPages;
@@ -5189,7 +5250,7 @@ async function renderRevTable() {
   tbody.innerHTML=slice.map(t=>{
     const id=String(t.id).replace(/"/g,'&quot;');
     const checked=bulkSelection.has(String(t.id))?'checked':'';
-    return `<tr><td data-label=""><input type="checkbox" data-bulk-id="${id}" ${checked} onchange="onBulkRowToggle(this)" aria-label="Select transaction"></td><td data-label="Date">${escapeHtml(t.date)}</td><td data-label="Category"><span style="background:var(--teal-dim);color:var(--teal);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td data-label="Description" style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td data-label="Amount" class="positive-val"><strong>${fmt(t.amount)}</strong></td><td data-label="Period">${escapeHtml(t.month+' '+t.year)}</td></tr>`;
+    return `<tr><td data-label=""><input type="checkbox" data-bulk-id="${id}" ${checked} onchange="onBulkRowToggle(this)" aria-label="Select transaction"></td><td data-label="Date">${escapeHtml(t.date)}</td><td data-label="Category"><span style="background:var(--teal-dim);color:var(--teal);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td data-label="Description" style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td data-label="Source" style="color:var(--muted)">${escapeHtml(t.source||'—')}</td><td data-label="Amount" class="positive-val"><strong>${fmt(t.amount)}</strong></td><td data-label="Period">${escapeHtml(t.month+' '+t.year)}</td></tr>`;
   }).join('');
   const info=document.getElementById('rev-page-info');if(info)info.textContent=`Showing ${((revPage-1)*revPageSize+1)}–${Math.min(revPage*revPageSize,txns.length)} of ${txns.length}`;
   updateBulkBar();
@@ -5204,8 +5265,8 @@ async function renderExpTable() {
   document.getElementById('exp-count').textContent=txns.length+' entries'+(expSearchQuery?` (filtered)`:'');
   const tbody=document.getElementById('exp-tbody');
   if(!txns.length){
-    if(expSearchQuery){tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">No matches for "${escapeHtml(expSearchQuery)}"</td></tr>`;return;}
-    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No expense entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Expense</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;
+    if(expSearchQuery){tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted)">No matches for "${escapeHtml(expSearchQuery)}"</td></tr>`;return;}
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px"><div style="color:var(--muted);margin-bottom:10px">No expense entries yet</div><button class="btn btn-outline" onclick="showView(\'add-view\')">➕ Add Expense</button>&nbsp;<button class="btn btn-outline" onclick="showView(\'upload-view\')">⬆ Import CSV</button></td></tr>';return;
   }
   const totalPages=Math.max(1,Math.ceil(txns.length/expPageSize));
   if(expPage>totalPages)expPage=totalPages;
@@ -5214,7 +5275,7 @@ async function renderExpTable() {
   tbody.innerHTML=slice.map(t=>{
     const id=String(t.id).replace(/"/g,'&quot;');
     const checked=bulkSelection.has(String(t.id))?'checked':'';
-    return `<tr><td data-label=""><input type="checkbox" data-bulk-id="${id}" ${checked} onchange="onBulkRowToggle(this)" aria-label="Select transaction"></td><td data-label="Date">${escapeHtml(t.date)}</td><td data-label="Category"><span style="background:var(--red-dim);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td data-label="Description" style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td data-label="Amount" class="negative-val"><strong>${fmt(t.amount)}</strong></td><td data-label="Period">${escapeHtml(t.month+' '+t.year)}</td></tr>`;
+    return `<tr><td data-label=""><input type="checkbox" data-bulk-id="${id}" ${checked} onchange="onBulkRowToggle(this)" aria-label="Select transaction"></td><td data-label="Date">${escapeHtml(t.date)}</td><td data-label="Category"><span style="background:var(--red-dim);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td data-label="Description" style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td data-label="Source" style="color:var(--muted)">${escapeHtml(t.source||'—')}</td><td data-label="Amount" class="negative-val"><strong>${fmt(t.amount)}</strong></td><td data-label="Period">${escapeHtml(t.month+' '+t.year)}</td></tr>`;
   }).join('');
   const info=document.getElementById('exp-page-info');if(info)info.textContent=`Showing ${((expPage-1)*expPageSize+1)}–${Math.min(expPage*expPageSize,txns.length)} of ${txns.length}`;
   updateBulkBar();
@@ -5332,6 +5393,12 @@ async function buildTimeframeControls(){
   const years=availableYears(all);
   const lbl=t=>`<label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px">${t}</label>`;
   if(type==='pl' || type==='expense-breakdown' || type==='revenue-breakdown'){
+    const groupByHtml = (type==='expense-breakdown' || type==='revenue-breakdown')
+      ? `<div>${lbl('Group By')}<select id="rt-groupby" style="min-width:130px">
+           <option value="category">Category</option>
+           <option value="source">Source / Account</option>
+         </select></div>`
+      : '';
     wrap.innerHTML=
       `<div>${lbl('Time Frame')}<select id="rt-preset" onchange="onPresetChange()" style="min-width:170px">
          <option value="this-year">This Year</option>
@@ -5347,7 +5414,7 @@ async function buildTimeframeControls(){
        <div id="rt-custom" style="display:none;gap:12px;align-items:flex-end">
          <div>${lbl('From')}<input type="date" id="rt-start"></div>
          <div>${lbl('To')}<input type="date" id="rt-end"></div>
-       </div>`;
+       </div>${groupByHtml}`;
   } else { // pl-yoy, monthly-trend, quarterly → a single year selector
     const opts=years.map(y=>`<option value="${y}">${y}</option>`).join('');
     wrap.innerHTML=`<div>${lbl(type==='pl-yoy'?'Compare Year':'Year')}<select id="rt-year" style="min-width:130px">${opts}</select></div>`+
@@ -5382,10 +5449,11 @@ async function generateReport(){
   const out=document.getElementById('report-output');
   let model;
   try{
+    const groupBy=document.getElementById('rt-groupby')?document.getElementById('rt-groupby').value:'category';
     if(type==='pl')                    model=buildPLReport(all);
     else if(type==='pl-yoy')           model=buildYoYReport(all);
-    else if(type==='expense-breakdown')model=buildBreakdownReport(all,'expense');
-    else if(type==='revenue-breakdown')model=buildBreakdownReport(all,'revenue');
+    else if(type==='expense-breakdown')model=buildBreakdownReport(all,'expense',groupBy);
+    else if(type==='revenue-breakdown')model=buildBreakdownReport(all,'revenue',groupBy);
     else if(type==='monthly-trend')    model=buildMonthlyTrendReport(all);
     else if(type==='quarterly')        model=buildQuarterlyReport(all);
   }catch(e){ out.innerHTML=`<div class="table-card" style="padding:24px;color:var(--red)">Failed to build report: ${escapeHtml(e.message)}</div>`; return; }
@@ -5489,20 +5557,22 @@ function buildYoYReport(all){
   return {title:'P&L — Year-over-Year', subtitle:`${prev} vs ${year}`, html, charts, csv};
 }
 
-function buildBreakdownReport(all,type){
+function buildBreakdownReport(all,type,groupBy){
   const tf=readTimeframe();
+  const byField=groupBy==='source';
   const txns=filterByRange(all,tf.start,tf.end).filter(t=>t.type===type);
-  const map={}; txns.forEach(t=>{const c=t.category||'Uncategorized'; map[c]=(map[c]||0)+(+t.amount||0);});
+  const map={}; txns.forEach(t=>{const c=byField?(t.source||'Unspecified'):(t.category||'Uncategorized'); map[c]=(map[c]||0)+(+t.amount||0);});
   const rows=_sortCats(map); const total=rows.reduce((s,r)=>s+r[1],0);
   const COLS=['#0ecfbe','#f5a623','#e74c3c','#27ae60','#3498db','#9b59b6','#e67e22','#e91e63','#8bc34a','#ff9800'];
   const pos=type==='revenue';
+  const colLabel=byField?'Source / Account':'Category';
   let body=rows.map(([c,v],i)=>`<tr><td style="padding:8px 12px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${COLS[i%COLS.length]};margin-right:8px"></span>${escapeHtml(c)}</td><td class="${pos?'positive-val':'negative-val'}" style="text-align:right;padding:8px 12px">${fmt(v)}</td><td style="text-align:right;padding:8px 12px;color:var(--muted)">${fmtPctOf(v,total)}</td></tr>`).join('');
   body+=`<tr class="total-row"><td style="padding:10px 12px"><strong>Total</strong></td><td style="text-align:right;padding:10px 12px"><strong>${fmt(total)}</strong></td><td style="text-align:right;padding:10px 12px">100%</td></tr>`;
   const html=
     `<div style="display:grid;grid-template-columns:minmax(260px,1fr) 2fr;gap:16px" class="rpt-split">
-       <div class="chart-card"><div class="chart-title">${pos?'Revenue':'Expenses'} by Category</div><div class="chart-wrap"><canvas id="rpt-bd-chart"></canvas></div></div>
+       <div class="chart-card"><div class="chart-title">${pos?'Revenue':'Expenses'} by ${colLabel}</div><div class="chart-wrap"><canvas id="rpt-bd-chart"></canvas></div></div>
        <div class="table-card"><div class="table-wrap"><table>
-         <thead><tr><th>Category</th><th style="text-align:right">Amount</th><th style="text-align:right">% of Total</th></tr></thead>
+         <thead><tr><th>${colLabel}</th><th style="text-align:right">Amount</th><th style="text-align:right">% of Total</th></tr></thead>
          <tbody>${body}</tbody></table></div></div>
      </div>`;
   const charts=[()=>{
@@ -5511,8 +5581,8 @@ function buildBreakdownReport(all,type){
       data:{labels:rows.map(r=>r[0]),datasets:[{data:rows.map(r=>r[1]),backgroundColor:rows.map((_,i)=>COLS[i%COLS.length]),borderWidth:0}]},
       options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:8,font:{size:11},color:tc.muted}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.raw)} (${fmtPctOf(ctx.raw,total)})`}}}}});
   }];
-  const csv=[['Category','Amount','% of Total'],...rows.map(([c,v])=>[c,v.toFixed(2),fmtPctOf(v,total)]),['Total',total.toFixed(2),'100%']];
-  return {title:(pos?'Revenue':'Expense')+' Breakdown', subtitle:tf.label, html, charts, csv};
+  const csv=[[colLabel,'Amount','% of Total'],...rows.map(([c,v])=>[c,v.toFixed(2),fmtPctOf(v,total)]),['Total',total.toFixed(2),'100%']];
+  return {title:(pos?'Revenue':'Expense')+' Breakdown'+(byField?' by Source':''), subtitle:tf.label, html, charts, csv};
 }
 
 function buildMonthlyTrendReport(all){
@@ -6057,6 +6127,11 @@ async function applyMapping(){
     mapping[f.key]=v===''?null:parseInt(v);
   });
   if(err)return;
+  const globalSourceName=(document.getElementById('import-source-name').value||'').trim();
+  if(sourceMeta.sourceRequired && !globalSourceName && mapping.source===null){
+    toast(`Please enter "${sourceMeta.sourceLabel.replace(' *','')}" — or map a Source column below`,'error');
+    return;
+  }
   const rows=parsedCSV.slice(1);const newTxns=[];let skipped=0,skippedTransfers=0;
   const usedGuessedCategories=new Set();
   rows.forEach((row,idx)=>{
@@ -6064,6 +6139,7 @@ async function applyMapping(){
     const amountRaw=mapping.amount!==null?row[mapping.amount]:'0';
     const typeRaw=mapping.type!==null?row[mapping.type]:'';
     const descVal=mapping.description!==null?(row[mapping.description]||''):'';
+    const srcVal=(mapping.source!==null?(row[mapping.source]||'').trim():'')||globalSourceName;
     const _amtStr=String(amountRaw).trim();
     const _numFmt=document.getElementById('map-num-fmt')?document.getElementById('map-num-fmt').value:'auto';
     const _acct=/^\(([0-9.,]+)\)$/.exec(_amtStr);
@@ -6095,8 +6171,18 @@ async function applyMapping(){
     const date=(!parsed||isNaN(parsed))?dateVal:parsed.toISOString().split('T')[0];
     const month=(!parsed||isNaN(parsed))?'Unknown':MONTHS[parsed.getMonth()];
     const year=(!parsed||isNaN(parsed))?'':parsed.getFullYear();
-    newTxns.push({id:Date.now()+idx+Math.random(),date,type,category:catVal,description:descVal,amount:resolved.signedAmount,month,year});
+    newTxns.push({id:Date.now()+idx+Math.random(),date,type,category:catVal,description:descVal,amount:resolved.signedAmount,month,year,source:srcVal});
   });
+
+  // Remember this source's name so the next import of the same kind of file
+  // (e.g. next month's card statement) starts pre-filled.
+  if(globalSourceName){
+    try{
+      const names=JSON.parse(localStorage.getItem(LAST_IMPORT_SOURCE_NAMES_KEY))||{};
+      names[importSource]=globalSourceName;
+      localStorage.setItem(LAST_IMPORT_SOURCE_NAMES_KEY,JSON.stringify(names));
+    }catch(e){}
+  }
 
   // Newly-guessed categories (e.g. "Vehicle & Fuel" from a gas-station charge)
   // go into the saved category list so they show up in the picker afterward —
@@ -6180,8 +6266,8 @@ async function syncFromFile(){
 async function syncToFile(){
   if(!linkedFileHandle){toast('No file linked','error');return;}
   try{const all=await dbGetAll();let content;const name=linkedFileHandle.name.toLowerCase();
-    if(name.endsWith('.xlsx')){const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet(all.map(t=>({Date:t.date,Type:t.type,Category:t.category,Description:t.description,Amount:t.amount,Month:t.month,Year:t.year})));XLSX.utils.book_append_sheet(wb,ws,'Transactions');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});content=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});}
-    else{const csv=[['Date','Type','Category','Description','Amount','Month','Year'].join(','),...all.map(t=>[t.date,t.type,csvCell(t.category),csvCell(t.description||''),t.amount,t.month,t.year].join(','))].join('\n');content=new Blob([csv],{type:'text/csv'});}
+    if(name.endsWith('.xlsx')){const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet(all.map(t=>({Date:t.date,Type:t.type,Category:t.category,Description:t.description,Source:t.source||'',Amount:t.amount,Month:t.month,Year:t.year})));XLSX.utils.book_append_sheet(wb,ws,'Transactions');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});content=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});}
+    else{const csv=[['Date','Type','Category','Description','Source','Amount','Month','Year'].join(','),...all.map(t=>[t.date,t.type,csvCell(t.category),csvCell(t.description||''),csvCell(t.source||''),t.amount,t.month,t.year].join(','))].join('\n');content=new Blob([csv],{type:'text/csv'});}
     const w=await linkedFileHandle.createWritable();await w.write(content);await w.close();
     document.getElementById('last-sync-time').textContent=new Date().toLocaleString();
     toast(`✓ Synced to ${linkedFileHandle.name}`,'success');
@@ -6194,9 +6280,9 @@ function unlinkFile(){linkedFileHandle=null;localStorage.removeItem(FS_HANDLE_KE
 //  EXPORT
 // ═══════════════════════════════════════════════════════════════════
 
-async function exportCSV(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const csv=[['Date','Type','Category','Description','Amount','Month','Year'].join(','),...all.map(t=>[t.date,t.type,csvCell(t.category),csvCell(t.description||''),t.amount,t.month,t.year].join(','))].join('\n');download(csv,`pl_export_${Date.now()}.csv`,'text/csv');toast('CSV exported','success');}
+async function exportCSV(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const csv=[['Date','Type','Category','Description','Source','Amount','Month','Year'].join(','),...all.map(t=>[t.date,t.type,csvCell(t.category),csvCell(t.description||''),csvCell(t.source||''),t.amount,t.month,t.year].join(','))].join('\n');download(csv,`pl_export_${Date.now()}.csv`,'text/csv');toast('CSV exported','success');}
 
-async function exportXLSX(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const wb=XLSX.utils.book_new();const txData=all.map(t=>({Date:t.date,Type:t.type,Category:csvSanitize(t.category||''),Description:csvSanitize(t.description||''),Amount:t.amount,Month:t.month,Year:t.year}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(txData),'Transactions');const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else map[t.month].expenses+=t.amount;});const sumData=MONTHS.filter(m=>map[m].revenue>0||map[m].expenses>0).map(m=>({Month:m,Revenue:map[m].revenue,Expenses:map[m].expenses,'Net Profit':map[m].revenue-map[m].expenses,'Margin %':map[m].revenue>0?((map[m].revenue-map[m].expenses)/map[m].revenue*100).toFixed(1)+'%':'0.0%'}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sumData),'Monthly Summary');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});download(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`pl_export_${Date.now()}.xlsx`,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');toast('Excel file exported','success');}
+async function exportXLSX(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const wb=XLSX.utils.book_new();const txData=all.map(t=>({Date:t.date,Type:t.type,Category:csvSanitize(t.category||''),Description:csvSanitize(t.description||''),Source:csvSanitize(t.source||''),Amount:t.amount,Month:t.month,Year:t.year}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(txData),'Transactions');const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else map[t.month].expenses+=t.amount;});const sumData=MONTHS.filter(m=>map[m].revenue>0||map[m].expenses>0).map(m=>({Month:m,Revenue:map[m].revenue,Expenses:map[m].expenses,'Net Profit':map[m].revenue-map[m].expenses,'Margin %':map[m].revenue>0?((map[m].revenue-map[m].expenses)/map[m].revenue*100).toFixed(1)+'%':'0.0%'}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sumData),'Monthly Summary');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});download(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`pl_export_${Date.now()}.xlsx`,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');toast('Excel file exported','success');}
 
 async function exportJSON(){const all=await dbGetAll();const payload={settings,transactions:all,exportedAt:new Date().toISOString()};download(JSON.stringify(payload,null,2),`pl_backup_${Date.now()}.json`,'application/json');toast('JSON backup exported','success');}
 
