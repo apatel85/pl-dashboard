@@ -2694,11 +2694,11 @@ tbody tr:hover { background: var(--surface2); }
         <div class="table-header"><h3>Expected CSV Format</h3></div>
         <div style="padding:16px 20px; font-size:13px; color:var(--muted); line-height:1.8">
           Your CSV can have <strong style="color:var(--text)">any column names</strong> — you'll map them after upload.<br>
-          Minimum required: a <strong style="color:var(--teal)">date</strong> column, an <strong style="color:var(--teal)">amount</strong> column, and a <strong style="color:var(--teal)">type</strong> column (Revenue / Expense).<br>
+          Minimum required: a <strong style="color:var(--teal)">date</strong> column and an <strong style="color:var(--teal)">amount</strong> column.<br>
           <br>
           <strong style="color:var(--text)">Example columns:</strong> Date, Amount, Type, Category, Description, Reference, Notes, Month, Year<br>
           <br>
-          Amounts should be positive numbers. Mark type as <code>Revenue</code>, <code>Income</code>, <code>Expense</code>, or <code>Cost</code>.
+          After upload you'll pick <strong style="color:var(--text)">what kind of data this is</strong> — Sales/Revenue, Credit Card Statement, Expense Report, Bank Statement, or "I'll map a Type column myself." That choice decides whether each row is Revenue or Expense, so credit card charges import as expenses even if your file has no explicit Type column.
         </div>
       </div>
     </div>
@@ -3293,6 +3293,22 @@ tbody tr:hover { background: var(--surface2); }
       </table>
     </div>
 
+    <div style="margin-bottom:16px;padding:12px 14px;background:var(--surface2);border:1px solid var(--teal);border-radius:8px">
+      <label for="import-source-type" style="font-size:12px;font-weight:700;color:var(--text);display:block;margin-bottom:6px">📁 What kind of data is this?</label>
+      <select id="import-source-type" class="map-select" onchange="onImportSourceChange()" style="width:100%">
+        <option value="auto">I'll map a Type column myself (mixed revenue &amp; expense)</option>
+        <option value="sales">Sales / Revenue data (invoices, POS export, sales ledger)</option>
+        <option value="creditcard">Credit card statement (charges, payments, refunds)</option>
+        <option value="expense">Expense report / bills (all rows are expenses)</option>
+        <option value="bankstatement">Bank / checking account statement (mixed)</option>
+      </select>
+      <div id="import-source-hint" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
+      <div id="import-sign-row" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <label for="map-sign-convention" style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px" id="import-sign-label">Amount sign convention:</label>
+        <select id="map-sign-convention" class="map-select" style="width:100%"></select>
+      </div>
+    </div>
+
     <div style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">
       Field Mapping &nbsp;<span style="color:var(--amber);font-weight:400">* required</span>
     </div>
@@ -3444,7 +3460,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.4.0';
+const APP_VERSION       = '8.5.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -3622,6 +3638,142 @@ const NATIVE_FIELDS = [
   { key:'category',    label:'Category',            required:false, hint:'e.g. Product Sales, Rent' },
   { key:'description', label:'Description / Notes', required:false, hint:'Transaction details' },
 ];
+
+// ═══════════════════════════════════════════════════════════════════
+//  CSV IMPORT — DATA-TYPE-AWARE CLASSIFICATION
+//  Fixes the classic "credit card charges imported as revenue" bug:
+//  a plain amount>=0 heuristic can't tell a $50 charge from $50 of sales.
+//  Instead the user tells us what kind of export this is, and we apply
+//  the accounting convention for that source.
+// ═══════════════════════════════════════════════════════════════════
+
+const LAST_IMPORT_SOURCE_KEY = 'pl_last_import_source';
+
+const IMPORT_SOURCE_META = {
+  auto: {
+    hint: 'Uses the Type column you map below (or, if none, guesses from the amount sign).',
+    needsTypeColumn: true, showSign: false
+  },
+  sales: {
+    hint: 'Every row is imported as Revenue.',
+    needsTypeColumn: false, showSign: false
+  },
+  creditcard: {
+    hint: 'Charges import as Expense. Payments to the card are skipped (they’re a transfer, not income or a cost). Refunds import as a negative expense, reducing your total.',
+    needsTypeColumn: false, showSign: true,
+    signLabel: 'Positive amounts on your statement are:',
+    signOptions: [
+      { value:'pos', label:'Charges (most cards: Amex, Discover, Capital One, Bank of America)' },
+      { value:'neg', label:'Payments/credits — charges are negative (Chase-style)' },
+    ]
+  },
+  expense: {
+    hint: 'Every row is imported as Expense.',
+    needsTypeColumn: false, showSign: false
+  },
+  bankstatement: {
+    hint: 'Deposits import as Revenue, withdrawals as Expense — set which sign is which below.',
+    needsTypeColumn: false, showSign: true,
+    signLabel: 'Positive amounts on your statement are:',
+    signOptions: [
+      { value:'pos', label:'Money in / deposits (Revenue)' },
+      { value:'neg', label:'Money out / withdrawals (Expense) — deposits are negative' },
+    ]
+  }
+};
+
+// Keyword → category lookup for rows with no mapped/blank category. Ordered
+// by specificity; first match wins. Categories mirror the app's existing
+// Schedule-C-style defaults so results land in familiar buckets.
+const EXPENSE_MERCHANT_RULES = [
+  ['Salaries & Wages',               ['payroll','gusto','adp ','paychex','justworks','rippling']],
+  ['Contractor / Freelancer Fees',   ['upwork','fiverr','freelanc']],
+  ['Rent / Office Space',            ['rent payment','landlord','wework','regus',' lease ']],
+  ['Utilities',                      ['electric co','pg&e','con edison','coned','water dept','utility bill','spectrum','comcast','xfinity','verizon fios']],
+  ['Software & Subscriptions',       ['aws','amazon web services','google cloud',' gcp ','microsoft 365','office 365',' adobe','zoom.us','slack','dropbox','notion','github','gitlab','quickbooks','salesforce','hubspot','mailchimp','canva','figma','atlassian','godaddy','squarespace']],
+  ['Marketing & Advertising',        ['facebook ads','fb ads','google ads','adwords','instagram ads','linkedin ads','tiktok ads','constant contact']],
+  ['Shipping & Fulfillment',         ['ups store','fedex','usps','dhl','shipstation','pirate ship','stamps.com']],
+  ['Professional Services',          ['legalzoom','attorney','law office','law firm',' llp',' cpa ','accountant','bookkeeping']],
+  ['Insurance',                      ['insurance','geico','progressive','allstate','state farm','hiscox','nationwide']],
+  ['Bank Fees & Payment Processing', ['bank fee','service charge','overdraft','wire fee','stripe fee','paypal fee','square fee','finance charge','interest charge','atm fee','nsf fee','annual fee']],
+  ['Travel & Meals',                 ['uber','lyft','delta air','united airlines','southwest','american air','jetblue','marriott','hilton','airbnb','hertz','avis rent','hotel','restaurant','starbucks','doordash','grubhub','chipotle','mcdonald']],
+  ['Vehicle & Fuel',                 ['shell oil','chevron','exxon','mobil ','bp gas','gas station','76 gas','arco ','speedway']],
+  ['Office Supplies',                ['staples','office depot','amazon']],
+];
+const REVENUE_MERCHANT_RULES = [
+  ['Online / Digital Sales', ['stripe payout','shopify payout','square deposit','paypal transfer']],
+  ['Consulting / Retainers', ['invoice','retainer']],
+  ['Subscription Income',    ['recurring payment received','subscription payment']],
+];
+
+function guessMerchantCategory(description, type){
+  const d = String(description||'').toLowerCase();
+  if(!d) return '';
+  const rules = type==='revenue' ? REVENUE_MERCHANT_RULES : EXPENSE_MERCHANT_RULES;
+  for(const [category, keywords] of rules){
+    if(keywords.some(k=>d.includes(k))) return category;
+  }
+  return '';
+}
+
+// Decide {type, signedAmount} — or {skip:true} for transfers like card
+// payments — for one imported row, given the chosen import source.
+function resolveTxnType(ctx){
+  const { source, typeRaw, amount, ccSign, bankSign } = ctx;
+  const tl = String(typeRaw||'').toLowerCase().trim();
+  const abs = Math.abs(amount);
+
+  if(source==='sales')   return { type:'revenue', signedAmount:abs };
+  if(source==='expense') return { type:'expense', signedAmount:abs };
+
+  if(source==='creditcard'){
+    // Prefer the card issuer's own Type label when a Type column was mapped —
+    // it's more reliable than any sign convention.
+    if(['payment received','autopay','direct debit','online payment'].some(k=>tl.includes(k)) || tl==='payment')
+      return { skip:true, reason:'card payment (transfer, not revenue or expense)' };
+    if(['return','refund','credit','reversal'].some(k=>tl.includes(k)))
+      return { type:'expense', signedAmount:-abs };
+    if(['sale','purchase','charge','fee','interest','adjustment'].some(k=>tl.includes(k)))
+      return { type:'expense', signedAmount:abs };
+    // No usable Type label — fall back to the chosen sign convention.
+    const isCharge = ccSign==='neg' ? amount<0 : amount>=0;
+    return { type:'expense', signedAmount: isCharge ? abs : -abs };
+  }
+
+  if(source==='bankstatement'){
+    const isIn = bankSign==='neg' ? amount<0 : amount>=0;
+    return { type: isIn?'revenue':'expense', signedAmount:abs };
+  }
+
+  // 'auto' — original heuristic, unchanged for backward compatibility.
+  const type = ['revenue','income','credit','sale','sales','cr'].some(k=>tl.includes(k)) ? 'revenue'
+    : ['expense','cost','debit','purchase','payment','dr'].some(k=>tl.includes(k)) ? 'expense'
+    : (amount>=0?'revenue':'expense');
+  return { type, signedAmount:abs };
+}
+
+function onImportSourceChange(){
+  const source = document.getElementById('import-source-type').value;
+  const meta = IMPORT_SOURCE_META[source] || IMPORT_SOURCE_META.auto;
+  document.getElementById('import-source-hint').textContent = meta.hint;
+  try { localStorage.setItem(LAST_IMPORT_SOURCE_KEY, source); } catch(e) {}
+
+  ['type'].forEach(key=>{
+    document.querySelectorAll(`[data-field="${key}"]`).forEach(el=>{
+      el.style.display = meta.needsTypeColumn ? '' : 'none';
+    });
+  });
+
+  const signRow = document.getElementById('import-sign-row');
+  if(meta.showSign){
+    signRow.style.display = '';
+    document.getElementById('import-sign-label').textContent = meta.signLabel;
+    const sel = document.getElementById('map-sign-convention');
+    sel.innerHTML = meta.signOptions.map(o=>`<option value="${o.value}">${escapeHtml(o.label)}</option>`).join('');
+  } else {
+    signRow.style.display = 'none';
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════
 //  INDEXEDDB ENGINE
@@ -5866,13 +6018,21 @@ function openMappingModal(){
   const guesses=autoGuessFields(csvHeaders);
   const grid=document.getElementById('field-map-grid');grid.innerHTML='';
   NATIVE_FIELDS.forEach(field=>{
-    const nd=document.createElement('div');nd.className='map-native '+(field.required?'map-required':'map-optional');nd.innerHTML=`<div style="font-size:13px;font-weight:600">${field.label}</div><div style="font-size:10px;color:var(--teal);opacity:.7;margin-top:2px">${field.hint}</div>`;
-    const arrow=document.createElement('div');arrow.className='map-arrow';arrow.textContent='→';
-    const sel=document.createElement('select');sel.className='map-select';sel.id='map-'+field.key;
+    const nd=document.createElement('div');nd.className='map-native '+(field.required?'map-required':'map-optional');nd.dataset.field=field.key;nd.innerHTML=`<div style="font-size:13px;font-weight:600">${field.label}</div><div style="font-size:10px;color:var(--teal);opacity:.7;margin-top:2px">${field.hint}</div>`;
+    const arrow=document.createElement('div');arrow.className='map-arrow';arrow.dataset.field=field.key;arrow.textContent='→';
+    const sel=document.createElement('select');sel.className='map-select';sel.id='map-'+field.key;sel.dataset.field=field.key;
     const o=document.createElement('option');o.value='';o.textContent=field.required?'— Select column —':'— Skip (optional) —';sel.appendChild(o);
     csvHeaders.forEach((h,i)=>{const opt=document.createElement('option');opt.value=i;opt.textContent=h;if(guesses[field.key]===i)opt.selected=true;sel.appendChild(opt);});
     grid.appendChild(nd);grid.appendChild(arrow);grid.appendChild(sel);
   });
+  // Restore the last-used import source (repeat imports, e.g. monthly CC
+  // statements, shouldn't require re-picking it every time) and apply its
+  // Type-column / sign-convention visibility immediately.
+  let lastSource='auto';
+  try { lastSource=localStorage.getItem(LAST_IMPORT_SOURCE_KEY)||'auto'; } catch(e) {}
+  const sourceSel=document.getElementById('import-source-type');
+  sourceSel.value = IMPORT_SOURCE_META[lastSource] ? lastSource : 'auto';
+  onImportSourceChange();
   document.getElementById('mapping-modal').classList.add('open');
 }
 
@@ -5885,15 +6045,24 @@ function autoGuessFields(headers){
 function closeMapping(){document.getElementById('mapping-modal').classList.remove('open');parsedCSV=null;}
 
 async function applyMapping(){
+  const importSource=document.getElementById('import-source-type').value;
+  const sourceMeta=IMPORT_SOURCE_META[importSource]||IMPORT_SOURCE_META.auto;
+  const ccSign=document.getElementById('map-sign-convention')?document.getElementById('map-sign-convention').value:'pos';
+  const bankSign=ccSign;
   const mapping={};let err=false;
-  NATIVE_FIELDS.forEach(f=>{const v=document.getElementById('map-'+f.key).value;if(f.required&&v===''){toast(`"${f.label}" is required`,'error');err=true;return;}mapping[f.key]=v===''?null:parseInt(v);});
+  NATIVE_FIELDS.forEach(f=>{
+    const v=document.getElementById('map-'+f.key).value;
+    const required=f.key==='type'?sourceMeta.needsTypeColumn:f.required;
+    if(required&&v===''){toast(`"${f.label}" is required`,'error');err=true;return;}
+    mapping[f.key]=v===''?null:parseInt(v);
+  });
   if(err)return;
-  const rows=parsedCSV.slice(1);const newTxns=[];let skipped=0;
+  const rows=parsedCSV.slice(1);const newTxns=[];let skipped=0,skippedTransfers=0;
+  const usedGuessedCategories=new Set();
   rows.forEach((row,idx)=>{
     const dateVal=mapping.date!==null?row[mapping.date]:'';
     const amountRaw=mapping.amount!==null?row[mapping.amount]:'0';
     const typeRaw=mapping.type!==null?row[mapping.type]:'';
-    const catVal=mapping.category!==null?(row[mapping.category]||'Uncategorized'):'Uncategorized';
     const descVal=mapping.description!==null?(row[mapping.description]||''):'';
     const _amtStr=String(amountRaw).trim();
     const _numFmt=document.getElementById('map-num-fmt')?document.getElementById('map-num-fmt').value:'auto';
@@ -5905,8 +6074,18 @@ async function applyMapping(){
     let amount=_isEU?parseFloat(_core.replace(/\./g,'').replace(',','.')):parseFloat(_core.replace(/[$€£,\s]/g,''));
     if(_acct)amount=-amount;   // parentheses = accounting negative
     if(isNaN(amount)){skipped++;return;}
-    const tl=String(typeRaw).toLowerCase().trim();
-    const type=['revenue','income','credit','sale','sales','cr'].some(k=>tl.includes(k))?'revenue':['expense','cost','debit','purchase','payment','dr'].some(k=>tl.includes(k))?'expense':(amount>=0?'revenue':'expense');
+
+    const resolved=resolveTxnType({source:importSource,typeRaw,amount,ccSign,bankSign});
+    if(resolved.skip){skippedTransfers++;return;}
+    const type=resolved.type;
+
+    let catVal=mapping.category!==null?(row[mapping.category]||'').trim():'';
+    if(!catVal){
+      const guess=guessMerchantCategory(descVal,type);
+      catVal=guess||'Uncategorized';
+      if(guess)usedGuessedCategories.add(guess);
+    }
+
     const _dateFmt=document.getElementById('map-date-fmt')?document.getElementById('map-date-fmt').value:'auto';
     let parsed;
     if(dateVal&&dateVal.match(/^\d{4}-\d{2}-\d{2}$/)){parsed=new Date(dateVal+'T00:00:00');}
@@ -5916,8 +6095,17 @@ async function applyMapping(){
     const date=(!parsed||isNaN(parsed))?dateVal:parsed.toISOString().split('T')[0];
     const month=(!parsed||isNaN(parsed))?'Unknown':MONTHS[parsed.getMonth()];
     const year=(!parsed||isNaN(parsed))?'':parsed.getFullYear();
-    newTxns.push({id:Date.now()+idx+Math.random(),date,type,category:catVal,description:descVal,amount:Math.abs(amount),month,year});
+    newTxns.push({id:Date.now()+idx+Math.random(),date,type,category:catVal,description:descVal,amount:resolved.signedAmount,month,year});
   });
+
+  // Newly-guessed categories (e.g. "Vehicle & Fuel" from a gas-station charge)
+  // go into the saved category list so they show up in the picker afterward —
+  // same pattern as applying an industry template.
+  if(usedGuessedCategories.size){
+    const merged=[...new Set([...loadCategories(),...usedGuessedCategories])];
+    saveCategories(merged);
+    CATEGORIES=merged;
+  }
 
   // Duplicate detection: hash incoming rows against existing transactions.
   // Same (date|amount|description|type) is treated as a duplicate. Use a
@@ -5946,6 +6134,7 @@ async function applyMapping(){
   closeMapping();
   scheduleSnapshot();
   const parts = [`✓ Imported ${finalTxns.length} transactions`];
+  if(skippedTransfers)parts.push(`${skippedTransfers} card payment${skippedTransfers===1?'':'s'} skipped (transfer, not P&L)`);
   if(skipped)parts.push(`${skipped} unparseable`);
   if(skippedDupes)parts.push(`${skippedDupes} duplicates skipped`);
   toast(parts.join(' · '),'success');
