@@ -1,8 +1,25 @@
 {
-  "latest_version": "8.7.0",
+  "latest_version": "8.8.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.8.0",
+      "date": "2026-08-16",
+      "title": "Whole-File Header Search, Category Dropdown, Balance Sheet Types & Credit Card Payment Offsetting",
+      "summary": "CSV import now searches the entire file for your header row (not just the first 7 lines) and shows a ±3-row window around whatever it finds, with a manual row-number override. All Transactions now has a real Category dropdown pulled from your actual category list, grouped by type, with an inline \"add new category\" option. Three new account types — Owner's Equity, Long-Term Liability, Short-Term Liability — let you track loans, equipment, and owner contributions/draws without polluting your P&L, plus a new Balance Sheet Summary report. Bank statement imports now recognize a payment to a credit card as a transfer between your own accounts and correctly exclude it from P&L.",
+      "changes": [
+        { "type": "fix", "text": "CSV/Excel header detection now scans the whole file (bounded for performance) instead of only the first 7 rows, so a header buried at row 10, row 15, or beyond is still found automatically." },
+        { "type": "new", "text": "The file preview now shows a ±3-row window centered on the detected header row (e.g. header at row 10 shows rows 7-13; row 15 shows rows 12-18) instead of always showing rows 1-7, with the header row highlighted." },
+        { "type": "new", "text": "Added a \"jump to row #\" input next to the header-row picker for files where the real header sits outside the detected window." },
+        { "type": "new", "text": "All Transactions' Category column is now a dropdown built from your real category list (the same one used on Add Transaction), grouped with the matching type's categories first — Expense categories first for an Expense row, Revenue first for Revenue — with a \"+ Add new category…\" option at the bottom. Changing a row's Type live-regroups its Category dropdown. Applied to the mobile edit sheet too." },
+        { "type": "new", "text": "Three new transaction types: Owner's Equity, Long-Term Liability, and Short-Term Liability, plus Asset (Fixed / Equipment) — the one still missing once Equity and Liability existed, since Asset/Liability/Equity/Revenue/Expense are the five fundamental account types in double-entry accounting. Available from Add Transaction's \"More types\" selector and the All Transactions Type dropdown." },
+        { "type": "fix", "text": "Fixed several report/dashboard totals that silently bucketed anything that wasn't Revenue into Expense — the new Balance Sheet types would have inflated your P&L expenses. The P&L Statement, Monthly P&L, Monthly Trend, Quarterly Summary, dashboard KPIs, and CSV/Excel exports now explicitly gate on Revenue vs. Expense and correctly exclude Owner's Equity, Liability, and Asset entries." },
+        { "type": "new", "text": "New Balance Sheet Summary report: running totals of your Asset, Liability, and Owner's Equity entries, as of a selected date — a lightweight snapshot, not a full formal balance sheet." },
+        { "type": "new", "text": "Manual entry (Add Transaction) and the mobile edit sheet now accept negative amounts, for recording a refund, an owner draw, or a debt repayment directly." },
+        { "type": "fix", "text": "Bank statement imports now recognize a payment to a credit card (by description or Type column keywords — \"Chase Card Payment\", \"AUTOPAY\", etc.) as a transfer between your own accounts and exclude it from P&L, the same way credit card imports already skip the card's own \"Payment\" rows — so the expense isn't double-counted (or missed) on either side of the transfer." }
+      ]
+    },
     {
       "version": "8.7.0",
       "date": "2026-08-16",
