@@ -3294,12 +3294,27 @@ tbody tr:hover { background: var(--surface2); }
       We detected these columns in your file. Tell us which column matches each field.
     </div>
 
-    <div class="preview-label">File Preview (first 3 rows)</div>
+    <div id="header-detect-banner" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--surface2);border:1px solid var(--amber);border-radius:8px;font-size:12px;color:var(--text);line-height:1.5"></div>
+
+    <div class="preview-label">File Preview — top 7 rows <span style="font-weight:400;text-transform:none;letter-spacing:normal">(the highlighted row is used as your column headers)</span></div>
     <div class="preview-table-wrap">
       <table id="preview-table" style="font-size:12px;white-space:nowrap">
         <thead id="preview-thead"></thead>
         <tbody id="preview-tbody"></tbody>
       </table>
+    </div>
+
+    <div style="margin-bottom:16px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end">
+      <div style="flex:1;min-width:220px">
+        <label for="csv-header-row-select" style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Which row are your column headers?</label>
+        <select id="csv-header-row-select" class="map-select" onchange="onHeaderRowChange()" style="width:100%"></select>
+      </div>
+      <div id="csv-footer-toggle-wrap" style="display:none;flex:1;min-width:220px;padding-bottom:8px">
+        <label style="font-size:12px;color:var(--text);display:flex;align-items:flex-start;gap:6px;cursor:pointer">
+          <input type="checkbox" id="csv-exclude-footer" checked onchange="onFooterToggleChange()" style="margin-top:2px">
+          <span id="csv-footer-toggle-label"></span>
+        </label>
+      </div>
     </div>
 
     <div style="margin-bottom:16px;padding:12px 14px;background:var(--surface2);border:1px solid var(--teal);border-radius:8px">
@@ -3477,7 +3492,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.6.0';
+const APP_VERSION       = '8.7.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -3574,8 +3589,11 @@ let autoFileHandle  = null;   // Layer 2
 let autoBackupTimer = null;
 let gsheetsToken    = null;   // Layer 3 OAuth token
 let gsheetsSheetId  = null;   // Linked spreadsheet ID
-let parsedCSV       = null;
-let csvHeaders      = [];
+let parsedCSV          = null;   // full raw rows of the uploaded file, unmodified
+let csvHeaders         = [];     // derived: parsedCSV[csvHeaderRowIndex]
+let csvHeaderRowIndex  = 0;      // which raw row the user has designated as column headers
+let csvFooterRowIndexes = new Set(); // absolute row indexes flagged as totals/footer, excluded by default
+let csvStructure       = null;   // last analyzeCSVStructure() result, for banners/labels
 
 // Pagination state
 let txnPage = 1, txnPageSize = 25;
@@ -3748,7 +3766,15 @@ function resolveTxnType(ctx){
   const abs = Math.abs(amount);
 
   if(source==='sales')   return { type:'revenue', signedAmount:abs };
-  if(source==='expense') return { type:'expense', signedAmount:abs };
+  if(source==='expense'){
+    // A refund/credit/return line item reduces the expense total — store it
+    // negative (displays as a positive green amount; see fmtAmount()).
+    if(['return','refund','credit memo','credit note','reversal'].some(k=>tl.includes(k)) || (tl==='credit'))
+      return { type:'expense', signedAmount:-abs };
+    // No Type label to go on — trust the file's own sign. Expense-report /
+    // bill exports commonly use a negative amount to denote a credit.
+    return { type:'expense', signedAmount: amount<0 ? -abs : abs };
+  }
 
   if(source==='creditcard'){
     // Prefer the card issuer's own Type label when a Type column was mapped —
@@ -4912,14 +4938,14 @@ async function renderRecentEntries() {
   const { rows } = await dbQuery({ sort:'date', dir:'desc', page:1, pageSize:10 });
   const tbody = document.getElementById('recent-tbody');
   if (!rows.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No transactions yet</td></tr>'; return; }
-  tbody.innerHTML = rows.map(t=>`<tr>
+  tbody.innerHTML = rows.map(t=>{const a=fmtAmount(t.amount,t.type);return `<tr>
     <td>${escapeHtml(t.date)}</td>
     <td><span class="type-pill ${t.type==='revenue'?'revenue':'expense'}">${t.type==='revenue'?'revenue':'expense'}</span></td>
     <td>${escapeHtml(t.category||'—')}</td>
     <td style="color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.description||'—')}</td>
-    <td style="text-align:right;font-weight:600;color:${t.type==='revenue'?'var(--teal)':'var(--red)'}">${fmt(t.amount)}</td>
+    <td class="${a.cls}" style="text-align:right;font-weight:600">${a.text}</td>
     <td><button onclick="confirmDelete(${JSON.stringify(t.id)})" aria-label="Delete transaction" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button></td>
-  </tr>`).join('');
+  </tr>`;}).join('');
 }
 
 async function updateCatDatalist() {
@@ -5063,25 +5089,25 @@ async function renderTxnTable() {
   else {
     const isMobile = window.innerWidth <= 640;
     if (isMobile) {
-      tbody.innerHTML = rows.map(t => `<tr onclick="openEditTxnModal(${JSON.stringify(t.id)})" style="cursor:pointer">
+      tbody.innerHTML = rows.map(t => {const a=fmtAmount(t.amount,t.type);return `<tr onclick="openEditTxnModal(${JSON.stringify(t.id)})" style="cursor:pointer">
         <td data-label="Date">${escapeHtml(t.date||'')}</td>
         <td data-label="Type">${t.type === 'revenue' ? 'Revenue' : 'Expense'}</td>
         <td data-label="Category">${escapeHtml(t.category||'—')}</td>
         <td data-label="Description">${escapeHtml(t.description||'—')}</td>
         <td data-label="Source" style="color:var(--muted)">${escapeHtml(t.source||'—')}</td>
-        <td data-label="Amount" class="${t.type==='revenue'?'positive-val':'negative-val'}" style="text-align:right;font-weight:600">${fmt(t.amount)}</td>
+        <td data-label="Amount" class="${a.cls}" style="text-align:right;font-weight:600">${a.text}</td>
         <td data-label=""><button onclick="event.stopPropagation();confirmDelete(${JSON.stringify(t.id)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'" aria-label="Delete">✕</button></td>
-      </tr>`).join('');
+      </tr>`;}).join('');
     } else {
-      tbody.innerHTML = rows.map(t => `<tr>
+      tbody.innerHTML = rows.map(t => {const a=fmtAmount(t.amount,t.type);return `<tr>
         <td data-label="Date"><input class="editable-cell" value="${t.date}" onchange="inlineEdit(${JSON.stringify(t.id)},'date',this.value)"></td>
         <td data-label="Type"><select class="editable-cell" onchange="inlineEdit(${JSON.stringify(t.id)},'type',this.value)"><option value="revenue" ${t.type==='revenue'?'selected':''}>Revenue</option><option value="expense" ${t.type==='expense'?'selected':''}>Expense</option></select></td>
         <td data-label="Category"><input class="editable-cell" value="${(t.category||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'category',this.value)"></td>
         <td data-label="Description"><input class="editable-cell" value="${(t.description||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'description',this.value)"></td>
         <td data-label="Source"><input class="editable-cell" value="${(t.source||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'source',this.value)" placeholder="—"></td>
-        <td data-label="Amount" class="${t.type==='revenue'?'positive-val':'negative-val'}" style="text-align:right;font-weight:600">${fmt(t.amount)}</td>
+        <td data-label="Amount" class="${a.cls}" style="text-align:right;font-weight:600">${a.text}</td>
         <td data-label=""><button onclick="confirmDelete(${JSON.stringify(t.id)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'" aria-label="Delete">✕</button></td>
-      </tr>`).join('');
+      </tr>`;}).join('');
     }
   }
   ['date','type','category','source','amount'].forEach(c=>{const th=document.getElementById('th-'+c);if(th)th.className=txnSort.col===c?'sorted-'+txnSort.dir:'';});
@@ -5250,7 +5276,8 @@ async function renderRevTable() {
   tbody.innerHTML=slice.map(t=>{
     const id=String(t.id).replace(/"/g,'&quot;');
     const checked=bulkSelection.has(String(t.id))?'checked':'';
-    return `<tr><td data-label=""><input type="checkbox" data-bulk-id="${id}" ${checked} onchange="onBulkRowToggle(this)" aria-label="Select transaction"></td><td data-label="Date">${escapeHtml(t.date)}</td><td data-label="Category"><span style="background:var(--teal-dim);color:var(--teal);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td data-label="Description" style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td data-label="Source" style="color:var(--muted)">${escapeHtml(t.source||'—')}</td><td data-label="Amount" class="positive-val"><strong>${fmt(t.amount)}</strong></td><td data-label="Period">${escapeHtml(t.month+' '+t.year)}</td></tr>`;
+    const a=fmtAmount(t.amount,t.type);
+    return `<tr><td data-label=""><input type="checkbox" data-bulk-id="${id}" ${checked} onchange="onBulkRowToggle(this)" aria-label="Select transaction"></td><td data-label="Date">${escapeHtml(t.date)}</td><td data-label="Category"><span style="background:var(--teal-dim);color:var(--teal);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td data-label="Description" style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td data-label="Source" style="color:var(--muted)">${escapeHtml(t.source||'—')}</td><td data-label="Amount" class="${a.cls}"><strong>${a.text}</strong></td><td data-label="Period">${escapeHtml(t.month+' '+t.year)}</td></tr>`;
   }).join('');
   const info=document.getElementById('rev-page-info');if(info)info.textContent=`Showing ${((revPage-1)*revPageSize+1)}–${Math.min(revPage*revPageSize,txns.length)} of ${txns.length}`;
   updateBulkBar();
@@ -5275,7 +5302,8 @@ async function renderExpTable() {
   tbody.innerHTML=slice.map(t=>{
     const id=String(t.id).replace(/"/g,'&quot;');
     const checked=bulkSelection.has(String(t.id))?'checked':'';
-    return `<tr><td data-label=""><input type="checkbox" data-bulk-id="${id}" ${checked} onchange="onBulkRowToggle(this)" aria-label="Select transaction"></td><td data-label="Date">${escapeHtml(t.date)}</td><td data-label="Category"><span style="background:var(--red-dim);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td data-label="Description" style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td data-label="Source" style="color:var(--muted)">${escapeHtml(t.source||'—')}</td><td data-label="Amount" class="negative-val"><strong>${fmt(t.amount)}</strong></td><td data-label="Period">${escapeHtml(t.month+' '+t.year)}</td></tr>`;
+    const a=fmtAmount(t.amount,t.type);
+    return `<tr><td data-label=""><input type="checkbox" data-bulk-id="${id}" ${checked} onchange="onBulkRowToggle(this)" aria-label="Select transaction"></td><td data-label="Date">${escapeHtml(t.date)}</td><td data-label="Category"><span style="background:var(--red-dim);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(t.category)}</span></td><td data-label="Description" style="color:var(--muted)">${escapeHtml(t.description||'—')}</td><td data-label="Source" style="color:var(--muted)">${escapeHtml(t.source||'—')}</td><td data-label="Amount" class="${a.cls}"><strong>${a.text}</strong></td><td data-label="Period">${escapeHtml(t.month+' '+t.year)}</td></tr>`;
   }).join('');
   const info=document.getElementById('exp-page-info');if(info)info.textContent=`Showing ${((expPage-1)*expPageSize+1)}–${Math.min(expPage*expPageSize,txns.length)} of ${txns.length}`;
   updateBulkBar();
@@ -5946,6 +5974,21 @@ function closeMoreDrawer() {
 
 function fmt(n){const cur=settings.currency||'$';const rounded=Math.round((+n||0)*100)/100;const s=Math.abs(rounded).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});return rounded<0?`(${cur}${s})`:`${cur}${s}`;}
 
+// Per-transaction amount display: color + parens follow whether money is
+// actually moving OUT (red, parens) or IN (green, plain) for that row —
+// not just its Type label. A normal expense (charge, withdrawal) is an
+// outflow. A negative-stored expense (credit card refund, expense-report
+// credit) is money coming back, so it displays as a positive green amount
+// instead of a confusing "expense that's also negative". Symmetric for
+// revenue: a negative-stored revenue row (e.g. a sale reversed) reads as
+// an outflow too.
+function fmtAmount(amount, type){
+  const amt = +amount || 0;
+  const outflow = type === 'expense' ? amt >= 0 : amt < 0;
+  const text = fmt(Math.abs(amt));            // never negative in here, so fmt() never adds its own parens
+  return { text: outflow ? `(${text})` : text, cls: outflow ? 'negative-val' : 'positive-val' };
+}
+
 function renderCharts(monthly) {
   const labels=monthly.map(m=>m.month),rev=monthly.map(m=>m.revenue),exp=monthly.map(m=>m.expenses),net=monthly.map(m=>m.net);
   const tc=themeColors();Chart.defaults.color=tc.muted;Chart.defaults.font.family="'DM Sans',sans-serif";
@@ -6050,7 +6093,7 @@ function parseCSVFile(file){
 
 function finishCsvImport(rows){
   if(!rows||rows.length<2){toast('File empty or invalid','error');return;}
-  parsedCSV=rows;csvHeaders=rows[0];openMappingModal();
+  parsedCSV=rows;openMappingModal();
 }
 
 function parseCSV(text){
@@ -6077,24 +6120,73 @@ async function handleXLSXImport(e){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   if(rows.length<2){toast('XLSX appears empty','error');return;}
   parsedCSV=rows.map(r=>r.map(c=>String(c===null||c===undefined?'':c)));
-  csvHeaders=parsedCSV[0];
   openMappingModal();
 }
 
+// ── Structure detection: preamble/header row + trailing totals/footer rows ──
+// Bank/CC exports often lead with a couple of "Account: ...", "Statement
+// period: ..." lines before the real column-header row, and/or end with a
+// "Total,,,$1,234.56" row. Detect both from the raw grid so the user can
+// confirm or override rather than silently importing junk rows.
+function analyzeCSVStructure(rows){
+  const N = rows.length;
+  const nonEmptyCount = r => r.filter(c=>String(c==null?'':c).trim()!=='').length;
+  const topScan = Math.min(7, N);
+  const sample = rows.slice(0, Math.min(15, N));
+  const counts = sample.map(nonEmptyCount);
+  // "Mode" column count among rows with >=2 populated cells — the width a
+  // real tabular row is expected to have.
+  const freq = {};
+  counts.forEach(c=>{ if(c>=2) freq[c]=(freq[c]||0)+1; });
+  let mode=0, modeN=0;
+  Object.keys(freq).forEach(c=>{ if(freq[c]>modeN){ modeN=freq[c]; mode=+c; } });
+  if(!mode) mode = Math.max(1, ...counts, 0);
+
+  let headerRowIndex = 0;
+  for(let i=0;i<topScan;i++){
+    if(counts[i] >= Math.max(2, Math.ceil(mode*0.7))){ headerRowIndex = i; break; }
+  }
+  const preambleDetected = headerRowIndex > 0;
+
+  // Footer scan: only look at the last few rows, and stop at the first
+  // normal-looking row from the bottom (never flags data buried mid-file).
+  const footerRowIndexes = [];
+  const keywordRe = /\b(total|subtotal|grand total|balance|ending balance|closing balance|net total)\b/i;
+  const scanFrom = Math.max(headerRowIndex+1, N-5);
+  for(let i=N-1; i>=scanFrom; i--){
+    const row = rows[i];
+    const c = nonEmptyCount(row);
+    const text = row.join(' ');
+    const looksLikeFooter = c===0 || keywordRe.test(text) || c <= Math.max(1, Math.floor(mode*0.4));
+    if(looksLikeFooter) footerRowIndexes.push(i); else break;
+  }
+  return { headerRowIndex, preambleDetected, footerRowIndexes: footerRowIndexes.sort((a,b)=>a-b), mode };
+}
+
+// Data rows for preview/import: everything after the chosen header row,
+// minus any footer rows the user has left excluded.
+function getDataRows(){
+  const excludeFooter = document.getElementById('csv-exclude-footer') ? document.getElementById('csv-exclude-footer').checked : true;
+  const rows = [];
+  for(let i=csvHeaderRowIndex+1;i<parsedCSV.length;i++){
+    if(excludeFooter && csvFooterRowIndexes.has(i)) continue;
+    rows.push(parsedCSV[i]);
+  }
+  return rows;
+}
+
 function openMappingModal(){
-  document.getElementById('preview-thead').innerHTML='<tr>'+csvHeaders.map(h=>`<th style="padding:6px 10px;background:var(--surface2);color:var(--muted);font-size:11px;text-align:left;white-space:nowrap">${escapeHtml(h)}</th>`).join('')+'</tr>';
-  document.getElementById('preview-tbody').innerHTML=parsedCSV.slice(1,4).map(r=>'<tr>'+r.map(c=>`<td style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:12px;white-space:nowrap">${escapeHtml(c)}</td>`).join('')+'</tr>').join('');
-  document.getElementById('mapping-sub').textContent=`Detected ${csvHeaders.length} columns and ~${parsedCSV.length-1} rows.`;
-  const guesses=autoGuessFields(csvHeaders);
-  const grid=document.getElementById('field-map-grid');grid.innerHTML='';
-  NATIVE_FIELDS.forEach(field=>{
-    const nd=document.createElement('div');nd.className='map-native '+(field.required?'map-required':'map-optional');nd.dataset.field=field.key;nd.innerHTML=`<div style="font-size:13px;font-weight:600">${field.label}</div><div style="font-size:10px;color:var(--teal);opacity:.7;margin-top:2px">${field.hint}</div>`;
-    const arrow=document.createElement('div');arrow.className='map-arrow';arrow.dataset.field=field.key;arrow.textContent='→';
-    const sel=document.createElement('select');sel.className='map-select';sel.id='map-'+field.key;sel.dataset.field=field.key;
-    const o=document.createElement('option');o.value='';o.textContent=field.required?'— Select column —':'— Skip (optional) —';sel.appendChild(o);
-    csvHeaders.forEach((h,i)=>{const opt=document.createElement('option');opt.value=i;opt.textContent=h;if(guesses[field.key]===i)opt.selected=true;sel.appendChild(opt);});
-    grid.appendChild(nd);grid.appendChild(arrow);grid.appendChild(sel);
-  });
+  csvStructure = analyzeCSVStructure(parsedCSV);
+  csvHeaderRowIndex = csvStructure.headerRowIndex;
+  csvFooterRowIndexes = new Set(csvStructure.footerRowIndexes);
+  csvHeaders = parsedCSV[csvHeaderRowIndex];
+
+  renderHeaderRowPicker();
+  renderRawPreview();
+  renderFooterBanner();
+  renderFieldMapGrid();
+  updateMappingSub();
+
   // Restore the last-used import source (repeat imports, e.g. monthly CC
   // statements, shouldn't require re-picking it every time) and apply its
   // Type-column / sign-convention visibility immediately.
@@ -6106,13 +6198,109 @@ function openMappingModal(){
   document.getElementById('mapping-modal').classList.add('open');
 }
 
+function renderHeaderRowPicker(){
+  const sel = document.getElementById('csv-header-row-select');
+  const topN = Math.min(7, parsedCSV.length);
+  sel.innerHTML = '';
+  for(let i=0;i<topN;i++){
+    const preview = parsedCSV[i].filter(c=>String(c||'').trim()!=='').slice(0,4).join(', ');
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    const snippet = preview.length>60 ? preview.slice(0,60)+'…' : preview;
+    opt.textContent = `Row ${i+1}` + (snippet ? ': '+snippet : ' (blank)');
+    if(i===csvHeaderRowIndex) opt.selected=true;
+    sel.appendChild(opt);
+  }
+  const banner = document.getElementById('header-detect-banner');
+  if(csvStructure.preambleDetected){
+    banner.style.display='';
+    const plural = csvHeaderRowIndex>1;
+    banner.innerHTML = `📋 Row${plural?'s 1–'+csvHeaderRowIndex:' 1'} look${plural?'':'s'} like file or account info, not column headers — data looks like it starts at <strong>Row ${csvHeaderRowIndex+1}</strong>. Change the selection below if that's wrong.`;
+  } else {
+    banner.style.display='none';
+  }
+}
+
+function renderRawPreview(){
+  const topN = Math.min(7, parsedCSV.length);
+  const maxCols = Math.max(csvHeaders.length, ...parsedCSV.slice(0,topN).map(r=>r.length));
+  const thead = document.getElementById('preview-thead');
+  let headCells = '<th style="padding:6px 10px;background:var(--surface2);color:var(--muted);font-size:11px">Row</th>';
+  for(let c=0;c<maxCols;c++) headCells += `<th style="padding:6px 10px;background:var(--surface2);color:var(--muted);font-size:11px;text-align:left;white-space:nowrap">${escapeHtml(csvHeaders[c]||'—')}</th>`;
+  thead.innerHTML = '<tr>'+headCells+'</tr>';
+  const tbody = document.getElementById('preview-tbody');
+  let rowsHtml = '';
+  for(let i=0;i<topN;i++){
+    const row = parsedCSV[i];
+    const isHeader = i===csvHeaderRowIndex;
+    const rowStyle = isHeader ? 'background:var(--teal-dim);font-weight:600' : '';
+    let cells = `<td style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);white-space:nowrap">Row ${i+1}${isHeader?' (header)':''}</td>`;
+    for(let c=0;c<maxCols;c++){
+      const v = row[c]==null?'':String(row[c]);
+      cells += `<td style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:12px;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis">${escapeHtml(v)}</td>`;
+    }
+    rowsHtml += `<tr style="${rowStyle}">${cells}</tr>`;
+  }
+  tbody.innerHTML = rowsHtml;
+}
+
+function renderFooterBanner(){
+  const wrap = document.getElementById('csv-footer-toggle-wrap');
+  const label = document.getElementById('csv-footer-toggle-label');
+  if(csvFooterRowIndexes.size){
+    wrap.style.display='';
+    const idxs = [...csvFooterRowIndexes].sort((a,b)=>a-b);
+    const preview = parsedCSV[idxs[0]].filter(c=>String(c||'').trim()!=='').join(', ').slice(0,60);
+    label.textContent = idxs.length===1
+      ? `Exclude what looks like a totals/footer row — Row ${idxs[0]+1} ("${preview||'blank'}")`
+      : `Exclude ${idxs.length} rows at the end that look like totals/footer rows`;
+  } else {
+    wrap.style.display='none';
+  }
+}
+
+function renderFieldMapGrid(){
+  const guesses=autoGuessFields(csvHeaders);
+  const grid=document.getElementById('field-map-grid');grid.innerHTML='';
+  NATIVE_FIELDS.forEach(field=>{
+    const nd=document.createElement('div');nd.className='map-native '+(field.required?'map-required':'map-optional');nd.dataset.field=field.key;nd.innerHTML=`<div style="font-size:13px;font-weight:600">${field.label}</div><div style="font-size:10px;color:var(--teal);opacity:.7;margin-top:2px">${field.hint}</div>`;
+    const arrow=document.createElement('div');arrow.className='map-arrow';arrow.dataset.field=field.key;arrow.textContent='→';
+    const sel=document.createElement('select');sel.className='map-select';sel.id='map-'+field.key;sel.dataset.field=field.key;
+    const o=document.createElement('option');o.value='';o.textContent=field.required?'— Select column —':'— Skip (optional) —';sel.appendChild(o);
+    csvHeaders.forEach((h,i)=>{const opt=document.createElement('option');opt.value=i;opt.textContent=h||`Column ${i+1}`;if(guesses[field.key]===i)opt.selected=true;sel.appendChild(opt);});
+    grid.appendChild(nd);grid.appendChild(arrow);grid.appendChild(sel);
+  });
+}
+
+function updateMappingSub(){
+  const n = getDataRows().length;
+  document.getElementById('mapping-sub').textContent = `Detected ${csvHeaders.length} columns and ${n.toLocaleString()} data row${n===1?'':'s'}.`;
+}
+
+// User picked a different header row — everything downstream (column names,
+// the field-mapping dropdowns, the row count) is re-derived from it.
+function onHeaderRowChange(){
+  csvHeaderRowIndex = parseInt(document.getElementById('csv-header-row-select').value);
+  csvHeaders = parsedCSV[csvHeaderRowIndex];
+  renderRawPreview();
+  renderFieldMapGrid();
+  updateMappingSub();
+}
+
+function onFooterToggleChange(){
+  updateMappingSub();
+}
+
 function autoGuessFields(headers){
-  const h=headers.map((x,i)=>({lower:x.toLowerCase(),i}));
+  const h=headers.map((x,i)=>({lower:String(x||'').toLowerCase(),i}));
   const find=keys=>{for(const k of keys){const m=h.find(x=>x.lower.includes(k));if(m)return m.i;}return undefined;};
   return{date:find(['date','time','period','day']),amount:find(['amount','total','value','price','sum']),type:find(['type','trans_type','cr/dr','credit']),category:find(['category','cat','class','account']),description:find(['description','desc','note','memo','detail','narration','name'])};
 }
 
-function closeMapping(){document.getElementById('mapping-modal').classList.remove('open');parsedCSV=null;}
+function closeMapping(){
+  document.getElementById('mapping-modal').classList.remove('open');
+  parsedCSV=null; csvHeaderRowIndex=0; csvFooterRowIndexes=new Set(); csvStructure=null;
+}
 
 async function applyMapping(){
   const importSource=document.getElementById('import-source-type').value;
@@ -6132,7 +6320,7 @@ async function applyMapping(){
     toast(`Please enter "${sourceMeta.sourceLabel.replace(' *','')}" — or map a Source column below`,'error');
     return;
   }
-  const rows=parsedCSV.slice(1);const newTxns=[];let skipped=0,skippedTransfers=0;
+  const rows=getDataRows();const newTxns=[];let skipped=0,skippedTransfers=0;
   const usedGuessedCategories=new Set();
   rows.forEach((row,idx)=>{
     const dateVal=mapping.date!==null?row[mapping.date]:'';
@@ -6259,7 +6447,7 @@ async function syncFromFile(){
   try{const file=await linkedFileHandle.getFile();const name=file.name.toLowerCase();
     if(name.endsWith('.xlsx')||name.endsWith('.xls')){const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});parsedCSV=rows.map(r=>r.map(c=>String(c===null||c===undefined?'':c)));}
     else parsedCSV=parseCSV(await file.text());
-    csvHeaders=parsedCSV[0];openMappingModal();document.getElementById('last-sync-time').textContent=new Date().toLocaleString();
+    openMappingModal();document.getElementById('last-sync-time').textContent=new Date().toLocaleString();
   }catch(e){toast('Could not read file: '+e.message,'error');}
 }
 

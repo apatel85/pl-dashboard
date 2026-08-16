@@ -1,8 +1,22 @@
 {
-  "latest_version": "8.6.0",
+  "latest_version": "8.7.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.7.0",
+      "date": "2026-08-16",
+      "title": "Refund Colors, Bank-Statement In/Out Formatting & Messy-File Import Detection",
+      "summary": "Amount colors now reflect real money movement, not just a Revenue/Expense label: credit card and expense-report refunds show as a positive green amount, and bank-statement withdrawals show red in parentheses while deposits show green. CSV/Excel import also now detects messy files — leading account-info rows before the real header, and trailing totals/footer rows — and lets you confirm or fix both before importing.",
+      "changes": [
+        { "type": "fix", "text": "Credit card and expense-report refunds/returns/credits now display as a positive amount in green, instead of a negative red parenthesized number, on All Transactions, Revenue, Expenses, and the Add Transaction recent-entries list. The underlying P&L math is unchanged — refunds still correctly reduce the expense total." },
+        { "type": "new", "text": "Bank statement amounts follow standard ledger convention: money in (deposits) shows green; money out (withdrawals) shows red and in parentheses, e.g. \"($1,800.00)\". This coloring is now applied consistently to every expense/revenue amount app-wide, not just newly-imported bank data." },
+        { "type": "fix", "text": "Expense Report CSV imports now detect refund/credit/return rows (via a Type column, or the file's own negative sign) and store them as a credit that reduces the expense total, matching how Credit Card imports already worked." },
+        { "type": "new", "text": "CSV/Excel import now shows the top 7 raw rows of your file and lets you pick which row is actually your column headers — useful for bank/card exports that lead with a couple of \"Account: ...\" or \"Statement Period: ...\" lines before the real header row. The likely header row is auto-detected and highlighted; override it with one dropdown if it's wrong." },
+        { "type": "new", "text": "Trailing totals/footer rows (e.g. a \"Total,,,$1,234.56\" row at the end of the file) are auto-detected and excluded from the import by default, with a one-click toggle to include them if the detection is wrong." },
+        { "type": "new", "text": "Both detections are quiet on well-formed files — if your file already starts with a proper header row and has no footer row, nothing changes and no extra prompts appear." }
+      ]
+    },
     {
       "version": "8.6.0",
       "date": "2026-08-16",
