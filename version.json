@@ -1,8 +1,23 @@
 {
-  "latest_version": "8.4.0",
+  "latest_version": "8.5.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.5.0",
+      "date": "2026-08-16",
+      "title": "CSV Import: Data-Type-Aware Revenue/Expense Classification",
+      "summary": "Fixes credit card transactions being misclassified as revenue on import. A new \"What kind of data is this?\" step lets you tell the importer whether a file is Sales/Revenue, a Credit Card Statement, an Expense Report, or a Bank Statement — each uses the correct accounting convention. Unmapped transactions are also auto-categorized using industry-standard expense categories based on the merchant name.",
+      "changes": [
+        { "type": "fix", "text": "Credit card statements no longer import as Revenue. Previously, files with no Type column (or an issuer-provided Type column like \"Sale\") fell back to a plain amount-sign guess or a keyword match that treated \"Sale\" as revenue — correct for a sales ledger, wrong for a credit card charge." },
+        { "type": "new", "text": "New \"What kind of data is this?\" selector in the Import CSV mapping screen: Sales/Revenue data, Credit Card Statement, Expense Report, Bank Statement, or the original \"I'll map a Type column myself.\" Each applies the right revenue/expense rule automatically, and the Type column mapping becomes optional once you pick one." },
+        { "type": "new", "text": "Credit card imports understand issuer Type labels (Sale/Purchase/Fee → Expense, Payment → skipped as a transfer, Return/Refund/Credit → a negative expense that reduces your total) and, when no Type column exists, a configurable amount-sign convention (positive = charge, as on most cards, or negative = charge, as on Chase)." },
+        { "type": "new", "text": "Bank statement imports let you specify whether positive amounts are deposits (Revenue) or withdrawals (Expense)." },
+        { "type": "new", "text": "Industry-standard merchant categorization: rows with no mapped category are auto-categorized from the description — e.g. Uber/DoorDash → Travel & Meals, Shell/Chevron → Vehicle & Fuel, AWS/Zoom/Slack → Software & Subscriptions, Staples/Amazon → Office Supplies, using the same category set as the rest of the app. Newly-used categories are added to your category list automatically." },
+        { "type": "new", "text": "The chosen import source is remembered for next time, since re-importing the same kind of file (e.g. a monthly card statement) is common." },
+        { "type": "new", "text": "The original \"I'll map a Type column myself\" mode is unchanged — existing imports that rely on it behave exactly as before." }
+      ]
+    },
     {
       "version": "8.4.0",
       "date": "2026-07-04",
