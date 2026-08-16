@@ -2743,14 +2743,6 @@ tbody tr:hover { background: var(--surface2); }
                 <button class="type-btn rev active" id="qa-type-rev" onclick="setEntryType('revenue')">Revenue</button>
                 <button class="type-btn exp" id="qa-type-exp" onclick="setEntryType('expense')">Expense</button>
               </div>
-              <select id="qa-type-more" class="map-select" style="margin-top:6px;width:100%;font-size:12px" onchange="if(this.value)setEntryType(this.value)">
-                <option value="">More types (Equity, Liability, Asset)…</option>
-                <option value="equity">Owner's Equity</option>
-                <option value="liability_lt">Long-Term Liability</option>
-                <option value="liability_st">Short-Term Liability</option>
-                <option value="asset">Asset (Fixed / Equipment)</option>
-              </select>
-              <div id="qa-type-more-label" style="font-size:11px;color:var(--teal);margin-top:4px"></div>
               <input type="hidden" id="qa-type" value="revenue">
             </div>
             <div class="form-field">
@@ -2774,7 +2766,18 @@ tbody tr:hover { background: var(--surface2); }
               <button class="btn btn-primary" onclick="quickAddTransaction()" style="height:37px;width:100%">Add ↵</button>
             </div>
           </div>
-          <div class="form-field" style="margin-top:-4px">
+          <div class="form-field" style="margin-top:-4px;max-width:320px">
+            <label class="field-label">More Types <span style="font-weight:400;color:var(--muted);text-transform:none">(Equity, Liability, Asset)</span></label>
+            <select id="qa-type-more" class="map-select" style="width:100%" onchange="if(this.value)setEntryType(this.value)">
+              <option value="">Use Revenue / Expense above…</option>
+              <option value="equity">Owner's Equity</option>
+              <option value="liability_lt">Long-Term Liability</option>
+              <option value="liability_st">Short-Term Liability</option>
+              <option value="asset">Asset (Fixed / Equipment)</option>
+            </select>
+            <div id="qa-type-more-label" style="font-size:11px;color:var(--teal);margin-top:2px"></div>
+          </div>
+          <div class="form-field" style="margin-top:10px">
             <label class="field-label">Description / Notes</label>
             <input class="field-input" id="qa-description" placeholder="Optional — transaction details, reference, memo…" style="max-width:600px" oninput="onDescriptionInput()">
             <div id="qa-cat-suggestion" style="display:none;font-size:12px;color:var(--muted);margin-top:6px;padding:6px 10px;background:var(--surface2);border:1px solid var(--teal);border-radius:6px"></div>
@@ -3440,7 +3443,7 @@ tbody tr:hover { background: var(--surface2); }
         <select id="edit-txn-type" onchange="onEditModalTypeChange()" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box"></select>
       </label>
       <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Category
-        <select id="edit-txn-category" onchange="onCategorySelectChange(this,async()=>{})" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box"></select>
+        <select id="edit-txn-category" onchange="onCategorySelectChange(this,async()=>{},document.getElementById('edit-txn-type').value)" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box"></select>
       </label>
       <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Description
         <input type="text" id="edit-txn-description" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
@@ -3548,7 +3551,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.9.0';
+const APP_VERSION       = '8.9.1';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -3573,6 +3576,7 @@ function setUserStorageKeys(email) {
   L2_META_KEY          = 'pl_l2_meta' + s;
   GSHEETS_KEY          = 'pl_gsheets_v4' + s;
   CATEGORIES_KEY       = 'pl_categories_v1' + s;
+  CATEGORY_TYPES_KEY   = 'pl_category_types_v1' + s;
   GSHEETS_AUTOSYNC_KEY = 'pl_gsheets_autosync_v1' + s;
   INDUSTRY_PICKED_KEY  = 'pl_industry_picked' + s;
   FS_HANDLE_KEY        = 'pl_fs_handle_name' + s;
@@ -3662,6 +3666,7 @@ function csvSanitize(v){const s=String(v==null?'':v);return /^[=+\-@\t\r]/.test(
 // One CSV cell: formula-injection safe AND RFC 4180 quoted (double any inner ").
 function csvCell(v){return '"'+csvSanitize(v).replace(/"/g,'""')+'"';}
 let CATEGORIES_KEY = 'pl_categories_v1';
+let CATEGORY_TYPES_KEY = 'pl_category_types_v1';
 const DEFAULT_CATEGORIES = [
   'Product Sales','Service Revenue','Consulting / Retainers','Online / Digital Sales',
   'Subscription Income','Other Revenue',
@@ -3722,6 +3727,18 @@ function saveCategories(cats) {
 }
 // Live categories — rebuilt each time from localStorage
 let CATEGORIES = loadCategories();
+
+// Explicit Revenue/Expense assignment per category name, set whenever a
+// category is created through a modal that asks (Categories tab, or the
+// "+ Add new category" flow in a dropdown/Quick Add). Categories that
+// predate this — or were never created through one of those flows — have
+// no entry here and fall back to guessType()'s keyword heuristic.
+function loadCategoryTypes() {
+  try { return JSON.parse(localStorage.getItem(CATEGORY_TYPES_KEY)) || {}; } catch(_) { return {}; }
+}
+function saveCategoryTypes(map) {
+  localStorage.setItem(CATEGORY_TYPES_KEY, JSON.stringify(map));
+}
 
 // ═══════════════════════════════════════════════════════════════════
 //  TRANSACTION TYPES
@@ -3850,31 +3867,90 @@ function guessMerchantCategory(description, type){
 
 // ── Category prediction engine ───────────────────────────────────
 // Combines two signals, most-reliable first:
-//  1. History: how similar descriptions were categorized before (same
-//     scoring as the Quick Add live-suggestion: exact match > substring >
-//     token overlap). This is the strongest signal because it reflects the
-//     business's own past choices, not a generic keyword list.
+//  1. History: how this business categorized the same vendor before —
+//     matched by a normalized "vendor key" (see normalizeVendorText), with
+//     the category decided by majority vote among matches, the same
+//     approach QuickBooks/bank "rules" use: recognize the payee, apply
+//     whatever you did last time. Falls back to fuzzy text similarity for
+//     one-off descriptions with no clean vendor match yet.
 //  2. Merchant keywords (guessMerchantCategory): industry-standard
 //     Schedule-C-style buckets for recognizable vendors, used when there's
 //     no matching history yet.
 // Rows still unconfirmed by a human (categoryConfirmed===false) are
 // excluded from the history signal so guesses can't reinforce themselves.
+
+// Raw bank/card descriptions are noisy — store numbers, dates, auth/ref
+// codes, and boilerplate ("POS", "DEBIT", "CHECKCARD") vary transaction to
+// transaction even for the exact same vendor, which defeats plain string
+// matching. Strip all of that down to a stable "vendor key" so
+// "STARBUCKS STORE #04521 PURCHASE 01/05" and
+// "STARBUCKS STORE #09981 PURCHASE 01/09" normalize to the same thing.
+const DESCRIPTION_NOISE_WORDS = new Set([
+  'pos','ach','debit','credit','card','purchase','payment','pymt','txn','transaction',
+  'ref','auth','checkcard','recurring','web','id','online','xxxxxx','number','trans',
+]);
+function normalizeVendorText(description){
+  let s = String(description||'').toLowerCase();
+  s = s.replace(/\b\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?\b/g, ' ');  // dates
+  s = s.replace(/#\s*\d+/g, ' ');                                     // store/ref numbers
+  s = s.replace(/\b[a-z]*\d[a-z0-9]*\b/g, ' ');                       // any token with a digit (ids/codes)
+  s = s.replace(/[^a-z\s]/g, ' ');
+  const tokens = s.split(/\s+/).filter(w => w.length>1 && !DESCRIPTION_NOISE_WORDS.has(w));
+  return tokens.join(' ').trim();
+}
+// First few tokens of the normalized text — stable even if a suffix like
+// "monthly" / "inc" / a franchise location name varies between visits.
+function vendorKey(description){
+  return normalizeVendorText(description).split(' ').filter(Boolean).slice(0,3).join(' ');
+}
+
 function scoreCategoryFromHistory(description, type, historyTxns, excludeId){
-  const dl = String(description||'').trim().toLowerCase();
-  if(!dl) return null;
-  const counts = {};
-  (historyTxns||[]).forEach(t=>{
-    if(excludeId!=null && t.id===excludeId) return;
-    if(t.categoryConfirmed===false) return;
+  const rawDl = String(description||'').trim().toLowerCase();
+  if(!rawDl) return null;
+  const normDl = normalizeVendorText(rawDl);
+  const keyDl = vendorKey(rawDl);
+  const eligible = (historyTxns||[]).filter(t=>{
+    if(excludeId!=null && t.id===excludeId) return false;
+    if(t.categoryConfirmed===false) return false;
     const td = (t.description||'').toLowerCase();
-    if(!td || !t.category || t.category==='Uncategorized' || t.type!==type) return;
+    return td && t.category && t.category!=='Uncategorized' && t.type===type;
+  });
+
+  // Tier 1 — vendor match: same normalized text or the same leading
+  // vendor-key. Confidence reflects how consistently this vendor's past
+  // transactions were categorized, not just how many matched.
+  if(keyDl){
+    const vendorMatches = eligible.filter(t=>{
+      const tNorm = normalizeVendorText(t.description);
+      return tNorm && (tNorm===normDl || vendorKey(t.description)===keyDl);
+    });
+    if(vendorMatches.length){
+      const counts = {};
+      vendorMatches.forEach(t=>counts[t.category]=(counts[t.category]||0)+1);
+      const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+      const [category, votes] = sorted[0];
+      const unanimous = sorted.length===1;
+      const confidence = unanimous ? (votes>=2 ? 'high' : 'medium')
+        : (votes/vendorMatches.length>=0.66 ? 'medium' : 'low');
+      return { category, confidence, source:'history' };
+    }
+  }
+
+  // Tier 2 — fuzzy fallback for a description with no clean vendor match:
+  // exact raw match > substring > overlap of *meaningful* (noise-stripped)
+  // words. Overlap must ignore the same boilerplate normalizeVendorText
+  // strips — otherwise two unrelated vendors that both say "ACH DEBIT
+  // PURCHASE WEB ID …" would look like a match on shared filler alone.
+  const counts = {};
+  const dTokens = new Set(normDl.split(' ').filter(w=>w.length>2));
+  eligible.forEach(t=>{
+    const td = t.description.toLowerCase();
     let weight = 0;
-    if(td===dl) weight = 10;
-    else if(td.includes(dl) || dl.includes(td)) weight = 3;
-    else {
-      const dSet = new Set(dl.split(/\s+/).filter(w=>w.length>2));
-      const tSet = new Set(td.split(/\s+/).filter(w=>w.length>2));
-      const overlap = [...dSet].filter(w=>tSet.has(w)).length;
+    if(td===rawDl) weight = 10;
+    else if(td.includes(rawDl) || rawDl.includes(td)) weight = 3;
+    else if(dTokens.size){
+      const tTokens = new Set(normalizeVendorText(t.description).split(' ').filter(w=>w.length>2));
+      const overlap = [...dTokens].filter(w=>tTokens.has(w)).length;
       if(overlap>=1) weight = overlap;
     }
     if(weight>0) counts[t.category] = (counts[t.category]||0) + weight;
@@ -5051,7 +5127,7 @@ async function renderReviewCategoriesView(){
         <td data-label="Description" style="max-width:280px">${escapeHtml(t.description||'—')}</td>
         <td data-label="Type"><span class="type-pill ${(TXN_TYPES[t.type]||TXN_TYPES.expense).badge}">${escapeHtml(txnTypeLabel(t.type))}</span></td>
         <td data-label="Amount" class="${a.cls}" style="text-align:right;font-weight:600">${a.text}</td>
-        <td data-label="Predicted Category"><select class="editable-cell review-cat-select" data-prev="${escapeHtml(t.category||'')}" onchange="onCategorySelectChange(this,()=>{})">${categorySelectOptionsHTML(t.category,t.type)}</select></td>
+        <td data-label="Predicted Category"><select class="editable-cell review-cat-select" data-prev="${escapeHtml(t.category||'')}" onchange="onCategorySelectChange(this,()=>{},'${t.type}')">${categorySelectOptionsHTML(t.category,t.type)}</select></td>
         <td data-label="Confidence">${confidencePillHTML(t.categoryConfidence)}</td>
         <td data-label=""><button class="btn btn-primary" style="font-size:12px;padding:5px 10px;white-space:nowrap" onclick="confirmReviewRow(${JSON.stringify(t.id)})">✓ Confirm</button></td>
       </tr>`;
@@ -5198,6 +5274,18 @@ async function quickAddTransaction() {
   if (!dateVal)          errs.push('Date is required');
   if (isNaN(amount)||amount===0) errs.push('Amount cannot be zero');
   if (errs.length) { errDiv.textContent=errs.join(' · '); errDiv.style.display='block'; return; }
+  // Typed a Revenue/Expense category that doesn't exist yet — ask which
+  // type it belongs to before saving, same as every other "+ Add new
+  // category" path, then re-run this function once it's been created.
+  // Balance Sheet types (Equity/Liability/Asset) skip this: their
+  // categories aren't Revenue/Expense-classified at all — see
+  // categoryGroupsForType(), which never calls guessType() for those types.
+  if (cat && cat !== 'Uncategorized' && (currentEntryType==='revenue'||currentEntryType==='expense') && !loadCategories().includes(cat)) {
+    openQuickAddCategoryModal(currentEntryType, async () => {
+      await quickAddTransaction();
+    }, cat);
+    return;
+  }
   const d = new Date(dateVal);
   const txn = { id:Date.now()+Math.random(), date:dateVal, type:currentEntryType, category:cat, description:desc, amount, month:MONTHS[d.getMonth()], year:d.getFullYear(), source, categoryConfirmed:true };
   setSaveStatus('saving');
@@ -5293,19 +5381,20 @@ function categorySelectOptionsHTML(currentCategory, type){
 // category…". onCommit(name) is called with the resolved category name —
 // callers decide whether that means an immediate DB write (inline edit) or
 // just holding the value for a later Save button (the edit modal).
-async function onCategorySelectChange(selectEl, onCommit){
+// defaultType (revenue/expense) pre-selects the new-category modal's Type
+// field to match the row this select belongs to.
+async function onCategorySelectChange(selectEl, onCommit, defaultType){
   if(selectEl.value === ADD_NEW_CATEGORY_SENTINEL){
-    const name = (prompt('New category name:')||'').trim();
-    if(!name){ selectEl.value = selectEl.dataset.prev || ''; return; }
-    const merged = [...new Set([...loadCategories(), name])];
-    saveCategories(merged);
-    CATEGORIES = merged;
-    const newOpt = document.createElement('option');
-    newOpt.value = name; newOpt.textContent = name;
-    selectEl.insertBefore(newOpt, selectEl.lastElementChild);
-    selectEl.value = name;
-    selectEl.dataset.prev = name;
-    await onCommit(name);
+    const prevValue = selectEl.dataset.prev || '';
+    selectEl.value = prevValue; // revert while the modal decides
+    openQuickAddCategoryModal(defaultType, async (name) => {
+      const newOpt = document.createElement('option');
+      newOpt.value = name; newOpt.textContent = name;
+      selectEl.insertBefore(newOpt, selectEl.lastElementChild);
+      selectEl.value = name;
+      selectEl.dataset.prev = name;
+      await onCommit(name);
+    });
     return;
   }
   selectEl.dataset.prev = selectEl.value;
@@ -5457,7 +5546,7 @@ async function renderTxnTable() {
       tbody.innerHTML = rows.map(t => {const a=fmtAmount(t.amount,t.type);return `<tr>
         <td data-label="Date"><input class="editable-cell" value="${t.date}" onchange="inlineEdit(${JSON.stringify(t.id)},'date',this.value)"></td>
         <td data-label="Type"><select class="editable-cell" onchange="onTxnTypeSelect(${JSON.stringify(t.id)},this)">${typeOptionsHTML(t)}</select></td>
-        <td data-label="Category"><select class="editable-cell" data-prev="${escapeHtml(t.category||'')}" onchange="onCategorySelectChange(this,v=>inlineEdit(${JSON.stringify(t.id)},'category',v))">${categorySelectOptionsHTML(t.category,t.type)}</select></td>
+        <td data-label="Category"><select class="editable-cell" data-prev="${escapeHtml(t.category||'')}" onchange="onCategorySelectChange(this,v=>inlineEdit(${JSON.stringify(t.id)},'category',v),'${t.type}')">${categorySelectOptionsHTML(t.category,t.type)}</select></td>
         <td data-label="Description"><input class="editable-cell" value="${(t.description||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'description',this.value)"></td>
         <td data-label="Source"><input class="editable-cell" value="${(t.source||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'source',this.value)" placeholder="—"></td>
         <td data-label="Amount" class="${a.cls}" style="text-align:right;font-weight:600">${a.text}</td>
@@ -8654,6 +8743,8 @@ function addSignOutButton() {
     'insurance','office','travel','bank','fee','meals'];
 
   function guessType(name) {
+    const stored = loadCategoryTypes()[name];
+    if (stored === 'revenue' || stored === 'expense') return stored;
     const l = name.toLowerCase();
     return EXPENSE_KEYWORDS.some(k => l.includes(k)) ? 'expense' : 'revenue';
   }
@@ -8692,9 +8783,15 @@ function addSignOutButton() {
   }
 
   let _editCatIdx = null;
+  // Set while the modal is being used as a "quick add" from somewhere other
+  // than the Categories tab (a dropdown's "+ Add new category…", or Quick
+  // Add typing a category that doesn't exist yet). Receives the final
+  // category name once the user picks a type and saves.
+  let _quickAddCatResolve = null;
 
   function openAddCategoryModal() {
     _editCatIdx = null;
+    _quickAddCatResolve = null;
     document.getElementById('cat-modal-title').textContent = 'Add Category';
     document.getElementById('cat-modal-name').value = '';
     document.getElementById('cat-modal-type').value = 'revenue';
@@ -8708,6 +8805,7 @@ function addSignOutButton() {
     const cat = CATEGORIES[idx];
     if (!cat) return;
     _editCatIdx = idx;
+    _quickAddCatResolve = null;
     document.getElementById('cat-modal-title').textContent = 'Rename Category';
     document.getElementById('cat-modal-name').value = cat;
     document.getElementById('cat-modal-type').value = guessType(cat);
@@ -8716,20 +8814,61 @@ function addSignOutButton() {
     setTimeout(() => document.getElementById('cat-modal-name').focus(), 80);
   }
 
+  // Opened from anywhere a brand-new category needs a name AND a Revenue/
+  // Expense assignment before it can be used — All Transactions' Category
+  // dropdown, Review Categories, the mobile edit sheet, and Quick Add all
+  // funnel through here instead of a plain text prompt, so every category
+  // ever gets classified correctly regardless of what its name happens to
+  // contain (guessType()'s keyword heuristic is only a fallback for
+  // categories that predate this).
+  function openQuickAddCategoryModal(defaultType, onCreated, presetName) {
+    _editCatIdx = null;
+    _quickAddCatResolve = onCreated;
+    document.getElementById('cat-modal-title').textContent = 'New Category';
+    document.getElementById('cat-modal-name').value = presetName || '';
+    document.getElementById('cat-modal-type').value = (defaultType === 'revenue' || defaultType === 'expense') ? defaultType : 'expense';
+    const m = document.getElementById('cat-modal');
+    m.style.display = 'flex';
+    setTimeout(() => document.getElementById('cat-modal-name').focus(), 80);
+  }
+
   function closeCatModal() {
     document.getElementById('cat-modal').style.display = 'none';
+    _quickAddCatResolve = null;
   }
 
   function saveCategoryFromModal() {
     const name = document.getElementById('cat-modal-name').value.trim();
+    const chosenType = document.getElementById('cat-modal-type').value;
     if (!name) { toast('Category name cannot be empty', 'error'); return; }
     CATEGORIES = loadCategories();
+
+    if (_quickAddCatResolve) {
+      const resolve = _quickAddCatResolve;
+      if (!CATEGORIES.includes(name)) {
+        CATEGORIES.push(name);
+        saveCategories(CATEGORIES);
+        const types = loadCategoryTypes();
+        types[name] = chosenType;
+        saveCategoryTypes(types);
+        toast(`✓ Category "${name}" added`, 'success');
+      }
+      closeCatModal();
+      refreshCategoryDropdowns();
+      renderCategoryManager();
+      resolve(name);
+      return;
+    }
 
     if (_editCatIdx !== null) {
       // Rename: update all existing transactions that use old name
       const oldName = CATEGORIES[_editCatIdx];
       CATEGORIES[_editCatIdx] = name;
       saveCategories(CATEGORIES);
+      const types = loadCategoryTypes();
+      delete types[oldName];
+      types[name] = chosenType;
+      saveCategoryTypes(types);
       // Bulk rename in IndexedDB
       dbGetAll().then(all => {
         const toUpdate = all.filter(t => t.category === oldName);
@@ -8749,6 +8888,9 @@ function addSignOutButton() {
       if (CATEGORIES.includes(name)) { toast('Category already exists', 'error'); return; }
       CATEGORIES.push(name);
       saveCategories(CATEGORIES);
+      const types = loadCategoryTypes();
+      types[name] = chosenType;
+      saveCategoryTypes(types);
       toast(`✓ Category "${name}" added`, 'success');
     }
 
@@ -8767,6 +8909,9 @@ function addSignOutButton() {
       async () => {
         CATEGORIES.splice(idx, 1);
         saveCategories(CATEGORIES);
+        const types = loadCategoryTypes();
+        delete types[cat];
+        saveCategoryTypes(types);
         // Re-label transactions
         const all = await dbGetAll();
         const toUpdate = all.filter(t => t.category === cat);
@@ -8790,6 +8935,7 @@ function addSignOutButton() {
       () => {
         saveCategories([...DEFAULT_CATEGORIES]);
         CATEGORIES = loadCategories();
+        saveCategoryTypes({});
         refreshCategoryDropdowns();
         renderCategoryManager();
         toast('✓ Categories reset to defaults', 'success');
