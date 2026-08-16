@@ -1,8 +1,22 @@
 {
-  "latest_version": "8.9.0",
+  "latest_version": "8.9.1",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.9.1",
+      "date": "2026-08-16",
+      "title": "Category-Type Prompts, Smarter Predictions & Add Transaction Layout Fix",
+      "summary": "Creating a new Revenue/Expense category from a dropdown (All Transactions, Review Categories, the mobile edit sheet, or typing a new one in Quick Add) now asks which type it belongs to, the same as the Categories tab — so it's classified correctly everywhere instead of guessed from its name. Category prediction is also more accurate: it now recognizes the same vendor across noisy bank/card descriptions (different store numbers, dates, reference codes) and uses a QuickBooks-style majority vote across that vendor's past transactions. Also fixes a layout bug where the Add Transaction form's fields didn't line up.",
+      "changes": [
+        { "type": "new", "text": "Creating a new category from any \"+ Add new category…\" dropdown (All Transactions, Review Categories, the mobile edit sheet) or by typing an unrecognized name into Quick Add now opens the same Add Category dialog used on the Categories tab, asking for the category's Revenue/Expense type instead of guessing from its name." },
+        { "type": "fix", "text": "That type is now actually stored and honored everywhere a category is grouped or displayed as Revenue vs. Expense — previously the Categories tab's own \"Add Category\" dialog captured a type but never saved it, so classification always fell back to a keyword guess (e.g. a Revenue category named \"Rent Rebate\" would have been mis-bucketed as Expense)." },
+        { "type": "imp", "text": "Category prediction now recognizes the same vendor across noisy, real-world bank/card descriptions — different store numbers, dates, and reference codes (\"STARBUCKS STORE #4521 01/05\" vs \"STARBUCKS STORE #9981 01/09\") now normalize to the same vendor instead of failing to match." },
+        { "type": "imp", "text": "When a vendor's past transactions weren't all categorized the same way, prediction now uses a majority vote (like QuickBooks bank rules) and scales its confidence to how consistent that history actually was, instead of a single length-weighted guess." },
+        { "type": "fix", "text": "Fixed a false-match bug in the prediction fallback where two unrelated vendors sharing only generic bank boilerplate (\"ACH DEBIT PURCHASE WEB ID…\") could incorrectly be scored as similar; shared filler words are now stripped before comparing." },
+        { "type": "fix", "text": "Add Transaction: fixed a layout bug where the Date field appeared misaligned below the Type field. The \"More types\" (Equity/Liability/Asset) selector, which had made the Type field much taller than the others, now has its own row below the main form grid." }
+      ]
+    },
     {
       "version": "8.9.0",
       "date": "2026-08-16",
