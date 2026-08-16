@@ -1,8 +1,23 @@
 {
-  "latest_version": "8.5.0",
+  "latest_version": "8.6.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.6.0",
+      "date": "2026-08-16",
+      "title": "Track Where Your Data Comes From — Source / Account Tracking",
+      "summary": "Every transaction can now be tagged with where it came from — a bank, a credit card, a sales channel, or a manual account name. CSV imports of a Bank Statement or Credit Card Statement now ask which bank/card it is; manual entries get a free-text Source / Account field. A new Source column appears on All Transactions, Revenue, and Expenses, and Reports can break Revenue/Expense down by Source instead of Category.",
+      "changes": [
+        { "type": "new", "text": "CSV import now asks for the account name for Bank Statement and Credit Card Statement imports (\"Which bank is this?\" / \"Which card/bank is this?\") and applies it to every row in the file. Sales, Expense Report, and \"map a Type column myself\" imports get the same field as an optional Source name." },
+        { "type": "new", "text": "A CSV can also be mapped directly to a Source/Account column if different rows come from different accounts — the per-row value overrides the file-level name." },
+        { "type": "new", "text": "The account name you type is remembered per import type, so re-importing next month's statement pre-fills it." },
+        { "type": "new", "text": "Manual entry (Add Transaction) now has a Source / Account field with autocomplete from previously used accounts, for tracking things like \"Chase Checking\", \"Cash\", or \"PayPal\"." },
+        { "type": "new", "text": "A Source column is now shown — and inline-editable — on All Transactions, Revenue, and Expenses, including the mobile edit sheet. All Transactions gained a Source filter dropdown, and the search box on every table now matches Source too." },
+        { "type": "new", "text": "Reports → Expense Breakdown and Revenue Breakdown got a Group By toggle: switch between Category and Source / Account to see revenue or spend broken down by where it came from." },
+        { "type": "new", "text": "CSV/Excel export and File Sync now include the Source column, so it round-trips on export and re-import." }
+      ]
+    },
     {
       "version": "8.5.0",
       "date": "2026-08-16",
