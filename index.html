@@ -94,6 +94,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   --red-dim:   #e74c3c22;
   --green:     #27ae60;
   --green-dim: #27ae6022;
+  --blue:      #3498db;
+  --blue-dim:  #3498db22;
   --text:      #e8eaf0;
   --muted:     #6b7394;
   --shadow:    0 4px 24px rgba(0,0,0,.45);
@@ -115,6 +117,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   --red-dim:   #d23a3a18;
   --green:     #1f9d57;
   --green-dim: #1f9d5718;
+  --blue:      #1f6fa8;
+  --blue-dim:  #1f6fa818;
   --text:      #161a2c;
   --muted:     #5a6280;
   --shadow:    0 4px 18px rgba(20,28,60,.08);
@@ -270,6 +274,7 @@ body {
 .kpi-card.amber::before { background: var(--amber); }
 .kpi-card.red::before   { background: var(--red); }
 .kpi-card.green::before { background: var(--green); }
+.kpi-card.blue::before  { background: var(--blue); }
 
 .kpi-label { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
 .kpi-value { font-family: var(--serif); font-size: 28px; font-weight: 400; line-height: 1; }
@@ -708,8 +713,11 @@ tbody tr:hover { background: var(--surface2); }
   border-radius: 4px; text-transform: uppercase; letter-spacing: .05em;
   white-space: nowrap;
 }
-.type-pill.revenue { background: var(--teal-dim); color: var(--teal); border: 1px solid var(--teal); }
-.type-pill.expense { background: var(--red-dim);  color: var(--red);  border: 1px solid var(--red); }
+.type-pill.revenue   { background: var(--teal-dim);  color: var(--teal);  border: 1px solid var(--teal); }
+.type-pill.expense   { background: var(--red-dim);   color: var(--red);   border: 1px solid var(--red); }
+.type-pill.equity    { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+.type-pill.liability { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber); }
+.type-pill.asset     { background: var(--blue-dim);  color: var(--blue);  border: 1px solid var(--blue); }
 
 /* ── Pagination ── */
 .pagination {
@@ -2662,6 +2670,7 @@ tbody tr:hover { background: var(--surface2); }
               <option value="revenue-breakdown">Revenue Breakdown</option>
               <option value="monthly-trend">Monthly Trend</option>
               <option value="quarterly">Quarterly Summary</option>
+              <option value="balance-sheet">Balance Sheet Summary</option>
             </select>
           </div>
           <div id="report-timeframe" style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end"></div>
@@ -2730,6 +2739,14 @@ tbody tr:hover { background: var(--surface2); }
                 <button class="type-btn rev active" id="qa-type-rev" onclick="setEntryType('revenue')">Revenue</button>
                 <button class="type-btn exp" id="qa-type-exp" onclick="setEntryType('expense')">Expense</button>
               </div>
+              <select id="qa-type-more" class="map-select" style="margin-top:6px;width:100%;font-size:12px" onchange="if(this.value)setEntryType(this.value)">
+                <option value="">More types (Equity, Liability, Asset)…</option>
+                <option value="equity">Owner's Equity</option>
+                <option value="liability_lt">Long-Term Liability</option>
+                <option value="liability_st">Short-Term Liability</option>
+                <option value="asset">Asset (Fixed / Equipment)</option>
+              </select>
+              <div id="qa-type-more-label" style="font-size:11px;color:var(--teal);margin-top:4px"></div>
               <input type="hidden" id="qa-type" value="revenue">
             </div>
             <div class="form-field">
@@ -2742,10 +2759,10 @@ tbody tr:hover { background: var(--surface2); }
               </div>
             </div>
             <div class="form-field">
-              <label class="field-label">Amount *</label>
+              <label class="field-label">Amount * <span style="font-weight:400;color:var(--muted);text-transform:none">(negative for a refund/draw/repayment)</span></label>
               <div class="amount-wrap">
                 <span class="amount-prefix" id="qa-currency-prefix">$</span>
-                <input class="field-input" id="qa-amount" type="number" min="0.01" step="0.01" placeholder="0.00" style="padding-left:22px">
+                <input class="field-input" id="qa-amount" type="number" step="0.01" placeholder="0.00" style="padding-left:22px">
               </div>
             </div>
             <div class="form-field" style="grid-column: span 1" id="qa-submit-wrap">
@@ -2808,6 +2825,10 @@ tbody tr:hover { background: var(--surface2); }
             <option value="">All Types</option>
             <option value="revenue">Revenue only</option>
             <option value="expense">Expense only</option>
+            <option value="equity">Owner's Equity only</option>
+            <option value="liability_lt">Long-Term Liability only</option>
+            <option value="liability_st">Short-Term Liability only</option>
+            <option value="asset">Asset only</option>
           </select>
           <select class="page-size-select" id="txn-month-filter" onchange="renderTxnTable()">
             <option value="">All Months</option>
@@ -3296,7 +3317,7 @@ tbody tr:hover { background: var(--surface2); }
 
     <div id="header-detect-banner" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--surface2);border:1px solid var(--amber);border-radius:8px;font-size:12px;color:var(--text);line-height:1.5"></div>
 
-    <div class="preview-label">File Preview — top 7 rows <span style="font-weight:400;text-transform:none;letter-spacing:normal">(the highlighted row is used as your column headers)</span></div>
+    <div class="preview-label" id="preview-label">File Preview <span style="font-weight:400;text-transform:none;letter-spacing:normal">(the highlighted row is used as your column headers)</span></div>
     <div class="preview-table-wrap">
       <table id="preview-table" style="font-size:12px;white-space:nowrap">
         <thead id="preview-thead"></thead>
@@ -3308,6 +3329,10 @@ tbody tr:hover { background: var(--surface2); }
       <div style="flex:1;min-width:220px">
         <label for="csv-header-row-select" style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Which row are your column headers?</label>
         <select id="csv-header-row-select" class="map-select" onchange="onHeaderRowChange()" style="width:100%"></select>
+      </div>
+      <div style="min-width:160px">
+        <label for="csv-header-row-manual" style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Or jump to row #</label>
+        <input type="number" id="csv-header-row-manual" class="field-input" min="1" placeholder="e.g. 42" style="width:100%;box-sizing:border-box" onchange="onManualHeaderRowJump()">
       </div>
       <div id="csv-footer-toggle-wrap" style="display:none;flex:1;min-width:220px;padding-bottom:8px">
         <label style="font-size:12px;color:var(--text);display:flex;align-items:flex-start;gap:6px;cursor:pointer">
@@ -3379,13 +3404,10 @@ tbody tr:hover { background: var(--surface2); }
         <input type="date" id="edit-txn-date" required style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
       </label>
       <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Type
-        <select id="edit-txn-type" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
-          <option value="revenue">Revenue</option>
-          <option value="expense">Expense</option>
-        </select>
+        <select id="edit-txn-type" onchange="onEditModalTypeChange()" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box"></select>
       </label>
       <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Category
-        <input type="text" id="edit-txn-category" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
+        <select id="edit-txn-category" onchange="onCategorySelectChange(this,async()=>{})" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box"></select>
       </label>
       <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Description
         <input type="text" id="edit-txn-description" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
@@ -3393,9 +3415,10 @@ tbody tr:hover { background: var(--surface2); }
       <label style="display:block;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Source / Account
         <input type="text" id="edit-txn-source" placeholder="e.g. Chase Checking" style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
       </label>
-      <label style="display:block;margin-bottom:16px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Amount
-        <input type="number" step="0.01" min="0" id="edit-txn-amount" required style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
+      <label style="display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Amount
+        <input type="number" step="0.01" id="edit-txn-amount" required style="display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:inherit;box-sizing:border-box">
       </label>
+      <div style="font-size:11px;color:var(--muted);margin:-8px 0 16px">Negative for a refund, owner draw, or debt repayment</div>
       <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap">
         <button type="button" class="btn btn-outline" onclick="closeEditTxnModal()" style="flex:1;min-width:80px">Cancel</button>
         <button type="button" class="btn btn-danger" onclick="confirmDeleteFromModal()" style="flex:1;min-width:80px">Delete</button>
@@ -3492,7 +3515,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.7.0';
+const APP_VERSION       = '8.8.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -3666,6 +3689,40 @@ function saveCategories(cats) {
 }
 // Live categories — rebuilt each time from localStorage
 let CATEGORIES = loadCategories();
+
+// ═══════════════════════════════════════════════════════════════════
+//  TRANSACTION TYPES
+//  Revenue and Expense drive the Income Statement (P&L). The other four
+//  are Balance Sheet entries — they track what the business owns, owes,
+//  and the owner's stake, but must NEVER be summed into P&L totals.
+//  Only Assets/Liabilities/Equity/Revenue/Expense are the five
+//  fundamental account types in double-entry accounting, so "Asset" is
+//  the one still missing once Equity and Liability exist — added here
+//  for completeness (e.g. equipment purchases, which are capitalized,
+//  not expensed).
+// ═══════════════════════════════════════════════════════════════════
+const TXN_TYPES = {
+  revenue:      { label:'Revenue',                 statement:'pl', plBucket:'revenue', bsCategory:null,        badge:'revenue' },
+  expense:      { label:'Expense',                 statement:'pl', plBucket:'expense', bsCategory:null,        badge:'expense' },
+  equity:       { label:"Owner's Equity",          statement:'bs', plBucket:null,       bsCategory:'equity',    badge:'equity'  },
+  liability_lt: { label:'Long-Term Liability',     statement:'bs', plBucket:null,       bsCategory:'liability', badge:'liability' },
+  liability_st: { label:'Short-Term Liability',    statement:'bs', plBucket:null,       bsCategory:'liability', badge:'liability' },
+  asset:        { label:'Asset (Fixed / Equipment)', statement:'bs', plBucket:null,     bsCategory:'asset',     badge:'asset'   },
+};
+const TXN_TYPE_KEYS = Object.keys(TXN_TYPES);
+function txnTypeLabel(type){ return (TXN_TYPES[type]||TXN_TYPES.expense).label; }
+function isPLType(type){ return TXN_TYPES[type] && TXN_TYPES[type].statement==='pl'; }
+function isBSType(type){ return TXN_TYPES[type] && TXN_TYPES[type].statement==='bs'; }
+
+// Starter categories suggested for each Balance Sheet type — shown first in
+// the category picker for that type, merged into the saved list once used
+// (same pattern as industry templates / CSV merchant-category guesses).
+const NONPL_DEFAULT_CATEGORIES = {
+  equity:       ["Owner Contribution","Owner Draw","Owner Distribution"],
+  liability_lt: ["Long-Term Bank Loan","Notes Payable (Long-Term)","Long-Term Lease Liability"],
+  liability_st: ["Credit Card Balance","Accounts Payable","Short-Term Loan","Line of Credit"],
+  asset:        ["Equipment","Furniture & Fixtures","Vehicles","Computer / Technology","Real Estate / Property"],
+};
 const NATIVE_FIELDS = [
   { key:'date',        label:'Date',               required:true,  hint:'Transaction date' },
   { key:'amount',      label:'Amount',              required:true,  hint:'Numeric amount (positive)' },
@@ -3760,9 +3817,23 @@ function guessMerchantCategory(description, type){
 
 // Decide {type, signedAmount} — or {skip:true} for transfers like card
 // payments — for one imported row, given the chosen import source.
+// A payment FROM a checking/bank account TO pay off a credit card balance is
+// a transfer between the business's own accounts — not new spending. The
+// spending already hit the P&L once, correctly, when the credit card
+// statement itself was imported (as Expense). Counting the bank-side
+// payment too would double the hit; skipping it here is the offsetting
+// double-entry side of that same transaction, so it's a wash — not P&L.
+const BANK_CARD_PAYMENT_KEYWORDS = [
+  'credit card payment','card payment','cc payment','creditcard payment','card pmt','cc pmt',
+  'card autopay','autopay','payment to credit card','payment - credit card','online payment - card','card bill payment',
+  'chase card payment','amex payment','american express payment','discover card payment',
+  'capital one payment','citi card payment','barclays card payment','visa card payment','mastercard payment',
+];
+
 function resolveTxnType(ctx){
-  const { source, typeRaw, amount, ccSign, bankSign } = ctx;
+  const { source, typeRaw, amount, ccSign, bankSign, descRaw } = ctx;
   const tl = String(typeRaw||'').toLowerCase().trim();
+  const dl = String(descRaw||'').toLowerCase();
   const abs = Math.abs(amount);
 
   if(source==='sales')   return { type:'revenue', signedAmount:abs };
@@ -3791,6 +3862,8 @@ function resolveTxnType(ctx){
   }
 
   if(source==='bankstatement'){
+    if(BANK_CARD_PAYMENT_KEYWORDS.some(k=>tl.includes(k)||dl.includes(k)))
+      return { skip:true, reason:'credit card payment (transfer between your own accounts — offsets the expense already recorded on the card, not P&L)' };
     const isIn = bankSign==='neg' ? amount<0 : amount>=0;
     return { type: isIn?'revenue':'expense', signedAmount:abs };
   }
@@ -4448,8 +4521,8 @@ async function gsheetsPush() {
     MONTHS.forEach(m => { monthMap[m]={ revenue:0, expenses:0 }; });
     all.forEach(t => {
       if (!monthMap[t.month]) monthMap[t.month]={ revenue:0, expenses:0 };
-      if (t.type==='revenue') monthMap[t.month].revenue  += t.amount;
-      else                    monthMap[t.month].expenses += t.amount;
+      if (t.type==='revenue')      monthMap[t.month].revenue  += t.amount;
+      else if (t.type==='expense') monthMap[t.month].expenses += t.amount;
     });
     const sumRows = [
       ['Month','Revenue','Expenses','Net Profit','Margin %'],
@@ -4835,6 +4908,10 @@ function setEntryType(t) {
   document.getElementById('qa-type').value = t;
   document.getElementById('qa-type-rev').className = 'type-btn rev'+(t==='revenue'?' active':'');
   document.getElementById('qa-type-exp').className = 'type-btn exp'+(t==='expense'?' active':'');
+  const moreSel = document.getElementById('qa-type-more');
+  if (moreSel) moreSel.value = (t==='revenue'||t==='expense') ? '' : t;
+  const label = document.getElementById('qa-type-more-label');
+  if (label) label.textContent = (t==='revenue'||t==='expense') ? '' : `Selected: ${txnTypeLabel(t)}`;
   // If the category picker is open, re-order it to match the new type.
   const pop = document.getElementById('qa-cat-popover');
   if (pop && !pop.hidden) filterCatPicker(document.getElementById('qa-category').value);
@@ -4896,8 +4973,8 @@ async function quickAddTransaction() {
   const errDiv  = document.getElementById('qa-error');
   errDiv.style.display = 'none';
   let errs = [];
-  if (!dateVal)              errs.push('Date is required');
-  if (isNaN(amount)||amount<=0) errs.push('Amount must be a positive number');
+  if (!dateVal)          errs.push('Date is required');
+  if (isNaN(amount)||amount===0) errs.push('Amount cannot be zero');
   if (errs.length) { errDiv.textContent=errs.join(' · '); errDiv.style.display='block'; return; }
   const d = new Date(dateVal);
   const txn = { id:Date.now()+Math.random(), date:dateVal, type:currentEntryType, category:cat, description:desc, amount, month:MONTHS[d.getMonth()], year:d.getFullYear(), source };
@@ -4913,7 +4990,7 @@ async function quickAddTransaction() {
   const tipEl=document.getElementById('qa-cat-suggestion');if(tipEl)tipEl.style.display='none';
   document.getElementById('qa-amount').focus();
   renderRecentEntries(); updateCatDatalist(); updateSourceDatalist();
-  toast(`✓ ${currentEntryType==='revenue'?'Revenue':'Expense'} added — ${fmt(amount)}`, 'success');
+  toast(`✓ ${txnTypeLabel(currentEntryType)} added — ${fmt(amount)}`, 'success');
 }
 
 async function updateSourceDatalist() {
@@ -4940,7 +5017,7 @@ async function renderRecentEntries() {
   if (!rows.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No transactions yet</td></tr>'; return; }
   tbody.innerHTML = rows.map(t=>{const a=fmtAmount(t.amount,t.type);return `<tr>
     <td>${escapeHtml(t.date)}</td>
-    <td><span class="type-pill ${t.type==='revenue'?'revenue':'expense'}">${t.type==='revenue'?'revenue':'expense'}</span></td>
+    <td><span class="type-pill ${(TXN_TYPES[t.type]||TXN_TYPES.expense).badge}">${escapeHtml(txnTypeLabel(t.type))}</span></td>
     <td>${escapeHtml(t.category||'—')}</td>
     <td style="color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.description||'—')}</td>
     <td class="${a.cls}" style="text-align:right;font-weight:600">${a.text}</td>
@@ -4956,6 +5033,63 @@ async function updateCatDatalist() {
   renderCatPicker(cats);
 }
 
+// ── Type-aware category grouping, shared by the All Transactions table,
+// the mobile edit modal, and the Quick Add picker (via guessType()). ──
+function categoryGroupsForType(currentCategory, type, baseCats){
+  const base = baseCats ? [...new Set(baseCats)] : [...new Set([...CATEGORIES, currentCategory].filter(Boolean))];
+  if(type==='revenue' || type==='expense'){
+    const primary   = base.filter(c=>guessType(c)===type).sort();
+    const secondary = base.filter(c=>guessType(c)!==type).sort();
+    return [
+      { label: type==='revenue'?'Revenue':'Expense', items: primary },
+      { label: type==='revenue'?'Expense':'Revenue', items: secondary },
+    ];
+  }
+  // Balance-sheet types: no revenue/expense split applies — lead with this
+  // type's own starter categories, then everything else already in use.
+  const suggested = NONPL_DEFAULT_CATEGORIES[type] || [];
+  const suggestedSet = new Set(suggested);
+  const rest = base.filter(c=>!suggestedSet.has(c)).sort();
+  return [
+    { label: txnTypeLabel(type), items: suggested },
+    { label: 'Other Categories', items: rest },
+  ];
+}
+
+const ADD_NEW_CATEGORY_SENTINEL = '__add_new_category__';
+
+function categorySelectOptionsHTML(currentCategory, type){
+  const groups = categoryGroupsForType(currentCategory, type);
+  const opt = c => `<option value="${escapeHtml(c)}" ${c===currentCategory?'selected':''}>${escapeHtml(c)}</option>`;
+  let html='';
+  groups.forEach(g=>{ if(g.items.length) html += `<optgroup label="${escapeHtml(g.label)}">`+g.items.map(opt).join('')+`</optgroup>`; });
+  html += `<option value="${ADD_NEW_CATEGORY_SENTINEL}">+ Add new category…</option>`;
+  return html;
+}
+
+// Shared handler for every category <select> that offers "+ Add new
+// category…". onCommit(name) is called with the resolved category name —
+// callers decide whether that means an immediate DB write (inline edit) or
+// just holding the value for a later Save button (the edit modal).
+async function onCategorySelectChange(selectEl, onCommit){
+  if(selectEl.value === ADD_NEW_CATEGORY_SENTINEL){
+    const name = (prompt('New category name:')||'').trim();
+    if(!name){ selectEl.value = selectEl.dataset.prev || ''; return; }
+    const merged = [...new Set([...loadCategories(), name])];
+    saveCategories(merged);
+    CATEGORIES = merged;
+    const newOpt = document.createElement('option');
+    newOpt.value = name; newOpt.textContent = name;
+    selectEl.insertBefore(newOpt, selectEl.lastElementChild);
+    selectEl.value = name;
+    selectEl.dataset.prev = name;
+    await onCommit(name);
+    return;
+  }
+  selectEl.dataset.prev = selectEl.value;
+  await onCommit(selectEl.value);
+}
+
 function renderCatPicker(cats) {
   const pop = document.getElementById('qa-cat-popover');
   if (!pop) return;
@@ -4963,17 +5097,15 @@ function renderCatPicker(cats) {
     pop.innerHTML = '<div class="cat-picker-empty">No categories yet — type to create one</div>';
     return;
   }
-  // Show the categories matching the chosen Type first, then the rest, split by
-  // a labelled divider. Revenue selected → revenue first; Expense → expense first.
-  // guessType() is the same keyword heuristic the Category Manager uses.
-  const primaryType = currentEntryType === 'expense' ? 'expense' : 'revenue';
+  // Show the categories matching the chosen Type first, then the rest, split
+  // by a labelled divider. Revenue/Expense use the guessType() keyword split;
+  // the Balance Sheet types (Owner's Equity, Liability, Asset) lead with
+  // their own starter categories instead — see categoryGroupsForType().
+  const groups = categoryGroupsForType('', currentEntryType, cats);
   const opt = c => `<div class="cat-picker-option" role="option" data-value="${escapeHtml(c)}" onclick="selectCatPicker('${escapeHtml(c).replace(/'/g,"\\'")}')">${escapeHtml(c)}</div>`;
   const label = t => `<div class="cat-picker-group" style="padding:6px 12px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--surface2)">${t}</div>`;
-  const primary   = cats.filter(c => guessType(c) === primaryType);
-  const secondary = cats.filter(c => guessType(c) !== primaryType);
   let html = '';
-  if (primary.length)   html += label(primaryType === 'revenue' ? 'Revenue' : 'Expense') + primary.map(opt).join('');
-  if (secondary.length) html += label(primaryType === 'revenue' ? 'Expense' : 'Revenue') + secondary.map(opt).join('');
+  groups.forEach(g => { if (g.items.length) html += label(g.label) + g.items.map(opt).join(''); });
   pop.innerHTML = html;
 }
 
@@ -5088,10 +5220,11 @@ async function renderTxnTable() {
   if (!rows.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">No transactions match filters</td></tr>'; }
   else {
     const isMobile = window.innerWidth <= 640;
+    const typeOptionsHTML = t => TXN_TYPE_KEYS.map(k=>`<option value="${k}" ${t.type===k?'selected':''}>${escapeHtml(TXN_TYPES[k].label)}</option>`).join('');
     if (isMobile) {
       tbody.innerHTML = rows.map(t => {const a=fmtAmount(t.amount,t.type);return `<tr onclick="openEditTxnModal(${JSON.stringify(t.id)})" style="cursor:pointer">
         <td data-label="Date">${escapeHtml(t.date||'')}</td>
-        <td data-label="Type">${t.type === 'revenue' ? 'Revenue' : 'Expense'}</td>
+        <td data-label="Type">${escapeHtml(txnTypeLabel(t.type))}</td>
         <td data-label="Category">${escapeHtml(t.category||'—')}</td>
         <td data-label="Description">${escapeHtml(t.description||'—')}</td>
         <td data-label="Source" style="color:var(--muted)">${escapeHtml(t.source||'—')}</td>
@@ -5101,8 +5234,8 @@ async function renderTxnTable() {
     } else {
       tbody.innerHTML = rows.map(t => {const a=fmtAmount(t.amount,t.type);return `<tr>
         <td data-label="Date"><input class="editable-cell" value="${t.date}" onchange="inlineEdit(${JSON.stringify(t.id)},'date',this.value)"></td>
-        <td data-label="Type"><select class="editable-cell" onchange="inlineEdit(${JSON.stringify(t.id)},'type',this.value)"><option value="revenue" ${t.type==='revenue'?'selected':''}>Revenue</option><option value="expense" ${t.type==='expense'?'selected':''}>Expense</option></select></td>
-        <td data-label="Category"><input class="editable-cell" value="${(t.category||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'category',this.value)"></td>
+        <td data-label="Type"><select class="editable-cell" onchange="onTxnTypeSelect(${JSON.stringify(t.id)},this)">${typeOptionsHTML(t)}</select></td>
+        <td data-label="Category"><select class="editable-cell" data-prev="${escapeHtml(t.category||'')}" onchange="onCategorySelectChange(this,v=>inlineEdit(${JSON.stringify(t.id)},'category',v))">${categorySelectOptionsHTML(t.category,t.type)}</select></td>
         <td data-label="Description"><input class="editable-cell" value="${(t.description||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'description',this.value)"></td>
         <td data-label="Source"><input class="editable-cell" value="${(t.source||'').replace(/"/g,'&quot;')}" onchange="inlineEdit(${JSON.stringify(t.id)},'source',this.value)" placeholder="—"></td>
         <td data-label="Amount" class="${a.cls}" style="text-align:right;font-weight:600">${a.text}</td>
@@ -5138,14 +5271,27 @@ function openEditTxnModal(id) {
     if (!t) return;
     document.getElementById('edit-txn-id').value          = String(t.id);
     document.getElementById('edit-txn-date').value        = t.date || '';
-    document.getElementById('edit-txn-type').value        = t.type || 'revenue';
-    document.getElementById('edit-txn-category').value    = t.category || '';
+    const typeSel = document.getElementById('edit-txn-type');
+    typeSel.innerHTML = TXN_TYPE_KEYS.map(k=>`<option value="${k}">${escapeHtml(TXN_TYPES[k].label)}</option>`).join('');
+    typeSel.value = t.type || 'revenue';
+    const catSel = document.getElementById('edit-txn-category');
+    catSel.innerHTML = categorySelectOptionsHTML(t.category, typeSel.value);
+    catSel.dataset.prev = t.category || '';
     document.getElementById('edit-txn-description').value = t.description || '';
     document.getElementById('edit-txn-source').value      = t.source || '';
     document.getElementById('edit-txn-amount').value      = t.amount || 0;
     const modal = document.getElementById('edit-txn-modal');
     modal.style.display = 'flex';
   };
+}
+
+// Type changed in the modal — regroup the Category select for the new type.
+function onEditModalTypeChange(){
+  const typeSel = document.getElementById('edit-txn-type');
+  const catSel = document.getElementById('edit-txn-category');
+  const current = catSel.value===ADD_NEW_CATEGORY_SENTINEL ? '' : catSel.value;
+  catSel.innerHTML = categorySelectOptionsHTML(current, typeSel.value);
+  catSel.dataset.prev = current;
 }
 function closeEditTxnModal() {
   const modal = document.getElementById('edit-txn-modal');
@@ -5189,6 +5335,21 @@ async function inlineEdit(id, field, value) {
     putReq.onerror=ev=>{console.warn('inlineEdit put error',ev.target.error);toast('Could not save edit: '+(ev.target.error&&ev.target.error.message?ev.target.error.message:'storage error'),'error');setSaveStatus('error');};
     tx.oncomplete=()=>{setSaveStatus('saved');scheduleSnapshot()};
   };
+}
+
+// Changing a row's Type in All Transactions saves it, then regroups that
+// row's Category <select> for the new type (expense categories first for
+// Expense, this type's starter categories first for a Balance Sheet type).
+async function onTxnTypeSelect(id, selectEl){
+  const newType = selectEl.value;
+  await inlineEdit(id, 'type', newType);
+  const row = selectEl.closest('tr');
+  const catSelect = row ? row.querySelector('td[data-label="Category"] select') : null;
+  if(catSelect){
+    const current = catSelect.value===ADD_NEW_CATEGORY_SENTINEL ? '' : catSelect.value;
+    catSelect.innerHTML = categorySelectOptionsHTML(current, newType);
+    catSelect.dataset.prev = current;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -5312,7 +5473,7 @@ async function renderExpTable() {
 async function renderMonthlyTable() {
   const all=await dbGetAll();
   const map={}; MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});
-  all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else map[t.month].expenses+=t.amount;});
+  all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else if(t.type==='expense')map[t.month].expenses+=t.amount;});
   const monthly=MONTHS.map(m=>({month:m,...map[m],net:map[m].revenue-map[m].expenses})).filter(m=>m.revenue>0||m.expenses>0);
   const tbody=document.getElementById('monthly-tbody');
   if(!monthly.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">No data yet</td></tr>';return;}
@@ -5381,11 +5542,13 @@ function filterByRange(all, start, end){
 // ── P&L computation ──────────────────────────────────────────────
 function computePL(txns){
   const rev={}, cogs={}, opex={};
+  // Only Revenue and Expense entries belong on an Income Statement — Owner's
+  // Equity, Liability, and Asset entries are Balance Sheet items and must
+  // never fall through into expenses just because they aren't revenue.
   txns.forEach(t=>{
     const cat=t.category||'Uncategorized', amt=+t.amount||0;
-    if(t.type==='revenue') rev[cat]=(rev[cat]||0)+amt;
-    else if(isCOGS(cat))   cogs[cat]=(cogs[cat]||0)+amt;
-    else                   opex[cat]=(opex[cat]||0)+amt;
+    if(t.type==='revenue')      rev[cat]=(rev[cat]||0)+amt;
+    else if(t.type==='expense'){ if(isCOGS(cat)) cogs[cat]=(cogs[cat]||0)+amt; else opex[cat]=(opex[cat]||0)+amt; }
   });
   const sum=o=>Object.values(o).reduce((s,v)=>s+v,0);
   const totalRev=sum(rev), totalCogs=sum(cogs), totalOpex=sum(opex);
@@ -5420,28 +5583,29 @@ async function buildTimeframeControls(){
   const all=await dbGetAll();
   const years=availableYears(all);
   const lbl=t=>`<label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px">${t}</label>`;
-  if(type==='pl' || type==='expense-breakdown' || type==='revenue-breakdown'){
+  if(type==='pl' || type==='expense-breakdown' || type==='revenue-breakdown' || type==='balance-sheet'){
     const groupByHtml = (type==='expense-breakdown' || type==='revenue-breakdown')
       ? `<div>${lbl('Group By')}<select id="rt-groupby" style="min-width:130px">
            <option value="category">Category</option>
            <option value="source">Source / Account</option>
          </select></div>`
       : '';
+    const isBS = type==='balance-sheet';
     wrap.innerHTML=
-      `<div>${lbl('Time Frame')}<select id="rt-preset" onchange="onPresetChange()" style="min-width:170px">
-         <option value="this-year">This Year</option>
-         <option value="last-year">Last Year</option>
-         <option value="ytd">Year to Date</option>
-         <option value="this-quarter">This Quarter</option>
-         <option value="last-quarter">Last Quarter</option>
-         <option value="this-month">This Month</option>
-         <option value="last-month">Last Month</option>
-         <option value="all">All Time</option>
-         <option value="custom">Custom Range…</option>
+      `<div>${lbl(isBS?'As Of':'Time Frame')}<select id="rt-preset" onchange="onPresetChange()" style="min-width:170px">
+         <option value="this-year">${isBS?'End of This Year':'This Year'}</option>
+         <option value="last-year">${isBS?'End of Last Year':'Last Year'}</option>
+         <option value="ytd">${isBS?'Today':'Year to Date'}</option>
+         <option value="this-quarter">${isBS?'End of This Quarter':'This Quarter'}</option>
+         <option value="last-quarter">${isBS?'End of Last Quarter':'Last Quarter'}</option>
+         <option value="this-month">${isBS?'End of This Month':'This Month'}</option>
+         <option value="last-month">${isBS?'End of Last Month':'Last Month'}</option>
+         <option value="all">${isBS?'Latest':'All Time'}</option>
+         <option value="custom">Custom Date…</option>
        </select></div>
        <div id="rt-custom" style="display:none;gap:12px;align-items:flex-end">
-         <div>${lbl('From')}<input type="date" id="rt-start"></div>
-         <div>${lbl('To')}<input type="date" id="rt-end"></div>
+         ${isBS ? '' : `<div>${lbl('From')}<input type="date" id="rt-start"></div>`}
+         <div>${lbl(isBS?'As Of':'To')}<input type="date" id="rt-end"></div>
        </div>${groupByHtml}`;
   } else { // pl-yoy, monthly-trend, quarterly → a single year selector
     const opts=years.map(y=>`<option value="${y}">${y}</option>`).join('');
@@ -5459,10 +5623,11 @@ function readTimeframe(){
   const preset=document.getElementById('rt-preset');
   if(!preset) return resolvePreset('this-year');
   if(preset.value==='custom'){
-    const sv=document.getElementById('rt-start').value, ev=document.getElementById('rt-end').value;
+    const startEl=document.getElementById('rt-start');
+    const sv=startEl?startEl.value:'', ev=document.getElementById('rt-end').value;
     const start=sv?new Date(sv+'T00:00:00'):null;
     const end=ev?new Date(ev+'T23:59:59'):null;
-    const label=`${sv||'start'} → ${ev||'today'}`;
+    const label=startEl?`${sv||'start'} → ${ev||'today'}`:(ev||'today');
     return {start,end,label};
   }
   return resolvePreset(preset.value);
@@ -5484,6 +5649,7 @@ async function generateReport(){
     else if(type==='revenue-breakdown')model=buildBreakdownReport(all,'revenue',groupBy);
     else if(type==='monthly-trend')    model=buildMonthlyTrendReport(all);
     else if(type==='quarterly')        model=buildQuarterlyReport(all);
+    else if(type==='balance-sheet')    model=buildBalanceSheetReport(all);
   }catch(e){ out.innerHTML=`<div class="table-card" style="padding:24px;color:var(--red)">Failed to build report: ${escapeHtml(e.message)}</div>`; return; }
   _lastReport={title:model.title, subtitle:model.subtitle, csv:model.csv};
   out.innerHTML=
@@ -5538,6 +5704,57 @@ function buildPLReport(all){
   csv.push(['Total Operating Expenses',p.totalOpex.toFixed(2),fmtPctOf(p.totalOpex,R)]);
   csv.push([`Net ${p.netProfit>=0?'Profit':'Loss'}`,p.netProfit.toFixed(2),fmtPctOf(p.netProfit,R)]);
   return {title:'Profit & Loss Statement', subtitle:tf.label, html, csv};
+}
+
+// Balance Sheet is a point-in-time snapshot (running balance since
+// inception), not a period flow like the P&L — every Balance Sheet entry up
+// to the END of the selected window counts, regardless of its start.
+function buildBalanceSheetReport(all){
+  const tf=readTimeframe();
+  const asOf = tf.end || new Date();
+  const txns = all.filter(t=>isBSType(t.type)).filter(t=>{ const d=txnDate(t); return d && d<=asOf; });
+
+  const sections = [
+    { key:'asset',     title:'Assets',           types:['asset'] },
+    { key:'liability', title:'Liabilities',      types:['liability_lt','liability_st'] },
+    { key:'equity',    title:"Owner's Equity",   types:['equity'] },
+  ];
+
+  let rows=''; const csv=[['Section','Category','Balance']]; const totals={};
+  sections.forEach(sec=>{
+    const map={};
+    txns.filter(t=>sec.types.includes(t.type)).forEach(t=>{
+      const cat=t.category||'Uncategorized';
+      map[cat]=(map[cat]||0)+(+t.amount||0);
+    });
+    const catRows=_sortCats(map);
+    const total=catRows.reduce((s,r)=>s+r[1],0);
+    totals[sec.key]=total;
+    const base=Math.abs(total)||1;
+    rows+=_secRow(sec.title);
+    catRows.forEach(([c,v])=>{ rows+=_lineRow(c,v,base); csv.push([sec.title,c,v.toFixed(2)]); });
+    rows+=_subRow(`Total ${sec.title}`,total,base,total>=0?'positive-val':'negative-val');
+    csv.push([sec.title,'Total',total.toFixed(2)]);
+    if(!catRows.length) csv.push([sec.title,'(none)','0.00']);
+  });
+  const netWorth = (totals.asset||0) - (totals.liability||0);
+  rows += `<tr class="total-row" style="border-top:2px solid var(--border)"><td style="padding:12px"><strong style="font-size:15px">Assets − Liabilities</strong></td><td class="${netWorth>=0?'positive-val':'negative-val'}" style="text-align:right;padding:12px"><strong style="font-size:15px">${fmt(netWorth)}</strong></td><td></td></tr>`;
+  csv.push(['','Assets − Liabilities',netWorth.toFixed(2)]);
+
+  const html=
+    `<div class="kpi-grid" style="margin-bottom:16px">
+       <div class="kpi-card blue"><div class="kpi-label">Total Assets</div><div class="kpi-value" style="color:var(--blue)">${fmt(totals.asset||0)}</div><div class="kpi-sub">Equipment, property, etc.</div></div>
+       <div class="kpi-card amber"><div class="kpi-label">Total Liabilities</div><div class="kpi-value amber">${fmt(totals.liability||0)}</div><div class="kpi-sub">Loans, credit balances</div></div>
+       <div class="kpi-card green"><div class="kpi-label">Owner's Equity</div><div class="kpi-value positive">${fmt(totals.equity||0)}</div><div class="kpi-sub">Contributions minus draws</div></div>
+       <div class="kpi-card ${netWorth>=0?'green':'red'}"><div class="kpi-label">Assets − Liabilities</div><div class="kpi-value ${netWorth>=0?'positive':'negative'}">${fmt(netWorth)}</div><div class="kpi-sub">Should track with equity</div></div>
+     </div>
+     <div class="table-card"><div class="table-wrap"><table>
+       <thead><tr><th>Line Item</th><th style="text-align:right">Balance</th><th style="text-align:right">% of Section</th></tr></thead>
+       <tbody>${rows}</tbody></table></div></div>
+     <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6">
+       These are running totals of your Owner's Equity, Liability, and Asset entries only, tagging them separately keeps your P&L clean of loans, equipment, and owner draws — none of which are revenue or an operating expense. This is a lightweight summary, not a full formal balance sheet (it doesn't roll retained earnings in from the P&L).
+     </div>`;
+  return {title:'Balance Sheet Summary', subtitle:`As of ${asOf.toLocaleDateString()}`, html, csv};
 }
 
 function buildYoYReport(all){
@@ -5616,7 +5833,7 @@ function buildBreakdownReport(all,type,groupBy){
 function buildMonthlyTrendReport(all){
   const year=parseInt(document.getElementById('rt-year').value)||new Date().getFullYear();
   const map={}; MONTHS.forEach(m=>map[m]={revenue:0,expenses:0});
-  all.filter(t=>txnYear(t)===year).forEach(t=>{const d=txnDate(t); const mo=d?MONTHS[d.getMonth()]:t.month; if(!map[mo])map[mo]={revenue:0,expenses:0}; if(t.type==='revenue')map[mo].revenue+=(+t.amount||0); else map[mo].expenses+=(+t.amount||0);});
+  all.filter(t=>txnYear(t)===year).forEach(t=>{const d=txnDate(t); const mo=d?MONTHS[d.getMonth()]:t.month; if(!map[mo])map[mo]={revenue:0,expenses:0}; if(t.type==='revenue')map[mo].revenue+=(+t.amount||0); else if(t.type==='expense')map[mo].expenses+=(+t.amount||0);});
   const data=MONTHS.map(m=>({month:m,...map[m],net:map[m].revenue-map[m].expenses}));
   const active=data.filter(m=>m.revenue>0||m.expenses>0);
   const tR=active.reduce((s,m)=>s+m.revenue,0),tE=active.reduce((s,m)=>s+m.expenses,0),tN=tR-tE;
@@ -5788,7 +6005,7 @@ async function refreshDashboard() {
   renderSampleDataBanner(all);
   if(!all.length){renderEmptyDashboard();return;}
   const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});
-  all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else map[t.month].expenses+=t.amount;});
+  all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else if(t.type==='expense')map[t.month].expenses+=t.amount;});
   const monthly=MONTHS.map(m=>({month:m,...map[m],net:map[m].revenue-map[m].expenses})).filter(m=>m.revenue>0||m.expenses>0);
   const fd=document.getElementById('month-filter');
   fd.innerHTML='<span style="font-size:12px;color:var(--muted);margin-right:4px">Filter:</span>';
@@ -6131,8 +6348,11 @@ async function handleXLSXImport(e){
 function analyzeCSVStructure(rows){
   const N = rows.length;
   const nonEmptyCount = r => r.filter(c=>String(c==null?'':c).trim()!=='').length;
-  const topScan = Math.min(7, N);
-  const sample = rows.slice(0, Math.min(15, N));
+  // Scan the whole file for the header row (bounded so a huge import stays
+  // fast) — some exports bury the real header well past the first few lines
+  // (e.g. a multi-line account summary block before the transaction table).
+  const scanCap = Math.min(N, 500);
+  const sample = rows.slice(0, scanCap);
   const counts = sample.map(nonEmptyCount);
   // "Mode" column count among rows with >=2 populated cells — the width a
   // real tabular row is expected to have.
@@ -6143,7 +6363,7 @@ function analyzeCSVStructure(rows){
   if(!mode) mode = Math.max(1, ...counts, 0);
 
   let headerRowIndex = 0;
-  for(let i=0;i<topScan;i++){
+  for(let i=0;i<scanCap;i++){
     if(counts[i] >= Math.max(2, Math.ceil(mode*0.7))){ headerRowIndex = i; break; }
   }
   const preambleDetected = headerRowIndex > 0;
@@ -6161,6 +6381,21 @@ function analyzeCSVStructure(rows){
     if(looksLikeFooter) footerRowIndexes.push(i); else break;
   }
   return { headerRowIndex, preambleDetected, footerRowIndexes: footerRowIndexes.sort((a,b)=>a-b), mode };
+}
+
+// Preview window: 3 rows before + the header row + 3 rows after (7 total),
+// clamped to file bounds. Near the top of the file this naturally becomes
+// "rows 1-7" (the old fixed behavior); further in, it centers on the
+// detected row — e.g. header at line 10 -> rows 7-13, line 15 -> rows 12-18.
+function computePreviewWindow(headerIdx, N){
+  const desired = 7;
+  let start = Math.max(0, headerIdx - 3);
+  let end = Math.min(N - 1, headerIdx + 3);
+  if(end - start + 1 < desired){
+    if(start === 0) end = Math.min(N - 1, start + desired - 1);
+    else if(end === N - 1) start = Math.max(0, end - desired + 1);
+  }
+  return { start, end };
 }
 
 // Data rows for preview/import: everything after the chosen header row,
@@ -6200,9 +6435,9 @@ function openMappingModal(){
 
 function renderHeaderRowPicker(){
   const sel = document.getElementById('csv-header-row-select');
-  const topN = Math.min(7, parsedCSV.length);
+  const { start, end } = computePreviewWindow(csvHeaderRowIndex, parsedCSV.length);
   sel.innerHTML = '';
-  for(let i=0;i<topN;i++){
+  for(let i=start;i<=end;i++){
     const preview = parsedCSV[i].filter(c=>String(c||'').trim()!=='').slice(0,4).join(', ');
     const opt = document.createElement('option');
     opt.value = String(i);
@@ -6211,26 +6446,35 @@ function renderHeaderRowPicker(){
     if(i===csvHeaderRowIndex) opt.selected=true;
     sel.appendChild(opt);
   }
+  const manualInput = document.getElementById('csv-header-row-manual');
+  if(manualInput){ manualInput.max = String(parsedCSV.length); manualInput.value = ''; }
   const banner = document.getElementById('header-detect-banner');
   if(csvStructure.preambleDetected){
     banner.style.display='';
     const plural = csvHeaderRowIndex>1;
-    banner.innerHTML = `📋 Row${plural?'s 1–'+csvHeaderRowIndex:' 1'} look${plural?'':'s'} like file or account info, not column headers — data looks like it starts at <strong>Row ${csvHeaderRowIndex+1}</strong>. Change the selection below if that's wrong.`;
+    banner.innerHTML = `📋 Row${plural?'s 1–'+csvHeaderRowIndex:' 1'} look${plural?'':'s'} like file or account info, not column headers — data looks like it starts at <strong>Row ${csvHeaderRowIndex+1}</strong>. Change the selection below (or jump to a row number) if that's wrong.`;
   } else {
     banner.style.display='none';
   }
 }
 
 function renderRawPreview(){
-  const topN = Math.min(7, parsedCSV.length);
-  const maxCols = Math.max(csvHeaders.length, ...parsedCSV.slice(0,topN).map(r=>r.length));
+  const { start, end } = computePreviewWindow(csvHeaderRowIndex, parsedCSV.length);
+  const windowRows = [];
+  for(let i=start;i<=end;i++) windowRows.push(parsedCSV[i]);
+  const maxCols = Math.max(csvHeaders.length, ...windowRows.map(r=>r.length));
+  const label = document.getElementById('preview-label');
+  if(label){
+    const rangeText = end>start ? `Rows ${start+1}–${end+1}` : `Row ${start+1}`;
+    label.innerHTML = `File Preview — ${rangeText} <span style="font-weight:400;text-transform:none;letter-spacing:normal">(the highlighted row is used as your column headers)</span>`;
+  }
   const thead = document.getElementById('preview-thead');
   let headCells = '<th style="padding:6px 10px;background:var(--surface2);color:var(--muted);font-size:11px">Row</th>';
   for(let c=0;c<maxCols;c++) headCells += `<th style="padding:6px 10px;background:var(--surface2);color:var(--muted);font-size:11px;text-align:left;white-space:nowrap">${escapeHtml(csvHeaders[c]||'—')}</th>`;
   thead.innerHTML = '<tr>'+headCells+'</tr>';
   const tbody = document.getElementById('preview-tbody');
   let rowsHtml = '';
-  for(let i=0;i<topN;i++){
+  for(let i=start;i<=end;i++){
     const row = parsedCSV[i];
     const isHeader = i===csvHeaderRowIndex;
     const rowStyle = isHeader ? 'background:var(--teal-dim);font-weight:600' : '';
@@ -6278,10 +6522,25 @@ function updateMappingSub(){
 }
 
 // User picked a different header row — everything downstream (column names,
-// the field-mapping dropdowns, the row count) is re-derived from it.
+// the field-mapping dropdowns, the row count) is re-derived from it, and the
+// ±3-row preview window recenters on the new selection.
 function onHeaderRowChange(){
-  csvHeaderRowIndex = parseInt(document.getElementById('csv-header-row-select').value);
+  setHeaderRow(parseInt(document.getElementById('csv-header-row-select').value));
+}
+
+// "Jump to row #" — for files where the real header sits outside the
+// auto-detected ±3 window (e.g. a long multi-line account summary block).
+function onManualHeaderRowJump(){
+  const input = document.getElementById('csv-header-row-manual');
+  const n = parseInt(input.value);
+  if(isNaN(n) || n<1 || n>parsedCSV.length){ toast(`Enter a row number between 1 and ${parsedCSV.length}`,'error'); return; }
+  setHeaderRow(n-1);
+}
+
+function setHeaderRow(idx){
+  csvHeaderRowIndex = idx;
   csvHeaders = parsedCSV[csvHeaderRowIndex];
+  renderHeaderRowPicker();
   renderRawPreview();
   renderFieldMapGrid();
   updateMappingSub();
@@ -6339,7 +6598,7 @@ async function applyMapping(){
     if(_acct)amount=-amount;   // parentheses = accounting negative
     if(isNaN(amount)){skipped++;return;}
 
-    const resolved=resolveTxnType({source:importSource,typeRaw,amount,ccSign,bankSign});
+    const resolved=resolveTxnType({source:importSource,typeRaw,amount,ccSign,bankSign,descRaw:descVal});
     if(resolved.skip){skippedTransfers++;return;}
     const type=resolved.type;
 
@@ -6408,9 +6667,8 @@ async function applyMapping(){
   closeMapping();
   scheduleSnapshot();
   const parts = [`✓ Imported ${finalTxns.length} transactions`];
-  if(skippedTransfers)parts.push(`${skippedTransfers} card payment${skippedTransfers===1?'':'s'} skipped (transfer, not P&L)`);
+  if(skippedTransfers)parts.push(`${skippedTransfers} transfer${skippedTransfers===1?'':'s'} skipped (not P&L)`);
   if(skipped)parts.push(`${skipped} unparseable`);
-  if(skippedTransfers)parts.push(`${skippedTransfers} card payment${skippedTransfers===1?'':'s'} skipped (transfer, not P&L)`);
   if(skippedDupes)parts.push(`${skippedDupes} duplicates skipped`);
   toast(parts.join(' · '),'success');
   showView('dashboard-view');
@@ -6470,7 +6728,7 @@ function unlinkFile(){linkedFileHandle=null;localStorage.removeItem(FS_HANDLE_KE
 
 async function exportCSV(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const csv=[['Date','Type','Category','Description','Source','Amount','Month','Year'].join(','),...all.map(t=>[t.date,t.type,csvCell(t.category),csvCell(t.description||''),csvCell(t.source||''),t.amount,t.month,t.year].join(','))].join('\n');download(csv,`pl_export_${Date.now()}.csv`,'text/csv');toast('CSV exported','success');}
 
-async function exportXLSX(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const wb=XLSX.utils.book_new();const txData=all.map(t=>({Date:t.date,Type:t.type,Category:csvSanitize(t.category||''),Description:csvSanitize(t.description||''),Source:csvSanitize(t.source||''),Amount:t.amount,Month:t.month,Year:t.year}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(txData),'Transactions');const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else map[t.month].expenses+=t.amount;});const sumData=MONTHS.filter(m=>map[m].revenue>0||map[m].expenses>0).map(m=>({Month:m,Revenue:map[m].revenue,Expenses:map[m].expenses,'Net Profit':map[m].revenue-map[m].expenses,'Margin %':map[m].revenue>0?((map[m].revenue-map[m].expenses)/map[m].revenue*100).toFixed(1)+'%':'0.0%'}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sumData),'Monthly Summary');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});download(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`pl_export_${Date.now()}.xlsx`,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');toast('Excel file exported','success');}
+async function exportXLSX(){const all=await dbGetAll();if(!all.length){toast('No data to export','error');return;}const wb=XLSX.utils.book_new();const txData=all.map(t=>({Date:t.date,Type:t.type,Category:csvSanitize(t.category||''),Description:csvSanitize(t.description||''),Source:csvSanitize(t.source||''),Amount:t.amount,Month:t.month,Year:t.year}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(txData),'Transactions');const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else if(t.type==='expense')map[t.month].expenses+=t.amount;});const sumData=MONTHS.filter(m=>map[m].revenue>0||map[m].expenses>0).map(m=>({Month:m,Revenue:map[m].revenue,Expenses:map[m].expenses,'Net Profit':map[m].revenue-map[m].expenses,'Margin %':map[m].revenue>0?((map[m].revenue-map[m].expenses)/map[m].revenue*100).toFixed(1)+'%':'0.0%'}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sumData),'Monthly Summary');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});download(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`pl_export_${Date.now()}.xlsx`,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');toast('Excel file exported','success');}
 
 async function exportJSON(){const all=await dbGetAll();const payload={settings,transactions:all,exportedAt:new Date().toISOString()};download(JSON.stringify(payload,null,2),`pl_backup_${Date.now()}.json`,'application/json');toast('JSON backup exported','success');}
 
