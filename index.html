@@ -6134,6 +6134,7 @@ async function applyMapping(){
   closeMapping();
   scheduleSnapshot();
   const parts = [`✓ Imported ${finalTxns.length} transactions`];
+  if(skippedTransfers)parts.push(`${skippedTransfers} card payment${skippedTransfers===1?'':'s'} skipped (transfer, not P&L)`);
   if(skipped)parts.push(`${skipped} unparseable`);
   if(skippedTransfers)parts.push(`${skippedTransfers} card payment${skippedTransfers===1?'':'s'} skipped (transfer, not P&L)`);
   if(skippedDupes)parts.push(`${skippedDupes} duplicates skipped`);
