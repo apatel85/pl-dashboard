@@ -1,8 +1,29 @@
 {
-  "latest_version": "8.9.1",
+  "latest_version": "8.10.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.10.0",
+      "date": "2026-10-03",
+      "title": "Login Fix, Dashboard Year Filter, Chart Resize Fix, Duplicate Detection & Automatic Device Sync",
+      "summary": "Fixes a bug where signing in could hang indefinitely for some users (a Supabase request with no timeout). The Dashboard now has a Year filter and correctly defaults to the most recent year your data actually has, instead of showing the real-world current year. Charts now resize properly when you resize the browser window on tablet or desktop. Every transaction now gets a content-based fingerprint and created/modified timestamps, powering a new duplicate-detection system with a side-by-side comparison for manual entries and a review table for CSV imports. Signing in with Google now sets up automatic cross-device sync on its own — no more separate manual \"Connect Google Sheets\" step — and sync-time conflicts (the same transaction created independently on two devices) are flagged for your review instead of silently duplicated or dropped.",
+      "changes": [
+        { "type": "fix", "text": "Fixed sign-in sometimes hanging indefinitely with no error — Supabase requests had no timeout, so a slow or temporarily-paused connection (common on free-tier database cold starts) would leave the \"Verifying your license…\" spinner stuck forever. Every Supabase call now times out (20s) and the license-check retries once automatically, since the first request is often what wakes a paused project. The loading message also now explains what's happening if it takes more than a few seconds." },
+        { "type": "new", "text": "Dashboard: added a Year filter alongside the existing Month filter, so you can view totals for a specific year or switch to \"All Years\"." },
+        { "type": "fix", "text": "Dashboard: the period header (\"Full Year ____\") now reflects the most recent year your data actually has, instead of an unrelated \"Fiscal Year\" setting that defaulted to today's real-world calendar year — previously the header could claim \"2026\" while every loaded transaction was from 2024 or 2025." },
+        { "type": "fix", "text": "Fixed Dashboard charts not resizing properly when the browser window was resized on tablet or desktop (a 2-column chart layout). The underlying cause: CSS Grid items don't shrink below their content's size by default, which stopped Chart.js's own resize handling from working." },
+        { "type": "new", "text": "Every transaction now carries a content-based fingerprint (from its date, amount, description, and type) plus created/last-modified timestamps, enabling real duplicate detection instead of a same-ID-only check." },
+        { "type": "new", "text": "Manual entry (Quick Add) now checks for a matching existing transaction before saving and shows a side-by-side comparison — Keep Existing, Replace With New, or Keep Both — instead of silently creating a duplicate." },
+        { "type": "imp", "text": "CSV import's duplicate handling replaced a single all-or-nothing confirmation with a review table listing every flagged pair (existing vs. incoming) with a checkbox per row, defaulting to excluded — the same per-row control CSV import's category review already offered for categories." },
+        { "type": "new", "text": "Creating a new category from any \"+ Add new category…\" dropdown, or by typing an unrecognized name into Quick Add, now opens the same Add Category dialog as the Categories tab and asks for its Revenue/Expense type — instead of silently guessing from the category's name." },
+        { "type": "fix", "text": "That category type is now actually saved and used everywhere a category is grouped or displayed by type — previously the Categories tab's own \"Add Category\" dialog captured a type but never stored it, so a Revenue category named e.g. \"Rent Rebate\" would have been mis-bucketed as Expense by the keyword guesser." },
+        { "type": "new", "text": "Signing in with Google now requests Google Sheets access as part of the same sign-in — automatically creating a sync spreadsheet and turning on auto-sync — instead of requiring a separate trip to Backup & Restore to manually connect. Auto-sync still debounces pushes ~3s after each change and pulls every 60s / on tab focus, so syncing lands within seconds rather than instantly, but no manual setup is needed on any device signed in with Google." },
+        { "type": "fix", "text": "Background sync pulls that update an existing transaction (matched by ID) now merge the sheet's values onto the local record instead of replacing it outright — previously this silently erased local-only fields like Source that the Google Sheets export doesn't carry." },
+        { "type": "new", "text": "When a background sync pull finds a transaction that looks identical to one already on this device but was created independently (e.g. entered on two devices before they'd synced), it's no longer silently duplicated or dropped — it's queued and a \"Review Possible Duplicates\" button appears in Backup & Restore, using the same comparison table as CSV import." },
+        { "type": "new", "text": "Added CLAUDE.md — a project-memory file documenting the app's architecture, key conventions, and a running log of major work, so future updates (even months later) start with full context instead of re-deriving it." }
+      ]
+    },
     {
       "version": "8.9.1",
       "date": "2026-08-16",

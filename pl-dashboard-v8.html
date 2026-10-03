@@ -296,13 +296,19 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
+  /* CSS Grid items default to min-width:auto, which refuses to shrink below
+     the canvas's current content size — Chart.js's own ResizeObserver then
+     can never actually shrink the chart when the window narrows, since its
+     grid cell won't shrink either. min-width:0 lets the cell (and the
+     canvas inside it) track the grid track's real size on every resize. */
+  min-width: 0;
 }
 .chart-title {
   font-size: 13px; font-weight: 600; color: var(--text);
   margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
 }
 .chart-title span { font-size: 10px; color: var(--muted); font-weight: 400; }
-.chart-wrap { position: relative; height: 220px; }
+.chart-wrap { position: relative; height: 220px; width: 100%; min-width: 0; }
 
 /* Reports: category breakdown split (chart + table) collapses on narrow screens */
 @media (max-width: 760px) { .rpt-split { grid-template-columns: 1fr !important; } }
@@ -1962,10 +1968,13 @@ tbody tr:hover { background: var(--surface2); }
         </svg>
         Continue with Google
       </button>
+      <div style="margin-top:10px;font-size:11px;color:#6b7394;line-height:1.5;text-align:center">
+        Also enables automatic backup &amp; sync across your devices via a private Google Sheet in your own Drive — nothing is shared with anyone else.
+      </div>
 
       <div id="auth-loading" style="display:none;margin-top:18px;font-size:13px;color:#6b7394">
         <span style="display:inline-block;animation:spin .8s linear infinite">↻</span>
-        Verifying your license…
+        <span id="auth-loading-text">Verifying your license…</span>
       </div>
 
       <div id="auth-error" style="
@@ -2022,7 +2031,7 @@ tbody tr:hover { background: var(--surface2); }
 
       <div id="auth-lk-loading" style="display:none;margin-top:18px;font-size:13px;color:#6b7394">
         <span style="display:inline-block;animation:spin .8s linear infinite">↻</span>
-        Verifying your license key…
+        <span id="auth-lk-loading-text">Verifying your license key…</span>
       </div>
 
       <div id="auth-lk-error" style="
@@ -2514,7 +2523,8 @@ tbody tr:hover { background: var(--surface2); }
         <div>
           <div class="page-title">Overview <small id="dash-period">No data yet — import or enter data below</small></div>
         </div>
-        <div class="page-actions">
+        <div class="page-actions" style="flex-direction:column;align-items:flex-end;gap:6px">
+          <div class="filter-row" id="year-filter"></div>
           <div class="filter-row" id="month-filter"></div>
         </div>
       </div>
@@ -3314,6 +3324,59 @@ tbody tr:hover { background: var(--surface2); }
   </main>
 </div>
 
+<!-- ═══════════════ DUPLICATE TRANSACTION MODAL ═══════════════ -->
+<div id="dup-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2100;align-items:center;justify-content:center">
+  <div class="modal-box" style="width:min(640px,94vw);padding:24px">
+    <div class="modal-title">⚠️ Possible Duplicate</div>
+    <div class="modal-sub">A transaction with the same date, amount, description, and type already exists. What would you like to do?</div>
+    <div style="overflow-x:auto;margin-top:16px;border:1px solid var(--border);border-radius:8px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--surface2)">
+          <th style="text-align:left;padding:8px 10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em"></th>
+          <th style="text-align:left;padding:8px 10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em">Existing</th>
+          <th style="text-align:left;padding:8px 10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em">New</th>
+        </tr></thead>
+        <tbody id="dup-compare-tbody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="resolveDupModal('keep-existing')">Keep Existing — Discard New</button>
+      <button class="btn btn-outline" onclick="resolveDupModal('replace')">Replace With New</button>
+      <button class="btn btn-primary" onclick="resolveDupModal('keep-both')">Keep Both — Add Anyway</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ CSV IMPORT: DUPLICATE REVIEW MODAL ═══════════════ -->
+<div id="dup-review-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2100;align-items:center;justify-content:center">
+  <div class="modal-box" style="width:min(820px,96vw);max-height:86vh;display:flex;flex-direction:column;padding:24px">
+    <div class="modal-title">⚠️ Possible Duplicates Found</div>
+    <div class="modal-sub" id="dup-review-sub"></div>
+    <div style="overflow-y:auto;margin-top:14px;border:1px solid var(--border);border-radius:8px;flex:1">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead style="position:sticky;top:0;background:var(--surface2)"><tr>
+          <th style="padding:8px 10px;text-align:left"></th>
+          <th style="padding:8px 10px;text-align:left">Date</th>
+          <th style="padding:8px 10px;text-align:left">Description</th>
+          <th style="padding:8px 10px;text-align:right">Amount</th>
+          <th style="padding:8px 10px;text-align:left">Existing Source</th>
+          <th style="padding:8px 10px;text-align:left">New Source</th>
+        </tr></thead>
+        <tbody id="dup-review-tbody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;justify-content:space-between;align-items:center;flex-wrap:wrap">
+      <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="dup-review-select-all" onchange="toggleAllDupReview(this.checked)"> Import all flagged rows anyway
+      </label>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-outline" onclick="resolveDupReviewModal('cancel')">Cancel Import</button>
+        <button class="btn btn-primary" onclick="resolveDupReviewModal('continue')">Continue Import</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ CONFIRM MODAL ═══════════════ -->
 <div id="confirm-modal">
   <div class="confirm-box">
@@ -3551,7 +3614,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.9.1';
+const APP_VERSION       = '8.10.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -4526,6 +4589,7 @@ function renderGSheetsPanel() {
         <button class="btn btn-primary" onclick="gsheetsPush()">⬆ Push — Save to Google Sheets</button>
         <button class="btn btn-outline" onclick="gsheetsPull()">⬇ Pull — Restore from Google Sheets</button>
         <button class="btn btn-ghost"   onclick="gsheetsUnlink()" style="color:var(--muted);font-size:12px">Unlink Sheet</button>
+        <button class="btn btn-amber" id="sync-conflicts-btn" onclick="reviewSyncConflicts()" style="display:none"></button>
       </div>
 
       <div style="font-size:12px;color:var(--muted);line-height:1.6;padding:10px 14px;background:var(--surface2);border-radius:6px">
@@ -4538,6 +4602,7 @@ function renderGSheetsPanel() {
   document.getElementById('l3-status').textContent = '● Connected';
   document.getElementById('l3-status').className   = 'backup-tier-status status-ok';
   updateProtectionScore();
+  updateSyncConflictUI();
 }
 
 // Helper: render a numbered step for the Google sign-in guide
@@ -4830,6 +4895,15 @@ async function gsheetsPushSilent() {
   } finally { isSyncing = false; }
 }
 
+// Conflicts found during an automatic (silent, background) pull — a row
+// from the sheet looks like the same transaction as a local one (same
+// content) but has a different id, meaning it was created independently on
+// two devices before they ever synced. These are never auto-merged or
+// silently duplicated; they wait here for the user to resolve from Backup
+// & Restore via the same duplicate-review UI CSV import uses.
+let pendingSyncConflicts = [];
+let _flaggedSyncConflicts = new Set(); // dedupes repeat toasts across periodic pulls
+
 async function gsheetsPullSilent() {
   const meta = loadGSheetsMeta();
   if (!meta.spreadsheetId || !gsheetsToken) return false;
@@ -4842,7 +4916,7 @@ async function gsheetsPullSilent() {
     if (rows.length < 2) return false;
     const [header, ...data] = rows;
     const idx = Object.fromEntries(header.map((h,i) => [h.toLowerCase(), i]));
-    const txns = data.map(r => ({
+    const incoming = data.map(r => ({
       id:          r[idx['id']] ? String(r[idx['id']]) : String(Date.now() + Math.random()),
       date:        r[idx['date']]        || '',
       type:        r[idx['type']]        || 'revenue',
@@ -4852,17 +4926,83 @@ async function gsheetsPullSilent() {
       month:       r[idx['month']]       || '',
       year:        parseInt(r[idx['year']]) || ''
     })).filter(t => t.amount > 0);
-    if (txns.length === 0) return false;
-    await dbBulkPut(txns);
+    if (incoming.length === 0) return false;
+
+    const local       = await dbGetAll();
+    const localById   = new Map(local.map(t => [String(t.id), t]));
+    const localByHash = new Map(local.map(t => [t.contentHash || txnHash(t), t]));
+
+    const toApply = [];
+    let newConflicts = 0;
+    incoming.forEach(t => {
+      const localMatch = localById.get(String(t.id));
+      if (localMatch) {
+        // Same record — apply the sheet's latest values onto the existing
+        // local copy instead of replacing it outright, so fields the sheet
+        // doesn't carry (source, category-confirmation state, etc.) survive.
+        toApply.push(touchTxnMeta({ ...localMatch, date:t.date, type:t.type, category:t.category, description:t.description, amount:t.amount, month:t.month, year:t.year }));
+        return;
+      }
+      const hashMatch = localByHash.get(txnHash(t));
+      if (hashMatch) {
+        const key = hashMatch.id + '|' + t.id;
+        if (!_flaggedSyncConflicts.has(key)) {
+          _flaggedSyncConflicts.add(key);
+          pendingSyncConflicts.push({ existing: hashMatch, incoming: t });
+          newConflicts++;
+        }
+        return;
+      }
+      toApply.push(stampNewTxn(t));
+    });
+
+    if (toApply.length) await dbBulkPut(toApply);
     meta.lastSync = new Date().toLocaleString();
     saveGSheetsMeta(meta);
     updateLastSyncUI();
     if (typeof refreshDashboard === 'function') refreshDashboard();
+    if (newConflicts > 0) {
+      updateSyncConflictUI();
+      toast(`🔁 Synced — ${newConflicts} possible duplicate${newConflicts===1?'':'s'} found, review in Backup & Restore`, 'info', {duration:6000});
+    }
     return true;
   } catch(e) {
     console.warn('[auto-pull]', e);
     return false;
   } finally { isSyncing = false; }
+}
+
+function updateSyncConflictUI(){
+  const btn = document.getElementById('sync-conflicts-btn');
+  if (!btn) return;
+  if (pendingSyncConflicts.length > 0) {
+    btn.style.display = 'inline-flex';
+    btn.textContent = `⚠️ Review ${pendingSyncConflicts.length} Possible Duplicate${pendingSyncConflicts.length===1?'':'s'}`;
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+// Opens the same bulk duplicate-review UI CSV import uses, so the user can
+// resolve sync conflicts at their own pace instead of a background pull
+// interrupting them with a modal. Checked rows are added as new
+// transactions (kept alongside the existing one); unchecked rows are
+// discarded (existing local copy wins).
+async function reviewSyncConflicts(){
+  if (!pendingSyncConflicts.length) { toast('No pending sync conflicts', 'info'); return; }
+  const conflicts = pendingSyncConflicts;
+  const decision = await showDupReviewModal(conflicts, conflicts.length);
+  if (decision === null) return; // reviewed later — left in the queue
+  const toAdd = [];
+  conflicts.forEach((c, i) => { if (decision.has(i)) toAdd.push(stampNewTxn({ ...c.incoming })); });
+  if (toAdd.length) {
+    await dbBulkPut(toAdd);
+    scheduleSnapshot();
+    refreshDashboard();
+  }
+  pendingSyncConflicts = [];
+  updateSyncConflictUI();
+  toast(`✓ Resolved ${conflicts.length} sync conflict${conflicts.length===1?'':'s'}${toAdd.length?` — ${toAdd.length} added`:''}`, 'success');
 }
 
 function updateLastSyncUI() {
@@ -5287,11 +5427,37 @@ async function quickAddTransaction() {
     return;
   }
   const d = new Date(dateVal);
+  const candidate = { date:dateVal, type:currentEntryType, category:cat, description:desc, amount, source };
+  const all = await dbGetAll();
+  const dupe = findDuplicateTxn(candidate, all, null);
+  if (dupe) {
+    const action = await showDuplicateModal(dupe, candidate);
+    if (action === 'keep-existing') { toast('Kept the existing transaction — new entry discarded', 'info'); return; }
+    if (action === 'replace') {
+      const updated = { ...dupe, date:dateVal, type:currentEntryType, category:cat, description:desc, amount, month:MONTHS[d.getMonth()], year:d.getFullYear(), source, categoryConfirmed:true };
+      touchTxnMeta(updated);
+      setSaveStatus('saving');
+      await dbPut(updated);
+      setSaveStatus('saved');
+      scheduleSnapshot();
+      finishQuickAdd(source, amount, '✓ Existing transaction updated — ');
+      return;
+    }
+    // 'keep-both' falls through to a normal save below.
+  }
   const txn = { id:Date.now()+Math.random(), date:dateVal, type:currentEntryType, category:cat, description:desc, amount, month:MONTHS[d.getMonth()], year:d.getFullYear(), source, categoryConfirmed:true };
+  stampNewTxn(txn);
   setSaveStatus('saving');
   await dbPut(txn);
   setSaveStatus('saved');
   scheduleSnapshot();
+  finishQuickAdd(source, amount, `✓ ${txnTypeLabel(currentEntryType)} added — `);
+}
+
+// Shared post-save cleanup for quickAddTransaction's normal-save and
+// replace-duplicate paths: clear the form, remember the source, refresh
+// the recent-entries list, and toast.
+function finishQuickAdd(source, amount, toastPrefix){
   document.getElementById('qa-amount').value='';
   document.getElementById('qa-description').value='';
   // Source is left as-is (not cleared) since consecutive quick-adds are
@@ -5300,7 +5466,7 @@ async function quickAddTransaction() {
   const tipEl=document.getElementById('qa-cat-suggestion');if(tipEl)tipEl.style.display='none';
   document.getElementById('qa-amount').focus();
   renderRecentEntries(); updateCatDatalist(); updateSourceDatalist();
-  toast(`✓ ${txnTypeLabel(currentEntryType)} added — ${fmt(amount)}`, 'success');
+  toast(`${toastPrefix}${fmt(amount)}`, 'success');
 }
 
 async function updateSourceDatalist() {
@@ -5645,6 +5811,7 @@ async function inlineEdit(id, field, value) {
     // Directly editing the category is an explicit human choice — it's final,
     // whether or not it started life as an unconfirmed prediction.
     if(field==='category'){ rec.categoryConfirmed=true; rec.categoryConfidence=null; rec.categorySource='manual'; }
+    touchTxnMeta(rec);
     const putReq=tx.objectStore(STORE_NAME).put(rec);
     putReq.onerror=ev=>{console.warn('inlineEdit put error',ev.target.error);toast('Could not save edit: '+(ev.target.error&&ev.target.error.message?ev.target.error.message:'storage error'),'error');setSaveStatus('error');};
     tx.oncomplete=()=>{setSaveStatus('saved');scheduleSnapshot()};
@@ -6310,6 +6477,12 @@ function exportReportPDF(){ openReportDoc(true); toast('Save as PDF in the print
 // ═══════════════════════════════════════════════════════════════════
 
 let activeMonthFilter = null;
+// undefined = not yet initialized this session (auto-pick the most recent
+// year that actually has data); null = "All Years" explicitly chosen;
+// a number = one specific year. Starting at undefined — rather than
+// defaulting to today's calendar year — is what keeps the header from
+// claiming "2026" when every transaction is actually from 2024/2025.
+let activeYearFilter = undefined;
 
 async function refreshDashboard() {
   const all=await dbGetAll();
@@ -6318,20 +6491,38 @@ async function refreshDashboard() {
   // Show "Clear Sample Data" banner if any _sample-tagged rows exist
   renderSampleDataBanner(all);
   if(!all.length){renderEmptyDashboard();return;}
+
+  const years = [...new Set(all.map(t=>t.year).filter(Boolean))].sort((a,b)=>b-a);
+  if(activeYearFilter===undefined){
+    activeYearFilter = years.length ? years[0] : null;
+  } else if(activeYearFilter!=null && years.length && !years.includes(activeYearFilter)){
+    // The previously-selected year no longer has any data (e.g. its last
+    // transaction was deleted) — fall back to the newest year that does.
+    activeYearFilter = years[0];
+  }
+  const yearScoped = activeYearFilter==null ? all : all.filter(t=>String(t.year)===String(activeYearFilter));
+
   const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});
-  all.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else if(t.type==='expense')map[t.month].expenses+=t.amount;});
+  yearScoped.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else if(t.type==='expense')map[t.month].expenses+=t.amount;});
   const monthly=MONTHS.map(m=>({month:m,...map[m],net:map[m].revenue-map[m].expenses})).filter(m=>m.revenue>0||m.expenses>0);
+
+  const yd=document.getElementById('year-filter');
+  yd.innerHTML='<span style="font-size:12px;color:var(--muted);margin-right:4px">Year:</span>';
+  yd.appendChild(mkChip('All Years',activeYearFilter===null,()=>{activeYearFilter=null;activeMonthFilter=null;refreshDashboard();}));
+  years.forEach(y=>yd.appendChild(mkChip(String(y),String(activeYearFilter)===String(y),()=>{activeYearFilter=y;activeMonthFilter=null;refreshDashboard();})));
+
   const fd=document.getElementById('month-filter');
-  fd.innerHTML='<span style="font-size:12px;color:var(--muted);margin-right:4px">Filter:</span>';
+  fd.innerHTML='<span style="font-size:12px;color:var(--muted);margin-right:4px">Month:</span>';
   fd.appendChild(mkChip('All',activeMonthFilter===null,()=>{activeMonthFilter=null;refreshDashboard();}));
   monthly.forEach(m=>fd.appendChild(mkChip(m.month,activeMonthFilter===m.month,()=>{activeMonthFilter=m.month;refreshDashboard();})));
-  const txns=activeMonthFilter?all.filter(t=>t.month===activeMonthFilter):all;
+  const txns=activeMonthFilter?yearScoped.filter(t=>t.month===activeMonthFilter):yearScoped;
   const rev=txns.filter(t=>t.type==='revenue').reduce((s,t)=>s+t.amount,0);
   const exp=txns.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const cogs=txns.filter(t=>t.type==='expense'&&(t.category||'').toLowerCase().includes('cog')).reduce((s,t)=>s+t.amount,0);
   const net=rev-exp,gross=rev-cogs,margin=rev>0?(net/rev)*100:0;
   const avgRev=monthly.length?monthly.reduce((s,m)=>s+m.revenue,0)/monthly.length:0;
-  document.getElementById('dash-period').textContent=activeMonthFilter?`${activeMonthFilter} ${settings.fiscalYear||''}`:`Full Year ${settings.fiscalYear||''} · ${all.length.toLocaleString()} transactions`;
+  const yearLabel = activeYearFilter==null ? 'All Years' : String(activeYearFilter);
+  document.getElementById('dash-period').textContent=activeMonthFilter?`${activeMonthFilter} ${yearLabel}`:`${activeYearFilter==null?'All Years':'Full Year '+yearLabel} · ${txns.length.toLocaleString()} transactions`;
   setKPI('kpi-rev',rev,`${txns.filter(t=>t.type==='revenue').length} entries`,'positive');
   setKPI('kpi-exp',exp,`${txns.filter(t=>t.type==='expense').length} entries`,'negative');
   setKPI('kpi-net',net,net>=0?'Profitable':'Net loss',net>=0?'amber':'negative');
@@ -6435,6 +6626,7 @@ function renderEmptyDashboard(){
   document.getElementById('dash-period').textContent='No data yet';
   ['kpi-rev','kpi-exp','kpi-net','kpi-gross','kpi-margin','kpi-avg-rev'].forEach(id=>document.getElementById(id).textContent='—');
   document.getElementById('month-filter').innerHTML='';
+  document.getElementById('year-filter').innerHTML='';
   const chartsGrid=document.querySelector('.charts-grid');
   if(chartsGrid&&!document.getElementById('empty-state-cta')){
     const card=document.createElement('div');
@@ -6947,7 +7139,7 @@ async function applyMapping(){
     const date=(!parsed||isNaN(parsed))?dateVal:parsed.toISOString().split('T')[0];
     const month=(!parsed||isNaN(parsed))?'Unknown':MONTHS[parsed.getMonth()];
     const year=(!parsed||isNaN(parsed))?'':parsed.getFullYear();
-    newTxns.push({id:Date.now()+idx+Math.random(),date,type,category:catVal,description:descVal,amount:resolved.signedAmount,month,year,source:srcVal,categoryConfirmed:catConfirmed,categoryConfidence:catConfidence,categorySource:catSource});
+    newTxns.push(stampNewTxn({id:Date.now()+idx+Math.random(),date,type,category:catVal,description:descVal,amount:resolved.signedAmount,month,year,source:srcVal,categoryConfirmed:catConfirmed,categoryConfidence:catConfidence,categorySource:catSource}));
   });
 
   // Remember this source's name so the next import of the same kind of file
@@ -6970,20 +7162,28 @@ async function applyMapping(){
   }
 
   // Duplicate detection: hash incoming rows against existing transactions.
-  // Same (date|amount|description|type) is treated as a duplicate. Use a
-  // native confirm so we don't have to retrofit the shared confirm modal.
-  const existingHashes = new Set(existing.map(txnHash));
-  const dupes = newTxns.filter(t => existingHashes.has(txnHash(t)));
+  // Same (date|amount|description|type) is treated as a duplicate. Shows
+  // each flagged pair (existing vs. incoming) so the user can decide
+  // row-by-row instead of one blind all-or-nothing confirm().
+  const existingByHash = new Map(existing.map(t => [t.contentHash || txnHash(t), t]));
+  const dupePairs = [];
+  newTxns.forEach(t => {
+    const match = existingByHash.get(t.contentHash);
+    if (match) dupePairs.push({ existing: match, incoming: t });
+  });
   let finalTxns = newTxns;
-  if (dupes.length > 0) {
-    const importAll = confirm(
-      `${dupes.length} of ${newTxns.length} rows look like duplicates of transactions you already have (same date, amount, description, and type).\n\n` +
-      `Click OK to import everything including duplicates.\n` +
-      `Click Cancel to skip the duplicates (recommended).`
-    );
-    if (!importAll) {
-      finalTxns = newTxns.filter(t => !existingHashes.has(txnHash(t)));
+  if (dupePairs.length > 0) {
+    const decision = await showDupReviewModal(dupePairs, newTxns.length);
+    if (decision === null) {
+      toast('Import cancelled', 'info');
+      return;
     }
+    const dupeIncoming = new Set(dupePairs.map(d => d.incoming));
+    finalTxns = newTxns.filter(t => {
+      if (!dupeIncoming.has(t)) return true;
+      const idx = dupePairs.findIndex(d => d.incoming === t);
+      return decision.has(idx);
+    });
   }
   const skippedDupes = newTxns.length - finalTxns.length;
 
@@ -7008,6 +7208,126 @@ function txnHash(t){
   // Stable fingerprint for dedup. Round amount to 2dp to ignore float drift.
   const amt = Math.round((+t.amount||0)*100)/100;
   return `${t.date}|${amt}|${(t.description||'').trim().toLowerCase()}|${t.type}`;
+}
+
+// contentHash is txnHash() stored on the record itself, so duplicate
+// lookups (manual entry, CSV import, and cross-device sync merges) don't
+// have to recompute it for every existing transaction on every check.
+// It intentionally does NOT replace `id` — id stays the stable IndexedDB
+// key an edit never changes; contentHash is a derived signal that tracks
+// the transaction's current values and is what two devices that each
+// created "the same" transaction independently will end up agreeing on,
+// which is what makes cross-device duplicate detection possible at all.
+function stampNewTxn(t){
+  const now = new Date().toISOString();
+  t.contentHash = txnHash(t);
+  t.createdAt = now;
+  t.modifiedAt = now;
+  return t;
+}
+function touchTxnMeta(t){
+  t.contentHash = txnHash(t);
+  t.modifiedAt = new Date().toISOString();
+  return t;
+}
+// Index existing transactions by contentHash for fast duplicate lookups.
+// Falls back to computing txnHash() on the fly for records saved before
+// this field existed.
+function buildContentHashIndex(all){
+  const idx = new Map();
+  all.forEach(t=>{
+    const h = t.contentHash || txnHash(t);
+    if(!idx.has(h)) idx.set(h, []);
+    idx.get(h).push(t);
+  });
+  return idx;
+}
+// Returns the first existing transaction (other than excludeId) whose
+// content matches candidate, or null.
+function findDuplicateTxn(candidate, all, excludeId){
+  const h = txnHash(candidate);
+  for(const t of all){
+    if(excludeId!=null && t.id===excludeId) continue;
+    if((t.contentHash || txnHash(t)) === h) return t;
+  }
+  return null;
+}
+
+// ── Duplicate-comparison modal ─────────────────────────────────────
+// Promise-based so callers (manual entry, CSV import's per-row review, and
+// the future sync-merge path) can all `await` the user's decision instead
+// of juggling a callback. Resolves to 'keep-both' | 'keep-existing' |
+// 'replace'.
+let _dupModalResolve = null;
+function dupCompareRowHTML(label, existingVal, newVal){
+  const differs = String(existingVal) !== String(newVal);
+  return `<tr>
+    <td style="padding:6px 10px;color:var(--muted);font-weight:600;white-space:nowrap;border-top:1px solid var(--border)">${escapeHtml(label)}</td>
+    <td style="padding:6px 10px;border-top:1px solid var(--border)">${escapeHtml(String(existingVal))}</td>
+    <td style="padding:6px 10px;border-top:1px solid var(--border)${differs?';color:var(--amber);font-weight:600':''}">${escapeHtml(String(newVal))}</td>
+  </tr>`;
+}
+function showDuplicateModal(existing, incoming){
+  return new Promise(resolve=>{
+    _dupModalResolve = resolve;
+    const fmtTs = ts => ts ? new Date(ts).toLocaleString() : '—';
+    const rows = [
+      ['Date',          existing.date||'—',                incoming.date||'—'],
+      ['Type',          txnTypeLabel(existing.type),        txnTypeLabel(incoming.type)],
+      ['Category',      existing.category||'—',             incoming.category||'—'],
+      ['Description',   existing.description||'—',          incoming.description||'—'],
+      ['Source',        existing.source||'—',                incoming.source||'—'],
+      ['Amount',        fmt(existing.amount),                fmt(incoming.amount)],
+      ['Created',       fmtTs(existing.createdAt),           incoming.createdAt ? fmtTs(incoming.createdAt) : 'now'],
+      ['Last Modified',  fmtTs(existing.modifiedAt),         '—'],
+    ];
+    document.getElementById('dup-compare-tbody').innerHTML = rows.map(([l,e,n])=>dupCompareRowHTML(l,e,n)).join('');
+    document.getElementById('dup-modal').style.display = 'flex';
+  });
+}
+function resolveDupModal(action){
+  document.getElementById('dup-modal').style.display = 'none';
+  const resolve = _dupModalResolve;
+  _dupModalResolve = null;
+  if(resolve) resolve(action);
+}
+
+// ── Bulk duplicate review (CSV import) ──────────────────────────────
+// dupPairs: [{existing, incoming}]. Rows are excluded (skipped) by default,
+// matching the previous confirm()'s "recommended" choice — the user checks
+// a row to import it anyway. Resolves to a Set of included indices, or
+// null if the whole import was cancelled.
+let _dupReviewResolve = null;
+function showDupReviewModal(dupPairs, totalNew){
+  return new Promise(resolve=>{
+    _dupReviewResolve = resolve;
+    document.getElementById('dup-review-sub').textContent =
+      `${dupPairs.length} of ${totalNew} row${totalNew===1?'':'s'} being imported look like duplicates of transactions you already have ` +
+      `(same date, amount, description, and type). Rows are excluded by default — check any you want to import anyway.`;
+    document.getElementById('dup-review-tbody').innerHTML = dupPairs.map((d,i)=>`<tr style="border-top:1px solid var(--border)">
+      <td style="padding:6px 10px"><input type="checkbox" class="dup-review-cb" data-idx="${i}"></td>
+      <td style="padding:6px 10px;white-space:nowrap">${escapeHtml(d.incoming.date||'')}</td>
+      <td style="padding:6px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(d.incoming.description||'')}">${escapeHtml(d.incoming.description||'—')}</td>
+      <td style="padding:6px 10px;text-align:right;white-space:nowrap">${fmt(d.incoming.amount)}</td>
+      <td style="padding:6px 10px;color:var(--muted)">${escapeHtml(d.existing.source||'—')}</td>
+      <td style="padding:6px 10px;color:var(--muted)">${escapeHtml(d.incoming.source||'—')}</td>
+    </tr>`).join('');
+    document.getElementById('dup-review-select-all').checked = false;
+    document.getElementById('dup-review-modal').style.display = 'flex';
+  });
+}
+function toggleAllDupReview(checked){
+  document.querySelectorAll('.dup-review-cb').forEach(cb=>cb.checked=checked);
+}
+function resolveDupReviewModal(action){
+  document.getElementById('dup-review-modal').style.display = 'none';
+  const resolve = _dupReviewResolve;
+  _dupReviewResolve = null;
+  if(!resolve) return;
+  if(action==='cancel'){ resolve(null); return; }
+  const includeIdx = new Set();
+  document.querySelectorAll('.dup-review-cb').forEach(cb=>{ if(cb.checked) includeIdx.add(parseInt(cb.dataset.idx)); });
+  resolve(includeIdx);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -7242,23 +7562,61 @@ const LOCAL_CHANGELOG=[{version:'4.0.0',date:'2025-01-01',title:'3-Layer Backup 
 let authUser = null;   // { email, name, googleSub, plan, licenseKey }
 
 // ── Supabase REST helper (no SDK needed) ──────────────────────
+// Every Supabase call gets a bounded timeout. Without this, a plain fetch()
+// just hangs forever if the project is unreachable — most commonly because
+// a free-tier Supabase project auto-pauses after a period of inactivity and
+// takes up to ~30s to wake on its first request. Previously this left users
+// stuck on a spinner indefinitely with no error and nothing to retry; now
+// the request reliably fails (or succeeds) within timeoutMs so the caller's
+// catch block can react.
 async function supaFetch(path, opts = {}) {
-  const res = await fetch(SUPA_URL + path, {
-    ...opts,
-    headers: {
-      'apikey':        SUPA_KEY,
-      'Authorization': 'Bearer ' + SUPA_KEY,
-      'Content-Type':  'application/json',
-      'Prefer':        opts.prefer || '',
-      ...(opts.headers || {})
+  const timeoutMs = opts.timeoutMs || 20000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(SUPA_URL + path, {
+      ...opts,
+      signal: controller.signal,
+      headers: {
+        'apikey':        SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Content-Type':  'application/json',
+        'Prefer':        opts.prefer || '',
+        ...(opts.headers || {})
+      }
+    });
+  } catch(e) {
+    if (e.name === 'AbortError') {
+      throw new Error('Request timed out — the server may be waking up from idle. Please try again in a few seconds.');
     }
-  });
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`Supabase ${res.status}: ${err}`);
   }
   const text = await res.text();
   return text ? JSON.parse(text) : [];
+}
+
+// Wraps a supaFetch call with one automatic retry if the first attempt times
+// out or the network drops — covers the common case where the first request
+// IS what wakes a paused free-tier project (and times out while it spins
+// up), while a second request moments later succeeds normally. Used only
+// for the sign-in-blocking verify_license call, not for fire-and-forget
+// logging, where a silent retry isn't worth the extra request.
+async function supaFetchWithRetry(path, opts = {}) {
+  try {
+    return await supaFetch(path, opts);
+  } catch(e) {
+    if (/timed out|Failed to fetch|NetworkError/i.test(e.message)) {
+      return await supaFetch(path, opts);
+    }
+    throw e;
+  }
 }
 
 // ── Check if cached session is still valid ────────────────────
@@ -7297,7 +7655,11 @@ function authSignIn() {
   setAuthLoading(true);
   const client = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
-    scope:     'openid email profile',
+    // Requesting Sheets/Drive alongside sign-in (one consent screen) is what
+    // makes cross-device sync automatic — see autoSetupGSheetsSync(). A
+    // separate later consent is still how license-key sign-ins and anyone
+    // who skips this the first time can enable it from the Backup tab.
+    scope:     'openid email profile ' + GSHEETS_ALL_SCOPES,
     callback:  async (resp) => {
       if (resp.error) {
         setAuthLoading(false);
@@ -7310,14 +7672,17 @@ function authSignIn() {
         }
         return;
       }
+      // This single token already carries Sheets/Drive scope too — reuse it
+      // directly instead of a second round-trip for Sheets access.
+      gsheetsToken = resp.access_token;
+      try { sessionStorage.setItem(GSHEETS_TOKEN_SESS_KEY, gsheetsToken); } catch(e) {}
       // Fetch user profile from Google
       try {
         const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: 'Bearer ' + resp.access_token }
+          headers: { Authorization: 'Bearer ' + resp.access_token },
+          signal: AbortSignal.timeout(15000)
         });
         const profile = await profileRes.json();
-        // Note: this token only has email/profile scope.
-        // Google Sheets token is requested separately when user enables backup.
         await verifyLicense(profile.email, profile.sub, profile.name);
       } catch(e) {
         setAuthLoading(false);
@@ -7351,13 +7716,22 @@ function showGoogleSignInPanel() {
   if (signin)  signin.style.display  = 'block';
 }
 
+let _lkLoadingTimer = null;
 function setLkLoading(on) {
   const btn  = document.getElementById('auth-lk-submit');
   const load = document.getElementById('auth-lk-loading');
   const err  = document.getElementById('auth-lk-error');
+  const txt  = document.getElementById('auth-lk-loading-text');
   if (btn)  btn.style.display  = on ? 'none'  : 'inline-flex';
   if (load) load.style.display = on ? 'block' : 'none';
   if (on && err) err.style.display = 'none';
+  clearTimeout(_lkLoadingTimer);
+  if (on && txt) {
+    txt.textContent = 'Verifying your license key…';
+    // A cold-start Supabase wake can take 15-30s — reassure the user this
+    // is still working instead of looking frozen.
+    _lkLoadingTimer = setTimeout(() => { txt.textContent = 'Still connecting… this can take up to 30 seconds if the server was idle.'; }, 5000);
+  }
 }
 
 function showLkError(msg) {
@@ -7367,6 +7741,7 @@ function showLkError(msg) {
   if (btn) btn.style.display = 'inline-flex';
   const load = document.getElementById('auth-lk-loading');
   if (load) load.style.display = 'none';
+  clearTimeout(_lkLoadingTimer);
 }
 
 // ── Coupon code redemption ─────────────────────────────────────
@@ -7490,7 +7865,7 @@ async function authSignInWithLicenseKey() {
   try {
     // Verify via SECURITY DEFINER RPC so the public anon key never reads the
     // pl_licensed_users table directly (and never gets the license key back).
-    const rows = await supaFetch('/rest/v1/rpc/verify_license', {
+    const rows = await supaFetchWithRetry('/rest/v1/rpc/verify_license', {
       method: 'POST',
       body: JSON.stringify({ p_email: email, p_key: key })
     });
@@ -7549,7 +7924,7 @@ async function verifyLicense(email, googleSub, displayName) {
   try {
     // Verify via SECURITY DEFINER RPC so the public anon key never reads the
     // pl_licensed_users table directly (and never gets the license key back).
-    const rows = await supaFetch('/rest/v1/rpc/verify_license', {
+    const rows = await supaFetchWithRetry('/rest/v1/rpc/verify_license', {
       method: 'POST',
       body: JSON.stringify({ p_email: email })
     });
@@ -7616,10 +7991,19 @@ function logAccessEvent(email, googleSub, event) {
 }
 
 // ── UI state helpers ──────────────────────────────────────────
+let _authLoadingTimer = null;
 function setAuthLoading(on) {
   document.getElementById('auth-google-btn').style.display = on ? 'none' : 'inline-flex';
   document.getElementById('auth-loading').style.display    = on ? 'block' : 'none';
   document.getElementById('auth-error').style.display      = 'none';
+  clearTimeout(_authLoadingTimer);
+  const txt = document.getElementById('auth-loading-text');
+  if (on && txt) {
+    txt.textContent = 'Verifying your license…';
+    // A cold-start Supabase wake can take 15-30s — reassure the user this
+    // is still working instead of looking frozen.
+    _authLoadingTimer = setTimeout(() => { txt.textContent = 'Still connecting… this can take up to 30 seconds if the server was idle.'; }, 5000);
+  }
 }
 
 function showAuthError(msg) {
@@ -7628,6 +8012,7 @@ function showAuthError(msg) {
   el.style.display = 'block';
   document.getElementById('auth-google-btn').style.display = 'inline-flex';
   document.getElementById('auth-loading').style.display    = 'none';
+  clearTimeout(_authLoadingTimer);
 }
 
 function showAccessDenied(email, reason) {
@@ -7667,6 +8052,34 @@ let pendingRestoreSheetId  = null;   // spreadsheet ID found in Drive
 let pendingRestoreRowCount = 0;      // how many rows found
 let pendingRestoreDate     = null;   // last modified date of the sheet
 
+// Turns auto-sync on by default the first time this browser profile ever
+// gets a working Sheets connection, without overriding an explicit choice
+// the user already made (e.g. turning it off from the Backup tab).
+function ensureAutoSyncDefaultOn(){
+  if (localStorage.getItem(GSHEETS_AUTOSYNC_KEY) === null) {
+    autoSyncEnabled = true;
+    localStorage.setItem(GSHEETS_AUTOSYNC_KEY, 'true');
+  }
+}
+
+// Called once gsheetsToken is known good (from the combined sign-in consent,
+// or a later manual connect). If no spreadsheet is linked yet, creates one
+// silently so signing in with Google is enough on its own to make every
+// device sync automatically — no separate trip to the Backup tab needed.
+// Fire-and-forget: never blocks the sign-in/boot flow it's called from.
+async function autoSetupGSheetsSync(){
+  if (!gsheetsToken) return;
+  try {
+    const meta = loadGSheetsMeta();
+    if (!meta.spreadsheetId) await gsheetsCreateSheet();
+    ensureAutoSyncDefaultOn();
+    if (autoSyncEnabled) startAutoSync();
+    renderGSheetsPanel();
+  } catch(e) {
+    console.info('[auto-sync setup]', e.message);
+  }
+}
+
 async function checkCloudRestoreNeeded(user) {
   const localCount = await dbCount();
   const meta       = loadGSheetsMeta();
@@ -7675,14 +8088,18 @@ async function checkCloudRestoreNeeded(user) {
   if (localCount > 0 && meta.spreadsheetId) {
     document.getElementById('auth-progress-label').textContent = 'Loading your dashboard…';
     document.getElementById('auth-progress-bar').style.width = '100%';
+    autoSetupGSheetsSync(); // not awaited — just ensures auto-sync is on and running
     setTimeout(() => unlockApp(user, true), 600);
     return;
   }
 
-  // Case 2: Device has local data but no sheet linked — just boot normally
+  // Case 2: Device has local data but no sheet linked yet — set one up in the
+  // background (this device's existing data starts syncing going forward)
+  // and boot normally; don't make the user wait on it.
   if (localCount > 0 && !meta.spreadsheetId) {
     document.getElementById('auth-progress-label').textContent = 'Loading your dashboard…';
     document.getElementById('auth-progress-bar').style.width = '100%';
+    autoSetupGSheetsSync();
     setTimeout(() => unlockApp(user, true), 600);
     return;
   }
@@ -7691,8 +8108,10 @@ async function checkCloudRestoreNeeded(user) {
   // This is the cross-device scenario: new device, data lives in the cloud
   document.getElementById('auth-progress-label').textContent = 'Checking for cloud backup…';
 
-  // We need Sheets+Drive token to search Drive
-  // Request it silently — user already consented on another device
+  // gsheetsToken normally already carries Sheets/Drive scope from the
+  // combined sign-in consent (see authSignIn()). Only license-key sign-ins,
+  // or a Google session that somehow didn't get a token, fall back to a
+  // silent re-request here.
   if (!gsheetsToken) {
     try {
       await requestSheetsTokenSilent(user);
@@ -7712,7 +8131,10 @@ async function checkCloudRestoreNeeded(user) {
       document.getElementById('auth-progress-bar').style.width = '85%';
       await showRestorePrompt(user, found);
     } else {
-      // No backup found — fresh start
+      // No backup found — fresh start, but still set up a sheet for this
+      // (now brand-new) Google-connected account so future devices and
+      // future edits sync automatically from here on.
+      autoSetupGSheetsSync();
       document.getElementById('auth-progress-bar').style.width = '100%';
       document.getElementById('auth-progress-label').textContent = 'Loading your dashboard…';
       setTimeout(() => unlockApp(user, true), 500);
@@ -7889,6 +8311,8 @@ async function confirmCloudRestore() {
     label.textContent = `✓ Restored ${txns.length.toLocaleString()} transactions`;
 
     toast(`✓ Restored ${txns.length.toLocaleString()} transactions from Google Sheets`, 'success');
+    ensureAutoSyncDefaultOn();
+    startAutoSync();
 
     setTimeout(() => unlockApp(authUser, true), 900);
 
@@ -7907,6 +8331,11 @@ function skipCloudRestore() {
   document.getElementById('auth-success-panel').style.display = 'block';
   document.getElementById('auth-progress-bar').style.width    = '100%';
   document.getElementById('auth-progress-label').textContent  = 'Loading your dashboard…';
+  // meta.spreadsheetId already points at the sheet found in Drive (set by
+  // showRestorePrompt) even though its data wasn't imported — resume
+  // syncing against it rather than leaving sync unconfigured.
+  ensureAutoSyncDefaultOn();
+  startAutoSync();
   setTimeout(() => unlockApp(authUser, true), 700);
 }
 
