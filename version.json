@@ -1,8 +1,22 @@
 {
-  "latest_version": "8.10.0",
+  "latest_version": "8.11.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.11.0",
+      "date": "2026-10-03",
+      "title": "KPI Tile Overflow Fix, Clickable Charts, Real Sync Fix & Multi-Select Filters",
+      "summary": "Fixes KPI tiles clipping large dollar amounts instead of shrinking to fit. Dashboard charts are now interactive — click a bar or point to filter by that month, or a pie slice to drill into that category. Fixed the actual cause of two devices showing different totals: a background sync push was a destructive full-sheet overwrite with no pull-merge first, so two devices syncing independently could silently erase each other's changes — sync now merges remote changes in before pushing, on every push path. The Year/Month filters are now compact dropdowns supporting multiple selections at once, and the mobile KPI tiles no longer require side-scrolling to see — all 6 are visible in a wrapping grid.",
+      "changes": [
+        { "type": "fix", "text": "KPI tiles (Total Revenue, Total Expenses, etc.) no longer clip large dollar amounts — the font size now automatically shrinks to fit the card instead of using one fixed size regardless of how many digits the amount has." },
+        { "type": "new", "text": "Dashboard charts are now interactive: click a bar in Revenue vs Expenses, a point in Net Profit Trend, or a slice in Revenue by Category / Expense Breakdown to filter the whole dashboard by that month or category. Click the same one again (or the ✕ on the category badge) to clear it. Selected bars/slices are highlighted; the rest dim slightly." },
+        { "type": "fix", "text": "Fixed the real cause of two devices showing very different totals despite auto-sync being on: pushing to Google Sheets cleared and rewrote the entire sheet with this device's local data only, without first pulling in whatever the other device had already pushed — so two devices syncing independently could repeatedly overwrite each other's unsynced changes. Every push path (automatic and the manual Backup tab buttons) now pulls and merges remote changes in before pushing, and won't accidentally erase a row from the sheet that hasn't been resolved locally yet." },
+        { "type": "imp", "text": "The manual \"Pull\" button in Backup & Restore now uses the same safe, content-aware merge as automatic sync (previously a blind overwrite-by-ID) and reports how many records it merged vs. how many were flagged as possible duplicates for review." },
+        { "type": "new", "text": "The Dashboard's Year and Month filters are now compact dropdowns (saving significant space, especially on mobile) that support selecting more than one year and/or month at once — e.g. compare 2024 and 2025 together, or just Jan/Feb/Mar." },
+        { "type": "fix", "text": "Mobile: the KPI tiles no longer require side-swiping to see — they previously used a horizontal scroll carousel showing only 1-2 of the 6 tiles at a time; all 6 now fit in a compact 2-column grid visible without scrolling." }
+      ]
+    },
     {
       "version": "8.10.0",
       "date": "2026-10-03",
