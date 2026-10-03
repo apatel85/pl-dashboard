@@ -3646,7 +3646,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.12.0';
+const APP_VERSION       = '8.12.1';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -9816,13 +9816,21 @@ function addSignOutButton() {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('service-worker.js')
         .then(reg => {
+          // Force an immediate update check rather than waiting on the
+          // browser's own (up to 24h) heuristic — browsers that don't
+          // already check on every navigation would otherwise leave a
+          // device running a stale service-worker.js for a long time.
+          reg.update().catch(()=>{});
           // Listen for updates and prompt user to reload if a new version is waiting
           reg.addEventListener('updatefound', () => {
             const installing = reg.installing;
             if (!installing) return;
             installing.addEventListener('statechange', () => {
               if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-                toast('A new version is available — refresh to update', 'info');
+                toast('A new version is available', 'info', {
+                  duration: 15000,
+                  action: { label: 'Reload', onClick: () => location.reload() }
+                });
               }
             });
           });

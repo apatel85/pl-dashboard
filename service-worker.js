@@ -1,9 +1,9 @@
 /**
  * service-worker.js — PWA offline cache for P&L Dashboard
  *
- * Strategy: stale-while-revalidate for the main HTML, cache-first for
- * static assets (icons, manifest). Bumps CACHE_VERSION to invalidate
- * old caches on updates.
+ * Strategy: network-first for the app shell, falling back to the cached
+ * copy only when the network is actually unavailable. Bumps CACHE_VERSION
+ * to invalidate old caches on updates.
  *
  * Notes:
  *  - Cross-origin requests (Google Sheets API, Supabase, Google OAuth)
@@ -12,9 +12,19 @@
  *  - When offline and network fails for the main HTML, the cached copy
  *    is served. All app logic + libraries are inlined in the HTML so
  *    one cached file is enough to run.
+ *  - This was previously stale-while-revalidate (always serve the cached
+ *    copy instantly, update the cache in the background for next time).
+ *    That meant a real app-behavior fix — not just a cosmetic one — could
+ *    sit invisible on a device for one or more app loads after being
+ *    deployed to GitHub Pages, and devices that never happened to complete
+ *    a background revalidation (closed before it finished, e.g. on mobile)
+ *    could stay stuck on an old build indefinitely. That surfaced as
+ *    different devices silently running different *code*, not just having
+ *    different *data* — on top of (and easy to mistake for) any actual data
+ *    sync bug. An online user should always get the latest deployed code.
  */
 
-const CACHE_VERSION = 'pl-dashboard-v8.11.0';
+const CACHE_VERSION = 'pl-dashboard-v8.12.0';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -55,20 +65,32 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Stale-while-revalidate for app shell.
-  event.respondWith(
-    caches.open(CACHE_VERSION).then(async cache => {
+  // Network-first for the app shell: always try the live deployed copy,
+  // caching it for offline use as it comes back. Only fall back to
+  // whatever's cached if the network request itself fails (offline).
+  // The cache write is awaited *inside* the promise passed to
+  // respondWith() rather than fired-and-forgotten in the background —
+  // respondWith()'s own promise already extends the service worker's
+  // lifetime until it settles, so awaiting here is what actually
+  // guarantees the write completes. A separate event.waitUntil() call
+  // from inside a .then() callback was tried first and proved unreliable
+  // in testing (a Playwright test went offline right after an online
+  // fetch and got an empty/stale cache — the write hadn't finished).
+  event.respondWith((async () => {
+    try {
+      const resp = await fetch(event.request);
+      if (resp && resp.status === 200 && resp.type === 'basic') {
+        const cache = await caches.open(CACHE_VERSION);
+        await cache.put(event.request, resp.clone());
+      }
+      return resp;
+    } catch (err) {
+      const cache = await caches.open(CACHE_VERSION);
       const cached = await cache.match(event.request);
-      const fetchPromise = fetch(event.request).then(resp => {
-        // Only cache successful responses.
-        if (resp && resp.status === 200 && resp.type === 'basic') {
-          cache.put(event.request, resp.clone());
-        }
-        return resp;
-      }).catch(() => cached);
-      return cached || fetchPromise;
-    })
-  );
+      if (cached) return cached;
+      throw err;
+    }
+  })());
 });
 
 // Listen for skipWaiting message from the page (lets users trigger an update).

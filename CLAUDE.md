@@ -291,6 +291,42 @@ archive/                     Old versions (v5/v6/v7) — historical, not live.
   includes a "Review" action button (`toast()`'s `opts.action`) that jumps
   straight to `review-categories-view`, instead of just naming a tab in
   text for the user to find themselves.
+- **The service worker (`service-worker.js`) is network-first for the app
+  shell, not stale-while-revalidate.** This app is installable as a PWA, and
+  the SW's `fetch` handler controls what code a device actually runs on
+  each load — this is a *separate* staleness source from the Google Sheets
+  sync bugs above, and easy to confuse with them. The previous
+  stale-while-revalidate strategy always served whatever was cached
+  *instantly*, updating the cache only in the background for the *next*
+  load — so a real behavior fix deployed to GitHub Pages could sit
+  invisible on a device for one or more app opens, and a device that closed
+  the app before that background revalidation finished (common on mobile)
+  could stay stuck on an old build indefinitely, with no warning (the
+  in-app "new version available" toast only fires when `service-worker.js`
+  itself changes bytes — a content-only `index.html` change never triggers
+  it). Confirmed via Playwright: after "deploying" a new version mid-test,
+  a stale-while-revalidate SW served the old version in a single-page test
+  — network-first served the new one immediately on the next load. Fixed
+  by rewriting the `fetch` handler to always try the network first,
+  falling back to the cache only when the request itself fails (true
+  offline), and bumping `CACHE_VERSION` to purge old caches on update.
+  **Gotcha found via testing**: the background cache write after a
+  network-first fetch must be `await`ed *inside* the promise passed to
+  `respondWith()`, not fired via a separate `event.waitUntil()` call from
+  inside a `.then()` — the latter is spec-legal but proved unreliable in
+  practice (a cache write raced losing against the SW being torn down,
+  verified by going offline immediately after an online fetch and getting
+  a stale/empty cache). `respondWith()`'s own promise already extends the
+  worker's lifetime until it settles, so an `async () => { await ... }`
+  IIFE passed directly to it is the reliable pattern — don't revert to the
+  `.then()` + `waitUntil()` split. Any future change to the SW's caching
+  strategy should be verified the same way (a Playwright test that swaps
+  server content mid-run and checks what the next load actually renders,
+  not just that the file parses), since this class of bug is invisible to
+  every other kind of test in this repo — the app itself works fine in any
+  single test run; the bug only shows up as "whatever was last deployed
+  before this device's cache last refreshed," which is exactly what the
+  user reported as "3 devices, 3 different sets of data."
 
 ## Recent work log
 
@@ -298,6 +334,19 @@ Keep this short — a few bullets per session, newest first. Full detail
 lives in `version.json`'s `release_notes` and PR descriptions; this is just
 enough for a future session to know where to look.
 
+- **2026-10-03 (4)**: After merging 2026-10-03 (3)'s sync-reauth fix (PR
+  #39), the user reported devices still showed different data — turned out
+  to be a *second, separate* cause: the PWA's service worker
+  (`service-worker.js`) served the app shell stale-while-revalidate (cache
+  instantly, refresh in background for next time), so devices could keep
+  running old app *code* — including old sync bugs — for a long time after
+  a fix was deployed, independent of any actual data sync issue. Rewrote
+  the SW's `fetch` handler to network-first (always fetch live when online,
+  cache fallback only when offline), bumped `CACHE_VERSION`, and made the
+  "new version available" toast include a one-tap Reload button. See
+  "Architecture decisions" above for the `event.waitUntil()`-vs-`await`
+  gotcha hit while fixing this, and why it needed its own kind of test
+  (swap server content mid-test, check what the *next* load renders).
 - **2026-10-03 (3)**: Fixed the Year/Month filter dropdown not opening on
   mobile — `.ms-dd-popover` was `position:absolute` and got clipped by
   `#main-content`'s mobile `overflow-x:hidden`; converted it to
