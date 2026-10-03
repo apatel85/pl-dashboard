@@ -1,8 +1,21 @@
 {
-  "latest_version": "8.11.0",
+  "latest_version": "8.12.0",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.12.0",
+      "date": "2026-10-03",
+      "title": "Mobile Dropdown Fix, Same-Row Filters, Real Cross-Device Re-Sync & Proactive Duplicate Review",
+      "summary": "Fixes the Year/Month filter dropdowns not opening on mobile (they were being clipped by the page's mobile scroll container). Year and Month now sit on the same row instead of stacking. Fixed the deeper cause of sync still not working after the previous fix: a returning device never re-requested Google Sheets access on a normal app load, so after the first browser session it silently stopped syncing with other devices. Duplicate detection is now proactive — every app load scans all local data for possible duplicates (not just ones found during a sync pull), and a new \"Possible Duplicates\" section on the Review Categories page lets you confirm or remove them, with a toast pointing you there the moment any are found.",
+      "changes": [
+        { "type": "fix", "text": "Fixed the Year/Month filter dropdowns not opening on mobile phone screens — the popover used to be clipped invisible by a parent container's mobile scroll styling. It now positions itself using the same fixed-position technique already used elsewhere in the app for this exact problem, so it's always fully on-screen and tappable." },
+        { "type": "imp", "text": "The Year and Month filter dropdowns now sit on the same row instead of stacking on top of each other, using space more efficiently on both mobile and desktop." },
+        { "type": "fix", "text": "Fixed the actual remaining cause of cross-device sync going stale: a device returning on a cached login session (the normal case for reopening the app after closing the browser) never re-requested Google Sheets access, so it silently stopped syncing with other devices after its first browser session ended. The app now re-establishes Sheets access and pulls fresh data on every load, not only on a brand-new sign-in." },
+        { "type": "new", "text": "Duplicate detection now runs proactively on every app load by scanning all local data for transactions that look identical to another entry (same date, amount, description, and type) — not only ones caught during a sync pull. A toast appears the moment any are found, with a \"Review\" button that jumps straight to a new \"Possible Duplicates\" section on the Review Categories page." },
+        { "type": "new", "text": "Review Categories page now surfaces possible duplicates directly (in addition to predicted-category confirmations), with a \"Review Duplicates\" button that opens the same side-by-side comparison table used elsewhere — confirm a row to keep both as separate transactions, or leave it unchecked to remove the duplicate. The sidebar badge count now includes pending duplicates alongside unconfirmed categories." }
+      ]
+    },
     {
       "version": "8.11.0",
       "date": "2026-10-03",

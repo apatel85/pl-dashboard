@@ -474,10 +474,14 @@ tbody tr:hover { background: var(--surface2); }
 .ms-dd-btn strong { font-weight: 600; }
 .ms-dd-btn:hover { border-color: var(--teal); }
 .ms-dd-popover {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 60;
+  /* position/top/left/z-index are set inline by toggleMsDropdown() via
+     getBoundingClientRect() — position:fixed so #main-content's mobile
+     overflow-x:hidden can't clip it (same pattern as .cat-picker-popover). */
+  position: fixed; z-index: 9999;
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0,0,0,.3);
   min-width: 190px; max-width: 260px; max-height: 280px; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 6px;
 }
 .ms-dd-option {
@@ -489,9 +493,6 @@ tbody tr:hover { background: var(--surface2); }
 .ms-dd-option input { cursor: pointer; }
 .ms-dd-all { font-weight: 600; }
 .ms-dd-divider { border-top: 1px solid var(--border); margin: 4px 2px; }
-@media (max-width: 640px) {
-  .ms-dd-popover { right: auto; left: 0; max-width: calc(100vw - 48px); }
-}
 
 /* ── Settings ── */
 .settings-card {
@@ -2548,7 +2549,7 @@ tbody tr:hover { background: var(--surface2); }
           <div class="page-title">Overview <small id="dash-period">No data yet — import or enter data below</small></div>
           <div id="category-filter-badge" style="display:none;margin-top:6px;font-size:12px"></div>
         </div>
-        <div class="page-actions" style="flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="page-actions" style="gap:10px;align-items:flex-start">
           <div class="filter-row" id="year-filter"></div>
           <div class="filter-row" id="month-filter"></div>
         </div>
@@ -3305,6 +3306,12 @@ tbody tr:hover { background: var(--surface2); }
           <button class="btn btn-primary" onclick="confirmAllReviewRows()">✓ Confirm All</button>
         </div>
       </div>
+      <div class="settings-card" id="review-dup-card" style="display:none;margin-bottom:16px;border-left:3px solid var(--amber)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <p style="font-size:13px;margin:0" id="review-dup-count">0 possible duplicate transactions found.</p>
+          <button class="btn btn-amber" style="white-space:nowrap" onclick="reviewAllDuplicates()">⚠️ Review Duplicates</button>
+        </div>
+      </div>
       <div class="settings-card" style="margin-bottom:16px">
         <p style="font-size:13px;color:var(--muted);margin:0" id="review-cat-count">0 transactions need review</p>
         <p style="font-size:12px;color:var(--muted);margin:6px 0 0">Categories here were predicted from your past entries and merchant keywords. Nothing is written as final until you confirm it — pick a different category from the dropdown first if a guess looks wrong.</p>
@@ -3392,11 +3399,11 @@ tbody tr:hover { background: var(--surface2); }
     </div>
     <div style="display:flex;gap:10px;margin-top:16px;justify-content:space-between;align-items:center;flex-wrap:wrap">
       <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer">
-        <input type="checkbox" id="dup-review-select-all" onchange="toggleAllDupReview(this.checked)"> Import all flagged rows anyway
+        <input type="checkbox" id="dup-review-select-all" onchange="toggleAllDupReview(this.checked)"> <span id="dup-review-select-all-label">Import all flagged rows anyway</span>
       </label>
       <div style="display:flex;gap:10px">
-        <button class="btn btn-outline" onclick="resolveDupReviewModal('cancel')">Cancel Import</button>
-        <button class="btn btn-primary" onclick="resolveDupReviewModal('continue')">Continue Import</button>
+        <button class="btn btn-outline" id="dup-review-cancel-btn" onclick="resolveDupReviewModal('cancel')">Cancel Import</button>
+        <button class="btn btn-primary" id="dup-review-confirm-btn" onclick="resolveDupReviewModal('continue')">Continue Import</button>
       </div>
     </div>
   </div>
@@ -3639,7 +3646,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.11.0';
+const APP_VERSION       = '8.12.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -4851,8 +4858,15 @@ async function gsheetsPull() {
         scheduleSnapshot();
         const parts = [`✓ Pulled & merged ${applied.toLocaleString()} record${applied===1?'':'s'} from Google Sheets`];
         if (conflicts) parts.push(`${conflicts} possible duplicate${conflicts===1?'':'s'} queued for review`);
-        toast(parts.join(' · '), 'success');
-        if (conflicts) updateSyncConflictUI();
+        if (conflicts) {
+          updateSyncConflictUI();
+          toast(parts.join(' · '), 'success', {
+            duration: 8000,
+            action: { label: 'Review', onClick: () => showView('review-categories-view') }
+          });
+        } else {
+          toast(parts.join(' · '), 'success');
+        }
         showView('dashboard-view');
       }
     );
@@ -4951,6 +4965,78 @@ async function gsheetsPushSilent() {
 let pendingSyncConflicts = [];
 let _flaggedSyncConflicts = new Set(); // dedupes repeat toasts across periodic pulls
 
+// Duplicates found by scanning ALL local data (not just incoming sync rows)
+// for transactions sharing a contentHash — e.g. the same entry typed on two
+// devices before they ever synced, or a pre-contentHash-era import. Kept
+// separate from pendingSyncConflicts: here BOTH sides already exist in the
+// local DB, so resolving one means deleting the extra row, not adding a new
+// one (see reviewLocalDuplicates() vs reviewSyncConflicts()).
+let pendingLocalDuplicates = [];
+let _flaggedLocalDuplicates = new Set();
+
+// Scans every local transaction for others sharing the same contentHash
+// (computing it on the fly via txnHash() for older records that predate the
+// field). Run on every app load so duplicates are caught even when they
+// didn't arise from a sync merge. Safe to call repeatedly — already-flagged
+// pairs are skipped via _flaggedLocalDuplicates.
+async function scanAllDataForDuplicates(){
+  let all;
+  try { all = await dbGetAll(); } catch(e) { return 0; }
+  const byHash = new Map();
+  for (const t of all) {
+    const h = t.contentHash || txnHash(t);
+    if (!byHash.has(h)) byHash.set(h, []);
+    byHash.get(h).push(t);
+  }
+  let newCount = 0;
+  byHash.forEach(group => {
+    if (group.length < 2) return;
+    group.sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
+    const existing = group[0];
+    for (let i = 1; i < group.length; i++) {
+      const dup = group[i];
+      const key = existing.id + '|' + dup.id;
+      if (_flaggedLocalDuplicates.has(key)) continue;
+      _flaggedLocalDuplicates.add(key);
+      pendingLocalDuplicates.push({ existing, incoming: dup });
+      newCount++;
+    }
+  });
+  if (newCount > 0) updateSyncConflictUI();
+  return newCount;
+}
+
+// Resolves pendingLocalDuplicates via the same bulk compare UI as sync
+// conflicts, but with opposite semantics: both rows already exist in the DB,
+// so a checked row ("keep") is left alone, and an unchecked row (excluded by
+// default) is deleted rather than re-added.
+async function reviewLocalDuplicates(){
+  if (!pendingLocalDuplicates.length) { toast('No duplicate transactions found', 'info'); return; }
+  const dups = pendingLocalDuplicates;
+  const decision = await showDupReviewModal(dups, dups.length, {
+    subtitle: `${dups.length} transaction${dups.length===1?'':'s'} in your data look like duplicates of another entry (same date, amount, description, and type). Rows are removed by default — check any you want to keep as separate transactions.`,
+    selectAllLabel: 'Keep all flagged rows as separate transactions',
+    cancelLabel: 'Review Later',
+    confirmLabel: 'Apply',
+  });
+  if (decision === null) return; // reviewed later — left in the queue
+  const toDelete = [];
+  dups.forEach((d, i) => { if (!decision.has(i)) toDelete.push(d.incoming.id); });
+  for (const id of toDelete) { try { await dbDelete(id); } catch(e) {} }
+  if (toDelete.length) { scheduleSnapshot(); refreshDashboard(); }
+  pendingLocalDuplicates = [];
+  updateSyncConflictUI();
+  toast(`✓ Resolved ${dups.length} duplicate${dups.length===1?'':'s'}${toDelete.length?` — ${toDelete.length} removed`:''}`, 'success');
+}
+
+// Resolves whichever duplicate queues are non-empty, one after another, so
+// the Review Categories page can offer a single "Review Duplicates" action
+// regardless of whether the duplicates came from a sync merge or a local scan.
+async function reviewAllDuplicates(){
+  if (pendingSyncConflicts.length) await reviewSyncConflicts();
+  if (pendingLocalDuplicates.length) await reviewLocalDuplicates();
+}
+
 async function fetchIncomingSheetRows(meta){
   const res = await gSheetsAPI('GET',
     `https://sheets.googleapis.com/v4/spreadsheets/${meta.spreadsheetId}/values/${encodeURIComponent(GSHEETS_SHEET_TITLE+'!A1:H')}`, null);
@@ -5032,7 +5118,10 @@ async function gsheetsPullSilent() {
     if (applied > 0 && typeof refreshDashboard === 'function') refreshDashboard();
     if (conflicts > 0) {
       updateSyncConflictUI();
-      toast(`🔁 Synced — ${conflicts} possible duplicate${conflicts===1?'':'s'} found, review in Backup & Restore`, 'info', {duration:6000});
+      toast(`🔁 Synced — ${conflicts} possible duplicate${conflicts===1?'':'s'} found`, 'info', {
+        duration: 8000,
+        action: { label: 'Review', onClick: () => showView('review-categories-view') }
+      });
     }
     return true;
   } catch(e) {
@@ -5044,12 +5133,33 @@ async function gsheetsPullSilent() {
 
 function updateSyncConflictUI(){
   const btn = document.getElementById('sync-conflicts-btn');
-  if (!btn) return;
-  if (pendingSyncConflicts.length > 0) {
-    btn.style.display = 'inline-flex';
-    btn.textContent = `⚠️ Review ${pendingSyncConflicts.length} Possible Duplicate${pendingSyncConflicts.length===1?'':'s'}`;
+  if (btn) {
+    if (pendingSyncConflicts.length > 0) {
+      btn.style.display = 'inline-flex';
+      btn.textContent = `⚠️ Review ${pendingSyncConflicts.length} Possible Duplicate${pendingSyncConflicts.length===1?'':'s'}`;
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+  renderDuplicatesSection();
+  updateReviewCategoryBadge();
+}
+
+// "Possible Duplicates" card on the Review Categories page — the one place
+// users are told to go (via the sync toast's "Review" action and the
+// nav-review-badge count) to confirm or remove duplicate transactions,
+// whether they came from a sync merge (pendingSyncConflicts) or a local
+// contentHash scan (pendingLocalDuplicates, see scanAllDataForDuplicates()).
+function renderDuplicatesSection(){
+  const card = document.getElementById('review-dup-card');
+  if (!card) return;
+  const total = pendingSyncConflicts.length + pendingLocalDuplicates.length;
+  if (total > 0) {
+    card.style.display = '';
+    document.getElementById('review-dup-count').textContent =
+      `${total} possible duplicate transaction${total===1?'':'s'} found — review and confirm or remove them.`;
   } else {
-    btn.style.display = 'none';
+    card.style.display = 'none';
   }
 }
 
@@ -5061,7 +5171,12 @@ function updateSyncConflictUI(){
 async function reviewSyncConflicts(){
   if (!pendingSyncConflicts.length) { toast('No pending sync conflicts', 'info'); return; }
   const conflicts = pendingSyncConflicts;
-  const decision = await showDupReviewModal(conflicts, conflicts.length);
+  const decision = await showDupReviewModal(conflicts, conflicts.length, {
+    subtitle: `${conflicts.length} record${conflicts.length===1?'':'s'} synced from another device look like duplicates of transactions you already have (same date, amount, description, and type). Rows are excluded by default — check any you want to add anyway.`,
+    selectAllLabel: 'Add all flagged rows anyway',
+    cancelLabel: 'Review Later',
+    confirmLabel: 'Apply',
+  });
   if (decision === null) return; // reviewed later — left in the queue
   const toAdd = [];
   conflicts.forEach((c, i) => { if (decision.has(i)) toAdd.push(stampNewTxn({ ...c.incoming })); });
@@ -5303,6 +5418,7 @@ async function updateReviewCategoryBadge(count){
     const all = await dbGetAll();
     n = all.filter(needsCategoryReview).length;
   }
+  n += pendingSyncConflicts.length + pendingLocalDuplicates.length;
   const badge = document.getElementById('nav-review-badge');
   if(!badge) return;
   if(n>0){ badge.textContent = n>99?'99+':String(n); badge.style.display='inline-block'; }
@@ -5312,6 +5428,7 @@ async function updateReviewCategoryBadge(count){
 let _reviewRows = [];
 
 async function renderReviewCategoriesView(){
+  renderDuplicatesSection();
   const all = await dbGetAll();
   const rows = all.filter(needsCategoryReview).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   _reviewRows = rows;
@@ -6595,10 +6712,33 @@ function renderFilterDropdown(kind, unitLabel, options, selectedSet, onApply){
 function toggleMsDropdown(kind){
   document.querySelectorAll('.ms-dd-popover').forEach(p=>{ if(p.id!==kind+'-ms-popover') p.hidden=true; });
   const pop = document.getElementById(kind+'-ms-popover');
-  if(pop) pop.hidden = !pop.hidden;
+  if(!pop) return;
+  const willOpen = pop.hidden;
+  pop.hidden = !pop.hidden;
+  if(willOpen){
+    // Position fixed relative to the trigger button so a mobile ancestor's
+    // overflow-x:hidden (#main-content) can't clip the popover — same fix
+    // pattern as openCatPicker().
+    const btn = pop.previousElementSibling;
+    const rect = (btn || pop.parentElement).getBoundingClientRect();
+    const isMobile = window.innerWidth <= 640;
+    const width = Math.max(rect.width, isMobile ? Math.min(220, window.innerWidth - 24) : 190);
+    let left = isMobile ? Math.max(12, rect.left) : rect.right - width;
+    if(left + width > window.innerWidth - 12) left = window.innerWidth - 12 - width;
+    if(left < 12) left = 12;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const maxH = Math.min(280, spaceBelow > 140 ? spaceBelow : window.innerHeight * 0.4);
+    pop.style.top = (rect.bottom + 6) + 'px';
+    pop.style.left = left + 'px';
+    pop.style.width = width + 'px';
+    pop.style.maxHeight = maxH + 'px';
+  }
 }
 document.addEventListener('click', e=>{
   if(!e.target.closest('.ms-dd')) document.querySelectorAll('.ms-dd-popover').forEach(p=>p.hidden=true);
+});
+window.addEventListener('resize', ()=>{
+  document.querySelectorAll('.ms-dd-popover').forEach(p=>{ if(!p.hidden) p.hidden=true; });
 });
 function onMsAllToggle(kind, checked){
   const state = _msState[kind]; if(!state) return;
@@ -7525,10 +7665,10 @@ function resolveDupModal(action){
 // a row to import it anyway. Resolves to a Set of included indices, or
 // null if the whole import was cancelled.
 let _dupReviewResolve = null;
-function showDupReviewModal(dupPairs, totalNew){
+function showDupReviewModal(dupPairs, totalNew, opts){
   return new Promise(resolve=>{
     _dupReviewResolve = resolve;
-    document.getElementById('dup-review-sub').textContent =
+    document.getElementById('dup-review-sub').textContent = (opts && opts.subtitle) ||
       `${dupPairs.length} of ${totalNew} row${totalNew===1?'':'s'} being imported look like duplicates of transactions you already have ` +
       `(same date, amount, description, and type). Rows are excluded by default — check any you want to import anyway.`;
     document.getElementById('dup-review-tbody').innerHTML = dupPairs.map((d,i)=>`<tr style="border-top:1px solid var(--border)">
@@ -7540,6 +7680,9 @@ function showDupReviewModal(dupPairs, totalNew){
       <td style="padding:6px 10px;color:var(--muted)">${escapeHtml(d.incoming.source||'—')}</td>
     </tr>`).join('');
     document.getElementById('dup-review-select-all').checked = false;
+    document.getElementById('dup-review-select-all-label').textContent = (opts && opts.selectAllLabel) || 'Import all flagged rows anyway';
+    document.getElementById('dup-review-cancel-btn').textContent = (opts && opts.cancelLabel) || 'Cancel Import';
+    document.getElementById('dup-review-confirm-btn').textContent = (opts && opts.confirmLabel) || 'Continue Import';
     document.getElementById('dup-review-modal').style.display = 'flex';
   });
 }
@@ -9090,7 +9233,17 @@ window.addEventListener('load', async () => {
       // Session still valid — skip the gate and boot straight in
       authUser = cached;
       unlockApp(cached);
-      try { await bootApp(); } catch(bootErr) {
+      try {
+        await bootApp();
+        // Re-establish Google Sheets access and pull fresh data on every
+        // load — not just on a fresh sign-in. gsheetsToken only survives
+        // via sessionStorage, which is cleared when the browser/app is
+        // closed and reopened; without this, a device landing on this
+        // cached-session fast path (the common case for a return visit)
+        // would never re-sync again after its first browser session,
+        // silently drifting out of date from every other device.
+        attemptGSheetsSilentReauth();
+      } catch(bootErr) {
         console.error('[bootApp]', bootErr);
         // Boot failed but we already hid the auth gate — bring it back so
         // the user has a recoverable state instead of a blank screen.
@@ -9209,7 +9362,11 @@ async function bootApp() {
   if (savedGToken) {
     gsheetsToken = savedGToken;
   }
-  // Note: silent re-auth lives in attemptGSheetsSilentReauth(), called from showAuthSuccess() — never on page load.
+  // Note: silent re-auth lives in attemptGSheetsSilentReauth(), called from
+  // showAuthSuccess() on a fresh sign-in AND from the window 'load' handler's
+  // cached-session fast-boot path (after this function returns) — see INIT
+  // section below. It's a no-op here whenever gsheetsToken is already set
+  // (e.g. restored from sessionStorage just above, or mid-session refresh).
 
   // 3c. Start auto-sync if token is available and auto-sync is enabled
   if (gsheetsToken && autoSyncEnabled) startAutoSync();
@@ -9235,6 +9392,22 @@ async function bootApp() {
     toast(`Welcome back — ${count.toLocaleString()} transactions loaded`, 'info');
     takeSnapshot(true);
   }
+
+  // 7a. Scan local data for duplicate transactions on every load — catches
+  // dupes that predate contentHash or were never flagged by a sync merge
+  // (e.g. the same entry typed independently on two devices before they
+  // ever synced). Deferred slightly so it never delays the perceived boot.
+  setTimeout(async () => {
+    try {
+      const newDupCount = await scanAllDataForDuplicates();
+      if (newDupCount > 0) {
+        toast(`⚠️ Found ${newDupCount} possible duplicate transaction${newDupCount===1?'':'s'} — review to confirm`, 'info', {
+          duration: 8000,
+          action: { label: 'Review', onClick: () => showView('review-categories-view') }
+        });
+      }
+    } catch(e) { console.warn('[dup-scan]', e); }
+  }, 1200);
 
   // 7b. Show PWA install banner if conditions met (≥3 txns, not standalone, not dismissed)
   if (_pwaInstallEvent) maybeShowInstallBanner();
@@ -9278,7 +9451,10 @@ async function bootApp() {
   } catch(e) { showView('dashboard-view'); }
 }
 
-// Attempt silent Google Sheets re-auth — call ONLY after a user-initiated sign-in event.
+// Attempt silent Google Sheets re-auth. Called after a user-initiated sign-in
+// event AND on every cached-session app load (gsheetsToken only survives in
+// sessionStorage, which is cleared when the browser/tab is closed, so a
+// returning device needs this to start syncing again without a full re-login).
 function attemptGSheetsSilentReauth() {
   if (gsheetsToken) return;
   const _gMeta = loadGSheetsMeta();
