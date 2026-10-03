@@ -153,11 +153,20 @@ archive/                     Old versions (v5/v6/v7) — historical, not live.
   Sheets export schema (ID/Date/Type/Category/Description/Amount/Month/
   Year) does **not** include `source`, `contentHash`, or timestamps, so
   those fields don't round-trip through the sheet itself — only through the
-  id-match merge path's local-copy preservation.
-  **Known gap**: the *manual* `gsheetsPull()` (Backup tab's "Pull" button)
-  still does the old blind `dbBulkPut`-by-id overwrite, not the
-  content-hash-aware merge — only the automatic/silent path was upgraded.
-  Worth aligning if revisited.
+  id-match merge path's local-copy preservation. `fetchIncomingSheetRows()`
+  (GET+parse) and `mergeIncomingSheetRows()` (the merge/conflict logic) are
+  shared by all three entry points — `gsheetsPullSilent`, `gsheetsPush`, and
+  `gsheetsPull` — so there's one merge implementation, not three.
+  **Push pulls first.** A push is a full clear-and-rewrite of the sheet;
+  without pulling and merging remote changes in before committing, two
+  devices each auto-pushing their own independently-evolved local state
+  would silently overwrite each other's unsynced edits on every push —
+  this was the actual root cause of two devices showing very different
+  totals despite "auto-sync" being on. Both `gsheetsPushSilent()` and the
+  manual `gsheetsPush()` now pull-merge first, and union in the incoming
+  side of any still-unresolved `pendingSyncConflicts` before building the
+  push payload, so a push can't accidentally delete a conflicting row from
+  the sheet just because the user hasn't resolved it locally yet.
 - **License-key sign-in** (no Google account) can't get automatic Sheets
   sync — there's no Google identity to request the scope from. This is
   expected, not a bug; those users still have Quick Save (IndexedDB
@@ -171,15 +180,52 @@ archive/                     Old versions (v5/v6/v7) — historical, not live.
   specifically, since the first request is often what wakes a paused
   project. Don't add a new direct Supabase `fetch()` without going through
   `supaFetch`.
-- **Dashboard year handling**: `activeYearFilter` is tri-state —
-  `undefined` (not yet initialized this session → auto-picks the most
-  recent year that actually has data), `null` ("All Years" explicitly
-  chosen), or a number (one specific year). This is deliberate: the
+- **Dashboard Year/Month filters are multi-select**, not single-value.
+  `activeYears`/`activeMonths` are each either `null` ("All" — nothing
+  narrowed) or a `Set` of selected values, OR'd together within a dimension
+  and ANDed across dimensions (e.g. {2024,2025} years AND {Jan,Feb} months).
+  `activeYears` additionally starts at the sentinel `undefined` (not yet
+  initialized this session → auto-picks the most recent year that actually
+  has data) before ever becoming `null` or a `Set`. This is deliberate: the
   dashboard used to default to `settings.fiscalYear` (a cosmetic,
   independently-editable Settings field defaulting to the real current
   calendar year), which caused the header to claim e.g. "2026" while all
   loaded data was 2024/2025. Don't reintroduce `settings.fiscalYear` as the
-  dashboard's default period.
+  dashboard's default period. The dropdowns themselves
+  (`renderFilterDropdown`/`onMsOptionToggle`/`onMsAllToggle`) are a small
+  reusable multi-select component — reuse it rather than building another
+  one if a third dashboard filter dimension is ever needed. A `Set` can
+  never end up empty (unchecking everything snaps back to "All" instead) —
+  don't assume `null` is the only "nothing narrowed" state without also
+  checking `.size===0`.
+- **Dashboard charts are clickable.** Clicking a bar/point in Revenue vs
+  Expenses or Net Profit Trend sets `activeMonths` to that single month
+  (click again to clear). Clicking a slice in Revenue by Category or
+  Expense Breakdown sets `activeCategoryFilter` (single-select, not a Set —
+  it's a chart-driven drill-down, not a standing filter like Year/Month).
+  The category breakdown doughnuts themselves are deliberately scoped by
+  Year+Month but NOT by `activeCategoryFilter`, so every category stays
+  visible/clickable even while one is selected — only the KPI tiles and
+  monthly bar/line charts narrow to the selected category.
+- **KPI tiles auto-shrink to fit.** `.kpi-value` has a CSS default
+  font-size per breakpoint, but a formatted amount can be far wider than
+  the card at any fixed size (hundreds of millions+). `fitKpiValueText()`
+  resets to the CSS default then shrinks in 1px steps (via inline
+  `style.fontSize`) until the text fits its card, called after every
+  `refreshDashboard()` and on window resize. This only works because none
+  of the `.kpi-value` breakpoint rules use `!important` on `font-size` —
+  `!important` always beats an inline style, so re-adding it to any
+  `.kpi-value` font-size rule would silently break the auto-fit for
+  everyone at that breakpoint. Other `.kpi-value` properties (padding,
+  label size, etc.) can still safely use `!important`.
+- **Mobile KPI grid is a wrapping 2-column grid**, not a horizontal
+  swipe carousel. An earlier version used `display:flex; overflow-x:auto;
+  scroll-snap-type:x` so only ~1-2 of the 6 tiles were visible at once
+  without swiping — this was intentionally replaced because it failed
+  "see your tiles without scrolling/swiping." If mobile KPI tiles ever
+  seem to disappear or require horizontal scroll again, check that
+  `.kpi-grid` still has `display:grid` at the relevant breakpoint and
+  nothing re-introduced `display:flex` without `flex-wrap:wrap`.
 - **Chart resize**: `.chart-card` (the CSS Grid item) needs `min-width: 0`.
   CSS Grid items default to `min-width: auto`, which refuses to shrink
   below the canvas's current content size — without this, Chart.js's own
@@ -193,7 +239,22 @@ Keep this short — a few bullets per session, newest first. Full detail
 lives in `version.json`'s `release_notes` and PR descriptions; this is just
 enough for a future session to know where to look.
 
-- **2026-10-03**: Fixed login hanging indefinitely for some users (missing
+- **2026-10-03 (2)**: Fixed KPI tiles clipping large dollar amounts
+  (JS auto-fit font sizing — see above; also had to strip `!important`
+  from several mobile `.kpi-value` font-size rules that were silently
+  defeating it). Made the dashboard charts clickable to drill down by
+  month or category. Fixed real cross-device sync divergence: a push was
+  a destructive full-sheet overwrite with no pull-merge first, so two
+  devices each auto-pushing their own locally-evolved state could
+  silently stomp each other's unsynced edits — `gsheetsPushSilent()`,
+  `gsheetsPush()`, and `gsheetsPull()` now share one merge implementation
+  (`fetchIncomingSheetRows`/`mergeIncomingSheetRows`) and push pull-merges
+  first. Replaced the Year/Month chip rows with multi-select dropdowns
+  (saves significant vertical space and supports selecting more than one
+  year/month at once) and replaced the mobile KPI tile horizontal swipe
+  carousel with a proper wrapping 2-column grid, so all 6 tiles are
+  visible without swiping or scrolling.
+- **2026-10-03 (1)**: Fixed login hanging indefinitely for some users (missing
   timeout on Supabase calls — see `supaFetch` above). Added a Year filter
   to the Dashboard and fixed its period label defaulting to the wrong
   (real-world current) year instead of the data's actual year. Fixed chart

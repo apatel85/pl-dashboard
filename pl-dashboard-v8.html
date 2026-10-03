@@ -277,7 +277,7 @@ body {
 .kpi-card.blue::before  { background: var(--blue); }
 
 .kpi-label { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
-.kpi-value { font-family: var(--serif); font-size: 28px; font-weight: 400; line-height: 1; }
+.kpi-value { font-family: var(--serif); font-size: 28px; font-weight: 400; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 .kpi-value.positive { color: var(--teal); }
 .kpi-value.negative { color: var(--red); }
 .kpi-value.amber    { color: var(--amber); }
@@ -460,6 +460,38 @@ tbody tr:hover { background: var(--surface2); }
 }
 .filter-chip:hover { border-color: var(--teal); color: var(--teal); }
 .filter-chip.active { background: var(--teal-dim); border-color: var(--teal); color: var(--teal); }
+
+/* ── Multi-select filter dropdown (Dashboard Year/Month) ── */
+.ms-dd { position: relative; display: inline-block; }
+.ms-dd-btn {
+  font-size: 12px; padding: 7px 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer; color: var(--text);
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: border-color .15s; font-family: var(--sans);
+  white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis;
+}
+.ms-dd-btn strong { font-weight: 600; }
+.ms-dd-btn:hover { border-color: var(--teal); }
+.ms-dd-popover {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 60;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  min-width: 190px; max-width: 260px; max-height: 280px; overflow-y: auto;
+  padding: 6px;
+}
+.ms-dd-option {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px; border-radius: 6px; cursor: pointer;
+  font-size: 13px; color: var(--text); white-space: nowrap;
+}
+.ms-dd-option:hover { background: var(--surface2); }
+.ms-dd-option input { cursor: pointer; }
+.ms-dd-all { font-weight: 600; }
+.ms-dd-divider { border-top: 1px solid var(--border); margin: 4px 2px; }
+@media (max-width: 640px) {
+  .ms-dd-popover { right: auto; left: 0; max-width: calc(100vw - 48px); }
+}
 
 /* ── Settings ── */
 .settings-card {
@@ -1036,7 +1068,7 @@ tbody tr:hover { background: var(--surface2); }
     .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px; }
     .kpi-card { padding: 14px !important; }
     .kpi-label { font-size: 10px; margin-bottom: 6px; }
-    .kpi-value { font-size: 22px !important; line-height: 1.1; }
+    .kpi-value { font-size: 22px; line-height: 1.1; }
     .kpi-sub { font-size: 11px; }
 
     /* Charts stack — note original class is .charts-grid (plural) */
@@ -1231,7 +1263,7 @@ tbody tr:hover { background: var(--surface2); }
     .hamburger-btn { top: 8px; left: 8px; padding: 0 !important; width: 40px; height: 40px; }
     #main-content { padding: calc(48px + env(safe-area-inset-top)) 10px 20px !important; }
     .modal-box, .confirm-box { padding: 14px 12px !important; }
-    .kpi-value { font-size: 20px !important; }
+    .kpi-value { font-size: 20px; }
     .page-header h2 { font-size: 20px; }
   }
 
@@ -1398,21 +1430,15 @@ tbody tr:hover { background: var(--surface2); }
   #app { height: auto; overflow: visible; }
   #main { padding: 16px 14px; gap: 16px; }
 
-  /* KPI cards: horizontal snap scroller */
+  /* KPI cards: 2-column wrapping grid — all tiles visible without
+     swiping or scrolling (previously a horizontal snap-scroll carousel
+     that only showed ~1-2 tiles at a time on mobile). */
   .kpi-grid {
-    display: flex !important;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 10px;
-    padding-bottom: 6px;
-    /* hide scrollbar */
-    scrollbar-width: none;
   }
-  .kpi-grid::-webkit-scrollbar { display: none; }
   .kpi-grid > .kpi-card {
-    flex: 0 0 75%;
-    scroll-snap-align: start;
     min-width: 0;
   }
 
@@ -1526,12 +1552,10 @@ tbody tr:hover { background: var(--surface2); }
    MOBILE LAYOUT (≤480px) — extra tweaks
 ══════════════════════════════════════════ */
 @media (max-width: 640px) {
-  .kpi-grid > .kpi-card { flex: 0 0 46% !important; }
   .kpi-card { padding: 12px 14px !important; }
 }
 @media (max-width: 480px) {
-  .kpi-grid > .kpi-card { flex: 0 0 48% !important; }
-  .kpi-value { font-size: 20px !important; }
+  .kpi-value { font-size: 20px; }
   .kpi-label { font-size: 9.5px !important; }
   .kpi-sub { font-size: 10px !important; }
   #main { padding: 10px 8px; }
@@ -2522,6 +2546,7 @@ tbody tr:hover { background: var(--surface2); }
       <div class="page-header">
         <div>
           <div class="page-title">Overview <small id="dash-period">No data yet — import or enter data below</small></div>
+          <div id="category-filter-badge" style="display:none;margin-top:6px;font-size:12px"></div>
         </div>
         <div class="page-actions" style="flex-direction:column;align-items:flex-end;gap:6px">
           <div class="filter-row" id="year-filter"></div>
@@ -2574,11 +2599,11 @@ tbody tr:hover { background: var(--surface2); }
           <div class="chart-wrap"><canvas id="chart-net"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title">Revenue by Category <span>All time</span></div>
+          <div class="chart-title">Revenue by Category <span id="chart-rev-cat-period">All time</span></div>
           <div class="chart-wrap"><canvas id="chart-rev-cat"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title">Expense Breakdown <span>All time</span></div>
+          <div class="chart-title">Expense Breakdown <span id="chart-exp-cat-period">All time</span></div>
           <div class="chart-wrap"><canvas id="chart-exp-cat"></canvas></div>
         </div>
       </div>
@@ -3614,7 +3639,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.10.0';
+const APP_VERSION       = '8.11.0';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -4733,7 +4758,19 @@ async function gsheetsPush() {
   document.getElementById('l3-status').className   = 'backup-tier-status status-syncing';
 
   try {
-    const all = await dbGetAll();
+    // Pull-merge remote changes first — see gsheetsPushSilent() for why a
+    // push (a full clear-and-rewrite of the sheet) must never skip this.
+    try {
+      const incoming = await fetchIncomingSheetRows(meta);
+      if (incoming.length) {
+        const { conflicts } = await mergeIncomingSheetRows(incoming);
+        if (conflicts > 0) updateSyncConflictUI();
+      }
+    } catch(e) { console.warn('[pre-push pull]', e); }
+
+    const byId = new Map((await dbGetAll()).map(t => [String(t.id), t]));
+    pendingSyncConflicts.forEach(c => { if (!byId.has(String(c.incoming.id))) byId.set(String(c.incoming.id), c.incoming); });
+    const all = [...byId.values()];
 
     // Build header + rows
     const headers = ['ID','Date','Type','Category','Description','Amount','Month','Year'];
@@ -4798,37 +4835,24 @@ async function gsheetsPull() {
   document.getElementById('l3-status').textContent = 'Pulling…';
 
   try {
-    const res = await gSheetsAPI('GET',
-      `https://sheets.googleapis.com/v4/spreadsheets/${meta.spreadsheetId}/values/${encodeURIComponent(GSHEETS_SHEET_TITLE+'!A1:H')}`, null);
-
-    const rows = res.values || [];
-    if (rows.length < 2) { toast('Sheet appears empty', 'error'); return; }
-
-    const [header, ...data] = rows;
-    const idx = Object.fromEntries(header.map((h,i) => [h.toLowerCase(), i]));
-    const txns = data.map(r => ({
-      id:          r[idx['id']] ? String(r[idx['id']]) : String(Date.now() + Math.random()),
-      date:        r[idx['date']]        || '',
-      type:        r[idx['type']]        || 'revenue',
-      category:    r[idx['category']]    || 'Uncategorized',
-      description: r[idx['description']] || '',
-      amount:      parseFloat(r[idx['amount']]) || 0,
-      month:       r[idx['month']]       || '',
-      year:        parseInt(r[idx['year']]) || ''
-    })).filter(t => t.amount > 0);
+    const txns = await fetchIncomingSheetRows(meta);
+    if (!txns.length) { toast('Sheet appears empty', 'error'); return; }
 
     showConfirm(
       'Pull from Google Sheets?',
-      `This will merge ${txns.length.toLocaleString()} records from your Google Sheet into your local database. Existing records with the same ID will be updated.`,
+      `This will merge ${txns.length.toLocaleString()} records from your Google Sheet into your local database. Records that match an existing transaction by ID will be updated; records that look like duplicates of a different local transaction will be flagged for your review instead of merged automatically.`,
       async () => {
-        await dbBulkPut(txns);
+        const { applied, conflicts } = await mergeIncomingSheetRows(txns);
         meta.lastSync = new Date().toLocaleString();
         saveGSheetsMeta(meta);
         document.getElementById('l3-status').textContent = 'Connected';
         document.getElementById('l3-status').className   = 'backup-tier-status status-ok';
         renderGSheetsPanel();
         scheduleSnapshot();
-        toast(`✓ Pulled & merged ${txns.length.toLocaleString()} records from Google Sheets`, 'success');
+        const parts = [`✓ Pulled & merged ${applied.toLocaleString()} record${applied===1?'':'s'} from Google Sheets`];
+        if (conflicts) parts.push(`${conflicts} possible duplicate${conflicts===1?'':'s'} queued for review`);
+        toast(parts.join(' · '), 'success');
+        if (conflicts) updateSyncConflictUI();
         showView('dashboard-view');
       }
     );
@@ -4875,7 +4899,28 @@ async function gsheetsPushSilent() {
   isSyncing = true;
   setSaveStatus('syncing');
   try {
-    const all = await dbGetAll();
+    // Pull-merge any remote changes first. A push clears and rewrites the
+    // whole sheet, so without this, two devices each pushing their own
+    // locally-evolved state would silently stomp each other's unsynced
+    // edits — this was the actual cause of different devices showing
+    // different totals. Non-fatal if it fails: push still proceeds with
+    // whatever local data this device has.
+    try {
+      const incoming = await fetchIncomingSheetRows(meta);
+      if (incoming.length) {
+        const { conflicts } = await mergeIncomingSheetRows(incoming);
+        if (conflicts > 0) updateSyncConflictUI();
+      }
+    } catch(e) { console.warn('[pre-push pull]', e); }
+
+    // Union local data with any still-unresolved conflict rows so a push
+    // from this device doesn't erase a row from the sheet just because it
+    // hasn't been merged locally yet (the user hasn't decided on it).
+    const localAll = await dbGetAll();
+    const byId = new Map(localAll.map(t => [String(t.id), t]));
+    pendingSyncConflicts.forEach(c => { if (!byId.has(String(c.incoming.id))) byId.set(String(c.incoming.id), c.incoming); });
+    const all = [...byId.values()];
+
     const headers = ['ID','Date','Type','Category','Description','Amount','Month','Year'];
     const rows    = [headers, ...all.map(t => [t.id, t.date, t.type, t.category||'', t.description||'', t.amount, t.month||'', t.year||''])];
     await gSheetsAPI('POST', `https://sheets.googleapis.com/v4/spreadsheets/${meta.spreadsheetId}/values/${GSHEETS_SHEET_TITLE}:clear`, {});
@@ -4887,10 +4932,12 @@ async function gsheetsPushSilent() {
     isDirty = false;
     updateLastSyncUI();
     setSaveStatus('synced');
+    if (typeof refreshDashboard === 'function') refreshDashboard();
     return true;
   } catch(e) {
     console.warn('[auto-push]', e);
     setSaveStatus('sync-error');
+    syncErrorToast(e);
     return false;
   } finally { isSyncing = false; }
 }
@@ -4904,70 +4951,93 @@ async function gsheetsPushSilent() {
 let pendingSyncConflicts = [];
 let _flaggedSyncConflicts = new Set(); // dedupes repeat toasts across periodic pulls
 
+async function fetchIncomingSheetRows(meta){
+  const res = await gSheetsAPI('GET',
+    `https://sheets.googleapis.com/v4/spreadsheets/${meta.spreadsheetId}/values/${encodeURIComponent(GSHEETS_SHEET_TITLE+'!A1:H')}`, null);
+  const rows = res.values || [];
+  if (rows.length < 2) return [];
+  const [header, ...data] = rows;
+  const idx = Object.fromEntries(header.map((h,i) => [h.toLowerCase(), i]));
+  return data.map(r => ({
+    id:          r[idx['id']] ? String(r[idx['id']]) : String(Date.now() + Math.random()),
+    date:        r[idx['date']]        || '',
+    type:        r[idx['type']]        || 'revenue',
+    category:    r[idx['category']]    || 'Uncategorized',
+    description: r[idx['description']] || '',
+    amount:      parseFloat(r[idx['amount']]) || 0,
+    month:       r[idx['month']]       || '',
+    year:        parseInt(r[idx['year']]) || ''
+  })).filter(t => t.amount > 0);
+}
+
+// Merges incoming sheet rows into local IndexedDB: same id -> update the
+// local copy (preserving fields the sheet doesn't carry, like source);
+// same contentHash but a different id -> queue as a reviewable conflict
+// instead of silently duplicating or overwriting; otherwise -> add as new.
+// Shared by both pull and push — push runs this first so two devices
+// pushing independently can't each silently clobber the other's unsynced
+// edits (a push is a full clear-and-rewrite of the sheet).
+async function mergeIncomingSheetRows(incoming){
+  if (!incoming.length) return { applied: 0, conflicts: 0 };
+  const local       = await dbGetAll();
+  const localById   = new Map(local.map(t => [String(t.id), t]));
+  const localByHash = new Map(local.map(t => [t.contentHash || txnHash(t), t]));
+  const toApply = [];
+  let newConflicts = 0;
+  incoming.forEach(t => {
+    const localMatch = localById.get(String(t.id));
+    if (localMatch) {
+      toApply.push(touchTxnMeta({ ...localMatch, date:t.date, type:t.type, category:t.category, description:t.description, amount:t.amount, month:t.month, year:t.year }));
+      return;
+    }
+    const hashMatch = localByHash.get(txnHash(t));
+    if (hashMatch) {
+      const key = hashMatch.id + '|' + t.id;
+      if (!_flaggedSyncConflicts.has(key)) {
+        _flaggedSyncConflicts.add(key);
+        pendingSyncConflicts.push({ existing: hashMatch, incoming: t });
+        newConflicts++;
+      }
+      return;
+    }
+    toApply.push(stampNewTxn(t));
+  });
+  if (toApply.length) await dbBulkPut(toApply);
+  return { applied: toApply.length, conflicts: newConflicts };
+}
+
+// Surfaces a sync failure to the user instead of only console.warn — but
+// rate-limited, so a sustained outage (offline, expired token) doesn't spam
+// a toast every push/pull cycle.
+let _lastSyncErrorToastAt = 0;
+function syncErrorToast(e){
+  const now = Date.now();
+  if (now - _lastSyncErrorToastAt < 5*60*1000) return;
+  _lastSyncErrorToastAt = now;
+  toast('⚠️ Sync to Google Sheets failed — ' + (e && e.message ? e.message : 'unknown error') + '. Will keep retrying automatically.', 'error', {duration:7000});
+}
+
 async function gsheetsPullSilent() {
   const meta = loadGSheetsMeta();
   if (!meta.spreadsheetId || !gsheetsToken) return false;
   if (isSyncing) return false;
   isSyncing = true;
   try {
-    const res = await gSheetsAPI('GET',
-      `https://sheets.googleapis.com/v4/spreadsheets/${meta.spreadsheetId}/values/${encodeURIComponent(GSHEETS_SHEET_TITLE+'!A1:H')}`, null);
-    const rows = res.values || [];
-    if (rows.length < 2) return false;
-    const [header, ...data] = rows;
-    const idx = Object.fromEntries(header.map((h,i) => [h.toLowerCase(), i]));
-    const incoming = data.map(r => ({
-      id:          r[idx['id']] ? String(r[idx['id']]) : String(Date.now() + Math.random()),
-      date:        r[idx['date']]        || '',
-      type:        r[idx['type']]        || 'revenue',
-      category:    r[idx['category']]    || 'Uncategorized',
-      description: r[idx['description']] || '',
-      amount:      parseFloat(r[idx['amount']]) || 0,
-      month:       r[idx['month']]       || '',
-      year:        parseInt(r[idx['year']]) || ''
-    })).filter(t => t.amount > 0);
-    if (incoming.length === 0) return false;
-
-    const local       = await dbGetAll();
-    const localById   = new Map(local.map(t => [String(t.id), t]));
-    const localByHash = new Map(local.map(t => [t.contentHash || txnHash(t), t]));
-
-    const toApply = [];
-    let newConflicts = 0;
-    incoming.forEach(t => {
-      const localMatch = localById.get(String(t.id));
-      if (localMatch) {
-        // Same record — apply the sheet's latest values onto the existing
-        // local copy instead of replacing it outright, so fields the sheet
-        // doesn't carry (source, category-confirmation state, etc.) survive.
-        toApply.push(touchTxnMeta({ ...localMatch, date:t.date, type:t.type, category:t.category, description:t.description, amount:t.amount, month:t.month, year:t.year }));
-        return;
-      }
-      const hashMatch = localByHash.get(txnHash(t));
-      if (hashMatch) {
-        const key = hashMatch.id + '|' + t.id;
-        if (!_flaggedSyncConflicts.has(key)) {
-          _flaggedSyncConflicts.add(key);
-          pendingSyncConflicts.push({ existing: hashMatch, incoming: t });
-          newConflicts++;
-        }
-        return;
-      }
-      toApply.push(stampNewTxn(t));
-    });
-
-    if (toApply.length) await dbBulkPut(toApply);
+    const incoming = await fetchIncomingSheetRows(meta);
+    if (!incoming.length) return false;
+    const { applied, conflicts } = await mergeIncomingSheetRows(incoming);
     meta.lastSync = new Date().toLocaleString();
     saveGSheetsMeta(meta);
     updateLastSyncUI();
-    if (typeof refreshDashboard === 'function') refreshDashboard();
-    if (newConflicts > 0) {
+    if (applied > 0 && typeof refreshDashboard === 'function') refreshDashboard();
+    if (conflicts > 0) {
       updateSyncConflictUI();
-      toast(`🔁 Synced — ${newConflicts} possible duplicate${newConflicts===1?'':'s'} found, review in Backup & Restore`, 'info', {duration:6000});
+      toast(`🔁 Synced — ${conflicts} possible duplicate${conflicts===1?'':'s'} found, review in Backup & Restore`, 'info', {duration:6000});
     }
     return true;
   } catch(e) {
     console.warn('[auto-pull]', e);
+    syncErrorToast(e);
     return false;
   } finally { isSyncing = false; }
 }
@@ -6476,13 +6546,86 @@ function exportReportPDF(){ openReportDoc(true); toast('Save as PDF in the print
 //  DASHBOARD + CHARTS
 // ═══════════════════════════════════════════════════════════════════
 
-let activeMonthFilter = null;
+// activeMonths/activeYears: null = "All" (nothing explicitly narrowed);
+// otherwise a Set of selected values. Multi-select — the Year/Month filters
+// are dropdowns (see renderFilterDropdown) that let more than one value be
+// chosen at once, OR'd together within each dimension, ANDed across
+// dimensions (e.g. {2024,2025} years AND {Jan,Feb} months).
+let activeMonths = null;
 // undefined = not yet initialized this session (auto-pick the most recent
 // year that actually has data); null = "All Years" explicitly chosen;
-// a number = one specific year. Starting at undefined — rather than
+// a Set = specific years selected. Starting at undefined — rather than
 // defaulting to today's calendar year — is what keeps the header from
 // claiming "2026" when every transaction is actually from 2024/2025.
-let activeYearFilter = undefined;
+let activeYears = undefined;
+// Set by clicking a slice in the Revenue by Category / Expense Breakdown
+// doughnuts. null = no category drill-down. Single-select (unlike
+// Year/Month) — it's a chart-driven drill-down, not a standing filter.
+let activeCategoryFilter = null;
+
+// ── Multi-select filter dropdown (Year / Month) ─────────────────────
+const _msState = {}; // { year: {options, onApply}, month: {...} }
+function msSummarize(selectedSet, unitLabel, allOptions){
+  if(selectedSet==null || selectedSet.size===0 || selectedSet.size===allOptions.length) return `All ${unitLabel}s`;
+  const arr=[...selectedSet];
+  if(arr.length<=3) return arr.join(', ');
+  return `${arr.length} ${unitLabel}s`;
+}
+function renderFilterDropdown(kind, unitLabel, options, selectedSet, onApply){
+  _msState[kind] = { options, onApply };
+  const container = document.getElementById(kind+'-filter');
+  if(!container) return;
+  const allSelected = selectedSet==null || selectedSet.size===0 || selectedSet.size===options.length;
+  const summary = msSummarize(selectedSet, unitLabel, options);
+  const optsHtml = options.map(o=>{
+    const checked = !allSelected && selectedSet.has(o);
+    return `<label class="ms-dd-option"><input type="checkbox" data-val="${escapeHtml(String(o))}" ${checked?'checked':''} onchange="onMsOptionToggle('${kind}')"> ${escapeHtml(String(o))}</label>`;
+  }).join('');
+  container.innerHTML = `<div class="ms-dd">
+    <button type="button" class="ms-dd-btn" onclick="toggleMsDropdown('${kind}')">
+      <span style="color:var(--muted)">${unitLabel}:</span> <strong>${escapeHtml(summary)}</strong> <span style="opacity:.6;font-size:10px">▾</span>
+    </button>
+    <div class="ms-dd-popover" id="${kind}-ms-popover" hidden>
+      <label class="ms-dd-option ms-dd-all"><input type="checkbox" ${allSelected?'checked':''} onchange="onMsAllToggle('${kind}',this.checked)"> All ${unitLabel}s</label>
+      ${options.length?'<div class="ms-dd-divider"></div>':''}
+      ${optsHtml}
+    </div>
+  </div>`;
+}
+function toggleMsDropdown(kind){
+  document.querySelectorAll('.ms-dd-popover').forEach(p=>{ if(p.id!==kind+'-ms-popover') p.hidden=true; });
+  const pop = document.getElementById(kind+'-ms-popover');
+  if(pop) pop.hidden = !pop.hidden;
+}
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.ms-dd')) document.querySelectorAll('.ms-dd-popover').forEach(p=>p.hidden=true);
+});
+function onMsAllToggle(kind, checked){
+  const state = _msState[kind]; if(!state) return;
+  if(checked){
+    const pop = document.getElementById(kind+'-ms-popover');
+    pop.querySelectorAll('input[data-val]').forEach(cb=>cb.checked=false);
+    state.onApply(null);
+  } else {
+    // Can't leave "nothing" selected — snap back rather than show zero data.
+    const cb = document.querySelector(`#${kind}-ms-popover input:not([data-val])`);
+    if(cb) cb.checked = true;
+  }
+}
+function onMsOptionToggle(kind){
+  const state = _msState[kind]; if(!state) return;
+  const pop = document.getElementById(kind+'-ms-popover');
+  const checkedVals = [...pop.querySelectorAll('input[data-val]:checked')].map(cb=>cb.dataset.val);
+  const allCb = pop.querySelector('input:not([data-val])');
+  if(checkedVals.length){
+    if(allCb) allCb.checked = false;
+    const typed = state.options.filter(o=>checkedVals.includes(String(o)));
+    state.onApply(new Set(typed));
+  } else {
+    if(allCb) allCb.checked = true;
+    state.onApply(null);
+  }
+}
 
 async function refreshDashboard() {
   const all=await dbGetAll();
@@ -6493,36 +6636,57 @@ async function refreshDashboard() {
   if(!all.length){renderEmptyDashboard();return;}
 
   const years = [...new Set(all.map(t=>t.year).filter(Boolean))].sort((a,b)=>b-a);
-  if(activeYearFilter===undefined){
-    activeYearFilter = years.length ? years[0] : null;
-  } else if(activeYearFilter!=null && years.length && !years.includes(activeYearFilter)){
-    // The previously-selected year no longer has any data (e.g. its last
-    // transaction was deleted) — fall back to the newest year that does.
-    activeYearFilter = years[0];
+  if(activeYears===undefined){
+    activeYears = years.length ? new Set([years[0]]) : null;
+  } else if(activeYears instanceof Set){
+    const stillValid = [...activeYears].filter(y=>years.includes(y));
+    // The previously-selected year(s) no longer have any data (e.g. the
+    // last transaction in one was deleted) — fall back to the newest
+    // year that does, rather than silently showing "All Years".
+    activeYears = stillValid.length ? new Set(stillValid) : (years.length ? new Set([years[0]]) : null);
   }
-  const yearScoped = activeYearFilter==null ? all : all.filter(t=>String(t.year)===String(activeYearFilter));
+  const yearScoped = activeYears==null ? all : all.filter(t=>activeYears.has(t.year));
+  // Category drill-down applies on top of the year scope and feeds the
+  // monthly chart/KPIs — but NOT the category breakdown doughnuts
+  // themselves, so every category stays visible/clickable there.
+  const catScoped = activeCategoryFilter ? yearScoped.filter(t=>(t.category||'Uncategorized')===activeCategoryFilter) : yearScoped;
 
   const map={};MONTHS.forEach(m=>{map[m]={revenue:0,expenses:0};});
-  yearScoped.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else if(t.type==='expense')map[t.month].expenses+=t.amount;});
+  catScoped.forEach(t=>{if(!map[t.month])map[t.month]={revenue:0,expenses:0};if(t.type==='revenue')map[t.month].revenue+=t.amount;else if(t.type==='expense')map[t.month].expenses+=t.amount;});
   const monthly=MONTHS.map(m=>({month:m,...map[m],net:map[m].revenue-map[m].expenses})).filter(m=>m.revenue>0||m.expenses>0);
+  const monthNames = monthly.map(m=>m.month);
+  if(activeMonths instanceof Set){
+    const stillValid = [...activeMonths].filter(m=>monthNames.includes(m));
+    activeMonths = stillValid.length ? new Set(stillValid) : null;
+  }
 
-  const yd=document.getElementById('year-filter');
-  yd.innerHTML='<span style="font-size:12px;color:var(--muted);margin-right:4px">Year:</span>';
-  yd.appendChild(mkChip('All Years',activeYearFilter===null,()=>{activeYearFilter=null;activeMonthFilter=null;refreshDashboard();}));
-  years.forEach(y=>yd.appendChild(mkChip(String(y),String(activeYearFilter)===String(y),()=>{activeYearFilter=y;activeMonthFilter=null;refreshDashboard();})));
+  renderFilterDropdown('year', 'Year', years, activeYears, (sel)=>{ activeYears=sel; activeMonths=null; refreshDashboard(); });
+  renderFilterDropdown('month', 'Month', monthNames, activeMonths, (sel)=>{ activeMonths=sel; refreshDashboard(); });
 
-  const fd=document.getElementById('month-filter');
-  fd.innerHTML='<span style="font-size:12px;color:var(--muted);margin-right:4px">Month:</span>';
-  fd.appendChild(mkChip('All',activeMonthFilter===null,()=>{activeMonthFilter=null;refreshDashboard();}));
-  monthly.forEach(m=>fd.appendChild(mkChip(m.month,activeMonthFilter===m.month,()=>{activeMonthFilter=m.month;refreshDashboard();})));
-  const txns=activeMonthFilter?yearScoped.filter(t=>t.month===activeMonthFilter):yearScoped;
+  const badge = document.getElementById('category-filter-badge');
+  if(activeCategoryFilter){
+    badge.style.display='block';
+    badge.innerHTML = `<span style="background:var(--teal-dim);color:var(--teal);padding:3px 10px;border-radius:20px;font-weight:600">Category: ${escapeHtml(activeCategoryFilter)} <span style="cursor:pointer;margin-left:4px" onclick="activeCategoryFilter=null;refreshDashboard()" title="Clear category filter">✕</span></span>`;
+  } else {
+    badge.style.display='none';
+    badge.innerHTML='';
+  }
+
+  const txns = activeMonths==null ? catScoped : catScoped.filter(t=>activeMonths.has(t.month));
   const rev=txns.filter(t=>t.type==='revenue').reduce((s,t)=>s+t.amount,0);
   const exp=txns.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const cogs=txns.filter(t=>t.type==='expense'&&(t.category||'').toLowerCase().includes('cog')).reduce((s,t)=>s+t.amount,0);
   const net=rev-exp,gross=rev-cogs,margin=rev>0?(net/rev)*100:0;
   const avgRev=monthly.length?monthly.reduce((s,m)=>s+m.revenue,0)/monthly.length:0;
-  const yearLabel = activeYearFilter==null ? 'All Years' : String(activeYearFilter);
-  document.getElementById('dash-period').textContent=activeMonthFilter?`${activeMonthFilter} ${yearLabel}`:`${activeYearFilter==null?'All Years':'Full Year '+yearLabel} · ${txns.length.toLocaleString()} transactions`;
+  const yearLabel = msSummarize(activeYears, 'Year', years);
+  const monthIsAll = activeMonths==null || activeMonths.size===0 || activeMonths.size===monthNames.length;
+  const monthLabel = monthIsAll ? null : msSummarize(activeMonths, 'Month', monthNames);
+  let periodText;
+  if(monthLabel) periodText = `${monthLabel} · ${yearLabel}`;
+  else if(yearLabel==='All Years') periodText = `All Years · ${txns.length.toLocaleString()} transactions`;
+  else if(activeYears && activeYears.size===1) periodText = `Full Year ${yearLabel} · ${txns.length.toLocaleString()} transactions`;
+  else periodText = `${yearLabel} · ${txns.length.toLocaleString()} transactions`;
+  document.getElementById('dash-period').textContent = periodText;
   setKPI('kpi-rev',rev,`${txns.filter(t=>t.type==='revenue').length} entries`,'positive');
   setKPI('kpi-exp',exp,`${txns.filter(t=>t.type==='expense').length} entries`,'negative');
   setKPI('kpi-net',net,net>=0?'Profitable':'Net loss',net>=0?'amber':'negative');
@@ -6531,7 +6695,11 @@ async function refreshDashboard() {
   document.getElementById('kpi-margin-sub').textContent=margin>=0?'Healthy margin':'Negative margin';
   document.getElementById('kpi-avg-rev').textContent=fmt(avgRev);
   updateSidebarBiz();
-  renderCharts(monthly);
+  // Category breakdown doughnuts use the year+month scope (not the
+  // category filter) so clicking one category doesn't hide the others.
+  const breakdownScope = activeMonths==null ? yearScoped : yearScoped.filter(t=>activeMonths.has(t.month));
+  renderCharts(monthly, breakdownScope, years);
+  fitAllKpiValues();
 }
 
 // ── INDUSTRY TEMPLATES ──────────────────────────────────────────
@@ -6604,6 +6772,33 @@ async function clearSampleData(){
 
 function mkChip(label,active,onclick){const c=document.createElement('div');c.className='filter-chip'+(active?' active':'');c.textContent=label;c.onclick=onclick;return c;}
 function setKPI(id,val,sub,cls){const el=document.getElementById(id);el.textContent=fmt(val);el.className=`kpi-value ${cls}`;if(sub)document.getElementById(id+'-sub').textContent=sub;}
+
+// Large dollar amounts (hundreds of millions+) can be wider than a KPI
+// card at any fixed font-size — .kpi-card clips overflow, so without this
+// the text just gets cut off mid-digit. Shrinks each .kpi-value from its
+// CSS default until it fits its own card, instead of a one-size-fits-all
+// fixed px value across every breakpoint.
+function fitKpiValueText(el){
+  if(!el) return;
+  el.style.fontSize = ''; // reset to the CSS default before measuring
+  const defaultSize = parseFloat(getComputedStyle(el).fontSize);
+  if(!defaultSize) return;
+  let size = defaultSize;
+  const minSize = Math.max(12, Math.round(defaultSize * 0.45));
+  while(el.scrollWidth > el.clientWidth + 1 && size > minSize){
+    size -= 1;
+    el.style.fontSize = size + 'px';
+  }
+}
+function fitAllKpiValues(){
+  document.querySelectorAll('#kpi-grid .kpi-value').forEach(fitKpiValueText);
+}
+let _kpiResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_kpiResizeTimer);
+  _kpiResizeTimer = setTimeout(fitAllKpiValues, 150);
+});
+
 function renderSampleDataBanner(all){
   let existing = document.getElementById('sample-data-banner');
   const hasSamples = all.some(t => t._sample);
@@ -6627,6 +6822,8 @@ function renderEmptyDashboard(){
   ['kpi-rev','kpi-exp','kpi-net','kpi-gross','kpi-margin','kpi-avg-rev'].forEach(id=>document.getElementById(id).textContent='—');
   document.getElementById('month-filter').innerHTML='';
   document.getElementById('year-filter').innerHTML='';
+  const catBadge=document.getElementById('category-filter-badge');
+  if(catBadge){catBadge.style.display='none';catBadge.innerHTML='';}
   const chartsGrid=document.querySelector('.charts-grid');
   if(chartsGrid&&!document.getElementById('empty-state-cta')){
     const card=document.createElement('div');
@@ -6712,20 +6909,50 @@ function fmtAmount(amount, type){
   return { text: outflow ? `(${text})` : text, cls: outflow ? 'negative-val' : 'positive-val' };
 }
 
-function renderCharts(monthly) {
+function renderCharts(monthly, breakdownScope, allYears) {
   const labels=monthly.map(m=>m.month),rev=monthly.map(m=>m.revenue),exp=monthly.map(m=>m.expenses),net=monthly.map(m=>m.net);
   const tc=themeColors();Chart.defaults.color=tc.muted;Chart.defaults.font.family="'DM Sans',sans-serif";
   Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});charts={};
-  const bOpts=()=>{const tc=themeColors();return{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11},color:tc.muted}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}}},scales:{x:{grid:{color:tc.gridLine},ticks:{font:{size:11},color:tc.muted}},y:{grid:{color:tc.gridLine},ticks:{font:{size:11},color:tc.muted,callback:v=>fmt(v)}}}};};
-  charts.revExp=new Chart(document.getElementById('chart-rev-exp'),{type:'bar',data:{labels,datasets:[{label:'Revenue',data:rev,backgroundColor:'#0ecfbe99',borderColor:'#0ecfbe',borderWidth:1.5,borderRadius:4},{label:'Expenses',data:exp,backgroundColor:'#e74c3c99',borderColor:'#e74c3c',borderWidth:1.5,borderRadius:4}]},options:bOpts()});
-  charts.net=new Chart(document.getElementById('chart-net'),{type:'line',data:{labels,datasets:[{label:'Net Profit',data:net,borderColor:'#f5a623',backgroundColor:'#f5a62320',borderWidth:2.5,fill:true,pointBackgroundColor:'#f5a623',pointRadius:4,tension:.3}]},options:bOpts()});
-  dbGetAll().then(all=>{
-    const catTotals=type=>{const m={};all.filter(t=>t.type===type).forEach(t=>{m[t.category||'Uncategorized']=(m[t.category||'Uncategorized']||0)+t.amount;});return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
-    const COLS=['#0ecfbe','#f5a623','#e74c3c','#27ae60','#3498db','#9b59b6','#e67e22','#e91e63','#8bc34a','#ff9800'];
-    const dOpts=()=>{const tc=themeColors();return{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{boxWidth:10,padding:8,font:{size:11},color:tc.muted}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.raw)}`}}}};};
-    const rc=catTotals('revenue');charts.revCat=new Chart(document.getElementById('chart-rev-cat'),{type:'doughnut',data:{labels:rc.map(c=>c[0]),datasets:[{data:rc.map(c=>c[1]),backgroundColor:COLS.slice(0,rc.length),borderWidth:0}]},options:dOpts()});
-    const ec=catTotals('expense');charts.expCat=new Chart(document.getElementById('chart-exp-cat'),{type:'doughnut',data:{labels:ec.map(c=>c[0]),datasets:[{data:ec.map(c=>c[1]),backgroundColor:[...COLS].reverse().slice(0,ec.length),borderWidth:0}]},options:dOpts()});
-  });
+  // Dim every bar/slice except the one(s) matching the active filter, so
+  // the chart itself shows what's currently selected — full opacity when
+  // nothing in that dimension is filtered. `selected` is either a single
+  // value (category) or a Set (months, for multi-select).
+  const isSelected=(selected,k)=> selected instanceof Set ? selected.has(k) : selected===k;
+  const withSelection=(baseColors,selected,keys)=>(selected==null||(selected instanceof Set && selected.size===0))?baseColors:keys.map((k,i)=>isSelected(selected,k)?baseColors[i]:(baseColors[i]+'33'));
+  const monthClickHandler=(evt,elements)=>{
+    if(!elements.length)return;
+    const month=labels[elements[0].index];
+    const isOnlySelected = activeMonths instanceof Set && activeMonths.size===1 && activeMonths.has(month);
+    activeMonths = isOnlySelected ? null : new Set([month]);
+    refreshDashboard();
+  };
+  const hoverPointer=(evt,elements)=>{ evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; };
+  const bOpts=()=>{const tc=themeColors();return{responsive:true,maintainAspectRatio:false,onClick:monthClickHandler,onHover:hoverPointer,plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11},color:tc.muted}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}}},scales:{x:{grid:{color:tc.gridLine},ticks:{font:{size:11},color:tc.muted}},y:{grid:{color:tc.gridLine},ticks:{font:{size:11},color:tc.muted,callback:v=>fmt(v)}}}};};
+  charts.revExp=new Chart(document.getElementById('chart-rev-exp'),{type:'bar',data:{labels,datasets:[
+    {label:'Revenue',data:rev,backgroundColor:withSelection(labels.map(()=>'#0ecfbe99'),activeMonths,labels),borderColor:'#0ecfbe',borderWidth:1.5,borderRadius:4},
+    {label:'Expenses',data:exp,backgroundColor:withSelection(labels.map(()=>'#e74c3c99'),activeMonths,labels),borderColor:'#e74c3c',borderWidth:1.5,borderRadius:4}
+  ]},options:bOpts()});
+  charts.net=new Chart(document.getElementById('chart-net'),{type:'line',data:{labels,datasets:[{label:'Net Profit',data:net,borderColor:'#f5a623',backgroundColor:'#f5a62320',borderWidth:2.5,fill:true,pointBackgroundColor:withSelection(labels.map(()=>'#f5a623'),activeMonths,labels),pointRadius:labels.map(m=>(activeMonths instanceof Set && activeMonths.size)?(activeMonths.has(m)?6:3):4),tension:.3}]},options:bOpts()});
+
+  const catTotals=type=>{const m={};breakdownScope.filter(t=>t.type===type).forEach(t=>{m[t.category||'Uncategorized']=(m[t.category||'Uncategorized']||0)+t.amount;});return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
+  const COLS=['#0ecfbe','#f5a623','#e74c3c','#27ae60','#3498db','#9b59b6','#e67e22','#e91e63','#8bc34a','#ff9800'];
+  const monthIsAllForLabel = activeMonths==null || activeMonths.size===0;
+  const monthPart = monthIsAllForLabel ? '' : msSummarize(activeMonths,'Month',labels);
+  const yearPart = activeYears==null ? 'All time' : msSummarize(activeYears,'Year',allYears||[...activeYears]);
+  const periodLabel = monthPart ? `${monthPart} ${yearPart}` : yearPart;
+  const revPeriodEl=document.getElementById('chart-rev-cat-period'); if(revPeriodEl) revPeriodEl.textContent=periodLabel;
+  const expPeriodEl=document.getElementById('chart-exp-cat-period'); if(expPeriodEl) expPeriodEl.textContent=periodLabel;
+  const catClickHandler=catList=>(evt,elements)=>{
+    if(!elements.length)return;
+    const cat=catList[elements[0].index];
+    activeCategoryFilter=(activeCategoryFilter===cat)?null:cat;
+    refreshDashboard();
+  };
+  const dOpts=catList=>{const tc=themeColors();return{responsive:true,maintainAspectRatio:false,cutout:'55%',onClick:catClickHandler(catList),onHover:hoverPointer,plugins:{legend:{position:'right',labels:{boxWidth:10,padding:8,font:{size:11},color:tc.muted}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.raw)}`}}}};};
+  const rc=catTotals('revenue'),rcLabels=rc.map(c=>c[0]);
+  charts.revCat=new Chart(document.getElementById('chart-rev-cat'),{type:'doughnut',data:{labels:rcLabels,datasets:[{data:rc.map(c=>c[1]),backgroundColor:withSelection(COLS.slice(0,rc.length),activeCategoryFilter,rcLabels),borderWidth:0}]},options:dOpts(rcLabels)});
+  const ec=catTotals('expense'),ecLabels=ec.map(c=>c[0]);
+  charts.expCat=new Chart(document.getElementById('chart-exp-cat'),{type:'doughnut',data:{labels:ecLabels,datasets:[{data:ec.map(c=>c[1]),backgroundColor:withSelection([...COLS].reverse().slice(0,ec.length),activeCategoryFilter,ecLabels),borderWidth:0}]},options:dOpts(ecLabels)});
 }
 
 // ═══════════════════════════════════════════════════════════════════
