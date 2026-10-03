@@ -232,6 +232,65 @@ archive/                     Old versions (v5/v6/v7) — historical, not live.
   `responsive: true` ResizeObserver can never actually shrink the chart
   when the window narrows, because its grid cell won't shrink either. If a
   future chart container doesn't resize properly, check this first.
+- **Popovers must be `position:fixed`, not `absolute`, to survive mobile.**
+  `#main-content` has `overflow-x:hidden` at mobile breakpoints (needed to
+  stop horizontal page scroll), which silently clips any `position:absolute`
+  descendant that would render outside its bounds — e.g. the Year/Month
+  filter dropdown (`.ms-dd-popover`) was unopenable on phones until this was
+  found. The fix pattern (already established earlier by the Quick Add
+  category picker, `.cat-picker-popover`, and now mirrored by
+  `toggleMsDropdown()`): compute the trigger button's `getBoundingClientRect()`
+  and set `position:fixed` + explicit `top`/`left`/`width` inline via JS at
+  open time, instead of relying on CSS `position:absolute` positioning
+  relative to an ancestor. Any new dropdown/popover component should follow
+  this pattern from the start rather than rediscovering the clipping bug.
+- **Google Sheets token re-auth happens on every cached-session load, not
+  just on sign-in.** `gsheetsToken` is only kept in `sessionStorage`, which
+  is cleared when the browser/tab closes. `bootApp()`'s own token restore
+  (step 3b) only covers same-tab refreshes. The `window.addEventListener
+  ('load', ...)` bootloader's cached-session branch (`loadCachedSession()`
+  returns truthy → skip the auth gate) calls `attemptGSheetsSilentReauth()`
+  right after `bootApp()` on **every** such load — without this, a device
+  that signed in once, closed the browser, and reopened later would never
+  re-request Sheets access again and would silently stop syncing with other
+  devices after its first session. `attemptGSheetsSilentReauth()` itself is
+  a no-op whenever `gsheetsToken` is already set, so this is safe to call
+  unconditionally on every load.
+- **Duplicate detection runs proactively on every app load**, not only when
+  a sync pull happens to find a conflict. `scanAllDataForDuplicates()`
+  (called from `bootApp()`, deferred ~1.2s so it never delays perceived
+  boot time) groups every local transaction by `contentHash` (falling back
+  to `txnHash()` for pre-contentHash-era records) and flags any group with
+  more than one member into `pendingLocalDuplicates`, deduped via
+  `_flaggedLocalDuplicates` so repeat scans don't re-flag the same pair.
+  This is a **separate queue from `pendingSyncConflicts`** on purpose: for a
+  sync conflict, the "incoming" side isn't in the local DB yet (resolving it
+  means deciding whether to add it), but for a local-scan duplicate, *both*
+  sides already exist locally (resolving it means deciding whether to
+  delete the extra one) — mixing the two into one array would make
+  `reviewSyncConflicts()`'s "add as new row" resolution silently create a
+  *third* duplicate out of a local-scan pair. `reviewLocalDuplicates()`
+  mirrors `reviewSyncConflicts()`'s structure but with that inverted
+  resolution (default-excluded row → `dbDelete()`, not `dbBulkPut()`).
+  `reviewAllDuplicates()` runs whichever of the two queues is non-empty, so
+  callers needing "resolve everything" don't have to care which queue an
+  item came from. Both queues are surfaced together: a "Possible
+  Duplicates" card on the **Review Categories** page (`#review-dup-card`,
+  rendered by `renderDuplicatesSection()`, called from both
+  `updateSyncConflictUI()` and `renderReviewCategoriesView()`) shows the
+  combined count with a single "Review Duplicates" button
+  (`reviewAllDuplicates()`), and the `#nav-review-badge` sidebar count
+  (`updateReviewCategoryBadge()`) now adds both queues' lengths on top of
+  the unconfirmed-category count. `showDupReviewModal()` (the shared bulk
+  compare UI used by CSV import, sync conflicts, and local-scan duplicates)
+  takes an optional 3rd `opts` argument (`subtitle`, `selectAllLabel`,
+  `cancelLabel`, `confirmLabel`) so each caller can word the modal for its
+  own context instead of always saying "being imported" — pass `opts` for
+  any new caller rather than reusing the CSV-import-flavored defaults.
+  Whenever a sync pull (silent or manual) finds conflicts, the toast now
+  includes a "Review" action button (`toast()`'s `opts.action`) that jumps
+  straight to `review-categories-view`, instead of just naming a tab in
+  text for the user to find themselves.
 
 ## Recent work log
 
@@ -239,6 +298,24 @@ Keep this short — a few bullets per session, newest first. Full detail
 lives in `version.json`'s `release_notes` and PR descriptions; this is just
 enough for a future session to know where to look.
 
+- **2026-10-03 (3)**: Fixed the Year/Month filter dropdown not opening on
+  mobile — `.ms-dd-popover` was `position:absolute` and got clipped by
+  `#main-content`'s mobile `overflow-x:hidden`; converted it to
+  `position:fixed` with JS-computed coordinates (`toggleMsDropdown()`),
+  mirroring the existing `.cat-picker-popover` fix pattern (see
+  "Architecture decisions" above). Put the Year and Month dropdowns on the
+  same row (`.page-actions` inline style change). Fixed the real remaining
+  cause of sync going stale between devices: a cached-session app load
+  never re-requested Google Sheets access, so `gsheetsToken` was only ever
+  set on a fresh sign-in or a same-tab refresh — `attemptGSheetsSilentReauth()`
+  is now also called from the `window.load` bootloader's cached-session
+  path. Made duplicate detection proactive instead of sync-pull-only:
+  `scanAllDataForDuplicates()` now runs on every app load against all local
+  data (not just incoming sync rows), surfaced via a new "Possible
+  Duplicates" section on the Review Categories page
+  (`reviewAllDuplicates()`/`reviewLocalDuplicates()`, separate queue from
+  `pendingSyncConflicts` — see above for why) plus a toast with a "Review"
+  button pointing there whenever either queue gains entries.
 - **2026-10-03 (2)**: Fixed KPI tiles clipping large dollar amounts
   (JS auto-fit font sizing — see above; also had to strip `!important`
   from several mobile `.kpi-value` font-size rules that were silently
