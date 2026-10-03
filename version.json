@@ -1,8 +1,18 @@
 {
-  "latest_version": "8.12.0",
+  "latest_version": "8.12.1",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.12.1",
+      "date": "2026-10-03",
+      "title": "Fix Devices Running Stale App Code (Service Worker Cache)",
+      "summary": "Fixes a second, separate cause of devices looking out of sync with each other — not a data sync bug this time, but the installed app (PWA) itself silently running an old cached build of the code. The service worker previously served the cached copy of the app instantly on every load and only updated that cache in the background for the *next* load, so a device could stay stuck running an old version — with old bugs, including old sync bugs — for a long time after a fix was deployed, with no visible warning. It now always fetches the live deployed version when online, only falling back to the cached copy when actually offline, and the \"new version available\" notification now includes a one-tap Reload button.",
+      "changes": [
+        { "type": "fix", "text": "The service worker's app-shell caching strategy changed from stale-while-revalidate (always serve the cached copy immediately, refresh the cache in the background) to network-first (always fetch the live deployed copy when online; fall back to the cache only when offline). Previously, a real behavior fix — not just a cosmetic change — could sit invisible on a device for one or more app opens after being deployed, and a device that closed the app before a background cache refresh finished (common on mobile) could stay on an old build indefinitely. This was a second, independent cause of different devices appearing out of sync, on top of (and easy to mistake for) any actual data sync issue." },
+        { "type": "fix", "text": "The in-app service worker registration now forces an immediate update check on every load instead of waiting on the browser's own update heuristic (which can be as infrequent as once per 24 hours), and the \"a new version is available\" toast now includes a Reload button instead of just telling you to refresh manually." }
+      ]
+    },
     {
       "version": "8.12.0",
       "date": "2026-10-03",
