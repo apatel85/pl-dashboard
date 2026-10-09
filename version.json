@@ -1,8 +1,18 @@
 {
-  "latest_version": "8.12.1",
+  "latest_version": "8.12.2",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
+    {
+      "version": "8.12.2",
+      "date": "2026-10-09",
+      "title": "Fix Google Sign-In Blocked for Licensed Users",
+      "summary": "Fixes licensed users being locked out with \"Access blocked... Error 403: access_denied\". Signing in began requesting Google Sheets/Drive access in the same step as login (to make sync automatic), and Google blocks those sensitive permissions for any account not approved on this unverified app — so login itself failed. Sign-in now falls back to a basic Google login that always works, and automatic sync becomes optional instead of a requirement to get in.",
+      "changes": [
+        { "type": "fix", "text": "If Google blocks or you close the combined sign-in-plus-Sheets request, a \"Sign in without automatic sync\" button now appears and signs you in with basic Google permissions only (email/profile). Sync can still be enabled later from the Backup tab." },
+        { "type": "fix", "text": "Closing or blocking the Google popup no longer leaves the login screen spinning forever." }
+      ]
+    },
     {
       "version": "8.12.1",
       "date": "2026-10-03",

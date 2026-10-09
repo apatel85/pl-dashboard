@@ -2007,6 +2007,11 @@ tbody tr:hover { background: var(--surface2); }
         background:#2a1515;border:1px solid #e74c3c;border-radius:8px;
         font-size:13px;color:#f1948a;line-height:1.6;text-align:left;
       "></div>
+      <button id="auth-basic-btn" onclick="authSignIn(true)" style="
+        display:none;width:100%;margin-top:12px;padding:12px 20px;border-radius:8px;
+        background:#0ecfbe;color:#0f1117;border:none;
+        font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;
+      ">Sign in without automatic sync</button>
 
       <!-- Alternative: sign in with license key (no Google account required) -->
       <div style="margin-top:22px;padding-top:18px;border-top:1px solid #2a3045;font-size:12px;color:#6b7394">
@@ -3646,7 +3651,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.12.1';
+const APP_VERSION       = '8.12.2';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -8017,11 +8022,21 @@ function clearCachedSession() {
 }
 
 // ── Main sign-in flow ─────────────────────────────────────────
-function authSignIn() {
+// basicOnly=true requests only openid/email/profile (non-sensitive scopes that
+// work for any Google account). The default combined request also asks for
+// Sheets/Drive so cross-device sync is automatic — but those are sensitive
+// scopes, and while the OAuth app is unverified/in Testing, Google blocks
+// everyone not on the Cloud Console test-user list with "403 access_denied".
+// Login must never depend on that, so a failed combined attempt offers a
+// basic sign-in fallback (showSheetsFallback) instead of locking users out.
+let _signInBasicOnly = false;
+function authSignIn(basicOnly) {
   if (!window.google) {
     showAuthError('Google sign-in is not loaded yet. Please check your internet connection and refresh.');
     return;
   }
+  basicOnly = basicOnly === true;
+  _signInBasicOnly = basicOnly;
   setAuthLoading(true);
   const client = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
@@ -8029,11 +8044,24 @@ function authSignIn() {
     // makes cross-device sync automatic — see autoSetupGSheetsSync(). A
     // separate later consent is still how license-key sign-ins and anyone
     // who skips this the first time can enable it from the Backup tab.
-    scope:     'openid email profile ' + GSHEETS_ALL_SCOPES,
+    scope:     basicOnly ? 'openid email profile' : 'openid email profile ' + GSHEETS_ALL_SCOPES,
+    // Fires when the popup is closed or blocked before any OAuth response
+    // (including closing Google's "Access blocked" error page). Without it
+    // the loading spinner would hang forever.
+    error_callback: (err) => {
+      if (basicOnly) {
+        setAuthLoading(false);
+        showAuthError('Sign-in did not complete. Click "Continue with Google" to try again.');
+      } else {
+        showSheetsFallback();
+      }
+    },
     callback:  async (resp) => {
       if (resp.error) {
         setAuthLoading(false);
-        if (resp.error === 'access_denied') {
+        if (!basicOnly) {
+          showSheetsFallback();
+        } else if (resp.error === 'access_denied') {
           showAuthError('Sign-in was cancelled. Click "Continue with Google" to try again.');
         } else if (resp.error === 'invalid_request' || resp.error === 'idpiframe_initialization_failed') {
           showAuthError('Configuration error. Make sure you are opening this app from its GitHub Pages URL (https://apatel85.github.io/pl-dashboard/...), not from a local file on your computer.');
@@ -8042,10 +8070,14 @@ function authSignIn() {
         }
         return;
       }
-      // This single token already carries Sheets/Drive scope too — reuse it
-      // directly instead of a second round-trip for Sheets access.
-      gsheetsToken = resp.access_token;
-      try { sessionStorage.setItem(GSHEETS_TOKEN_SESS_KEY, gsheetsToken); } catch(e) {}
+      // A combined-scope token already carries Sheets/Drive scope too — reuse
+      // it directly instead of a second round-trip for Sheets access. A
+      // basic-only token has no Sheets access (sync can be enabled later
+      // from the Backup tab).
+      if (!basicOnly) {
+        gsheetsToken = resp.access_token;
+        try { sessionStorage.setItem(GSHEETS_TOKEN_SESS_KEY, gsheetsToken); } catch(e) {}
+      }
       // Fetch user profile from Google
       try {
         const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -8362,7 +8394,16 @@ function logAccessEvent(email, googleSub, event) {
 
 // ── UI state helpers ──────────────────────────────────────────
 let _authLoadingTimer = null;
+function showSheetsFallback() {
+  setAuthLoading(false);
+  showAuthError('Google sign-in with Sheets sync didn\'t complete. This usually means Google hasn\'t approved this app for your account yet. You can still sign in without automatic sync and enable it later from the Backup tab.');
+  const b = document.getElementById('auth-basic-btn');
+  if (b) b.style.display = 'block';
+}
+
 function setAuthLoading(on) {
+  const fb = document.getElementById('auth-basic-btn');
+  if (fb) fb.style.display = 'none';
   document.getElementById('auth-google-btn').style.display = on ? 'none' : 'inline-flex';
   document.getElementById('auth-loading').style.display    = on ? 'block' : 'none';
   document.getElementById('auth-error').style.display      = 'none';
@@ -8482,6 +8523,13 @@ async function checkCloudRestoreNeeded(user) {
   // combined sign-in consent (see authSignIn()). Only license-key sign-ins,
   // or a Google session that somehow didn't get a token, fall back to a
   // silent re-request here.
+  if (!gsheetsToken && _signInBasicOnly) {
+    // Signed in without Sheets scope on purpose — don't pop another consent.
+    document.getElementById('auth-progress-bar').style.width = '100%';
+    document.getElementById('auth-progress-label').textContent = 'Loading your dashboard…';
+    setTimeout(() => unlockApp(user, true), 500);
+    return;
+  }
   if (!gsheetsToken) {
     try {
       await requestSheetsTokenSilent(user);
