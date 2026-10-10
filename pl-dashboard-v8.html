@@ -1994,7 +1994,7 @@ tbody tr:hover { background: var(--surface2); }
         Continue with Google
       </button>
       <div style="margin-top:10px;font-size:11px;color:#6b7394;line-height:1.5;text-align:center">
-        Also enables automatic backup &amp; sync across your devices via a private Google Sheet in your own Drive — nothing is shared with anyone else.
+        After signing in you can turn on automatic backup &amp; sync across your devices via a private Google Sheet in your own Drive — nothing is shared with anyone else.
       </div>
 
       <div id="auth-loading" style="display:none;margin-top:18px;font-size:13px;color:#6b7394">
@@ -2007,11 +2007,6 @@ tbody tr:hover { background: var(--surface2); }
         background:#2a1515;border:1px solid #e74c3c;border-radius:8px;
         font-size:13px;color:#f1948a;line-height:1.6;text-align:left;
       "></div>
-      <button id="auth-basic-btn" onclick="authSignIn(true)" style="
-        display:none;width:100%;margin-top:12px;padding:12px 20px;border-radius:8px;
-        background:#0ecfbe;color:#0f1117;border:none;
-        font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;
-      ">Sign in without automatic sync</button>
 
       <!-- Alternative: sign in with license key (no Google account required) -->
       <div style="margin-top:22px;padding-top:18px;border-top:1px solid #2a3045;font-size:12px;color:#6b7394">
@@ -3651,7 +3646,7 @@ tbody tr:hover { background: var(--surface2); }
 // ═══════════════════════════════════════════════════════════════════
 
 // ── App constants ─────────────────────────────────────────────────
-const APP_VERSION       = '8.12.2';
+const APP_VERSION       = '8.12.3';
 const VERSION_CHECK_URL = 'https://apatel85.github.io/pl-dashboard/version.json';
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DISMISSED_KEY     = 'pl_dismissed_version';
@@ -4693,10 +4688,35 @@ function gsheetsSignIn() {
       sessionStorage.setItem(GSHEETS_TOKEN_SESS_KEY, gsheetsToken);
       toast('✓ Signed in to Google', 'success');
       renderGSheetsPanel();
-      if (autoSyncEnabled) startAutoSync();
+      connectSyncSheet();
     }
   });
   client.requestAccessToken();
+}
+
+// After Sheets access is granted: reuse this account's existing P&L sheet from
+// Drive if there is one (so a new device joins the same data instead of
+// creating a second sheet), otherwise create one; then turn on auto-sync. The
+// first pull merges the sheet's rows into local data by id.
+async function connectSyncSheet() {
+  try {
+    const meta = loadGSheetsMeta();
+    if (!meta.spreadsheetId) {
+      const found = await findPLSheetInDrive();
+      if (found) {
+        saveGSheetsMeta({ spreadsheetId: found.id, spreadsheetName: found.name, lastSync: null });
+        gsheetsSheetId = found.id;
+      } else {
+        await gsheetsCreateSheet();
+      }
+    }
+    ensureAutoSyncDefaultOn();
+    if (autoSyncEnabled) startAutoSync();
+    renderGSheetsPanel();
+  } catch(e) {
+    console.info('[connect sync]', e.message);
+    toast('Signed in, but could not set up sync: ' + e.message, 'error');
+  }
 }
 
 function gsheetsSignOut() {
@@ -8022,46 +8042,31 @@ function clearCachedSession() {
 }
 
 // ── Main sign-in flow ─────────────────────────────────────────
-// basicOnly=true requests only openid/email/profile (non-sensitive scopes that
-// work for any Google account). The default combined request also asks for
-// Sheets/Drive so cross-device sync is automatic — but those are sensitive
-// scopes, and while the OAuth app is unverified/in Testing, Google blocks
-// everyone not on the Cloud Console test-user list with "403 access_denied".
-// Login must never depend on that, so a failed combined attempt offers a
-// basic sign-in fallback (showSheetsFallback) instead of locking users out.
-let _signInBasicOnly = false;
-function authSignIn(basicOnly) {
+// Sign-in requests ONLY openid/email/profile. Those are non-sensitive scopes
+// that work for any Google account even though this OAuth app is unverified.
+// Sheets/Drive are sensitive scopes: requesting them here made Google show
+// "Access blocked ... 403 access_denied" to every account not on the Cloud
+// Console test-user list, locking licensed users out of the app entirely.
+// Sync is a separate, opt-in step (gsheetsSignIn) so it can never block login.
+function authSignIn() {
   if (!window.google) {
     showAuthError('Google sign-in is not loaded yet. Please check your internet connection and refresh.');
     return;
   }
-  basicOnly = basicOnly === true;
-  _signInBasicOnly = basicOnly;
   setAuthLoading(true);
   const client = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
-    // Requesting Sheets/Drive alongside sign-in (one consent screen) is what
-    // makes cross-device sync automatic — see autoSetupGSheetsSync(). A
-    // separate later consent is still how license-key sign-ins and anyone
-    // who skips this the first time can enable it from the Backup tab.
-    scope:     basicOnly ? 'openid email profile' : 'openid email profile ' + GSHEETS_ALL_SCOPES,
-    // Fires when the popup is closed or blocked before any OAuth response
-    // (including closing Google's "Access blocked" error page). Without it
-    // the loading spinner would hang forever.
-    error_callback: (err) => {
-      if (basicOnly) {
-        setAuthLoading(false);
-        showAuthError('Sign-in did not complete. Click "Continue with Google" to try again.');
-      } else {
-        showSheetsFallback();
-      }
+    scope:     'openid email profile',
+    // Fires when the popup is closed or blocked before any OAuth response;
+    // without it the loading spinner would hang forever.
+    error_callback: () => {
+      setAuthLoading(false);
+      showAuthError('Sign-in did not complete. Click "Continue with Google" to try again.');
     },
     callback:  async (resp) => {
       if (resp.error) {
         setAuthLoading(false);
-        if (!basicOnly) {
-          showSheetsFallback();
-        } else if (resp.error === 'access_denied') {
+        if (resp.error === 'access_denied') {
           showAuthError('Sign-in was cancelled. Click "Continue with Google" to try again.');
         } else if (resp.error === 'invalid_request' || resp.error === 'idpiframe_initialization_failed') {
           showAuthError('Configuration error. Make sure you are opening this app from its GitHub Pages URL (https://apatel85.github.io/pl-dashboard/...), not from a local file on your computer.');
@@ -8070,15 +8075,6 @@ function authSignIn(basicOnly) {
         }
         return;
       }
-      // A combined-scope token already carries Sheets/Drive scope too — reuse
-      // it directly instead of a second round-trip for Sheets access. A
-      // basic-only token has no Sheets access (sync can be enabled later
-      // from the Backup tab).
-      if (!basicOnly) {
-        gsheetsToken = resp.access_token;
-        try { sessionStorage.setItem(GSHEETS_TOKEN_SESS_KEY, gsheetsToken); } catch(e) {}
-      }
-      // Fetch user profile from Google
       try {
         const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: 'Bearer ' + resp.access_token },
@@ -8394,16 +8390,7 @@ function logAccessEvent(email, googleSub, event) {
 
 // ── UI state helpers ──────────────────────────────────────────
 let _authLoadingTimer = null;
-function showSheetsFallback() {
-  setAuthLoading(false);
-  showAuthError('Google sign-in with Sheets sync didn\'t complete. This usually means Google hasn\'t approved this app for your account yet. You can still sign in without automatic sync and enable it later from the Backup tab.');
-  const b = document.getElementById('auth-basic-btn');
-  if (b) b.style.display = 'block';
-}
-
 function setAuthLoading(on) {
-  const fb = document.getElementById('auth-basic-btn');
-  if (fb) fb.style.display = 'none';
   document.getElementById('auth-google-btn').style.display = on ? 'none' : 'inline-flex';
   document.getElementById('auth-loading').style.display    = on ? 'block' : 'none';
   document.getElementById('auth-error').style.display      = 'none';
@@ -8523,23 +8510,26 @@ async function checkCloudRestoreNeeded(user) {
   // combined sign-in consent (see authSignIn()). Only license-key sign-ins,
   // or a Google session that somehow didn't get a token, fall back to a
   // silent re-request here.
-  if (!gsheetsToken && _signInBasicOnly) {
-    // Signed in without Sheets scope on purpose — don't pop another consent.
+  // Sign-in no longer carries Sheets scope (see authSignIn), so there is no
+  // token here unless one survived in sessionStorage. Never open a consent
+  // popup from the sign-in flow — it would hit Google's "Access blocked" page
+  // for accounts the app isn't approved for. Try a no-UI silent re-auth (works
+  // only if this account already granted Sheets access), boot straight in, and
+  // offer sync as an opt-in toast.
+  if (!gsheetsToken) {
+    attemptGSheetsSilentReauth();
     document.getElementById('auth-progress-bar').style.width = '100%';
     document.getElementById('auth-progress-label').textContent = 'Loading your dashboard…';
     setTimeout(() => unlockApp(user, true), 500);
+    setTimeout(() => {
+      if (!gsheetsToken) {
+        toast('Turn on cross-device sync to keep your devices in step', 'info', {
+          duration: 15000,
+          action: { label: 'Enable', onClick: gsheetsSignIn }
+        });
+      }
+    }, 4000);
     return;
-  }
-  if (!gsheetsToken) {
-    try {
-      await requestSheetsTokenSilent(user);
-    } catch(e) {
-      // Can't get token silently (first time with Sheets) — skip restore check
-      document.getElementById('auth-progress-bar').style.width = '100%';
-      document.getElementById('auth-progress-label').textContent = 'Loading your dashboard…';
-      setTimeout(() => unlockApp(user, true), 500);
-      return;
-    }
   }
 
   // Search Drive for sheets named like our backup
@@ -8563,23 +8553,6 @@ async function checkCloudRestoreNeeded(user) {
     document.getElementById('auth-progress-bar').style.width = '100%';
     setTimeout(() => unlockApp(user, true), 500);
   }
-}
-
-// Request Sheets+Drive token silently (prompt=none)
-function requestSheetsTokenSilent(user) {
-  return new Promise((resolve, reject) => {
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope:     GSHEETS_ALL_SCOPES,
-      prompt:    '',            // empty = silent if previously consented
-      hint:      user.email,   // pre-select the correct account
-      callback:  (resp) => {
-        if (resp.error) reject(new Error(resp.error));
-        else { gsheetsToken = resp.access_token; resolve(resp.access_token); }
-      }
-    });
-    client.requestAccessToken();
-  });
 }
 
 // Search Google Drive for P&L backup spreadsheets

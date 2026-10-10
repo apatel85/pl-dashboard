@@ -136,11 +136,11 @@ archive/                     Old versions (v5/v6/v7) — historical, not live.
   import and sync-conflict review) are the two comparison UIs — reuse them
   rather than building a third.
 - **Sync architecture**: Google Sheets, not a real-time backend. On Google
-  sign-in, `authSignIn()` requests Sheets/Drive scope in the *same* OAuth
-  consent as login (not a separate later step) so `gsheetsToken` is
-  available immediately; `autoSetupGSheetsSync()` then auto-creates a
-  spreadsheet if none exists and turns on auto-sync by default (respecting
-  an explicit prior opt-out). The sync engine itself
+  sign-in, `authSignIn()` requests only basic scopes (see "Google sign-in
+  must never depend on sensitive scopes"); Sheets access is granted
+  separately via `gsheetsSignIn()`/`connectSyncSheet()`, after which
+  `autoSetupGSheetsSync()` can auto-create a spreadsheet if none exists and
+  turns on auto-sync by default (respecting an explicit prior opt-out). The sync engine itself
   (`gsheetsPushSilent`/`gsheetsPullSilent`/`startAutoSync`) debounces
   pushes 3s after any change, pulls every 60s while the tab is visible,
   pulls on tab-focus, pushes before tab-close, and retries on reconnect —
@@ -328,21 +328,22 @@ archive/                     Old versions (v5/v6/v7) — historical, not live.
   before this device's cache last refreshed," which is exactly what the
   user reported as "3 devices, 3 different sets of data."
 - **Google sign-in must never depend on sensitive scopes.** `authSignIn()`
-  first tries a combined `openid email profile` + Sheets/Drive request (so
-  sync is automatic), but Sheets/Drive are *sensitive* scopes and this
-  OAuth app is unverified/in Testing, so Google blocks every account not on
-  the Cloud Console OAuth test-user list with `403 access_denied` — which
-  locked out licensed users after the combined request was introduced
-  (before that, sign-in was basic-scope only and worked for everyone). A
-  failed/closed combined attempt (`resp.error` or `error_callback`) now
-  calls `showSheetsFallback()`, revealing `#auth-basic-btn`, which runs
-  `authSignIn(true)` (basic scopes only, no `gsheetsToken`, and
-  `checkCloudRestoreNeeded` skips the silent Sheets re-request via
-  `_signInBasicOnly`). Don't make login require Sheets scope. Also note
-  Supabase license status and Google's OAuth test-user list are unrelated
-  systems — a licensed user can still be blocked by Google. Real fix for
-  automatic sync for everyone = Google OAuth verification (or adding test
-  users in Cloud Console), which can't be done from this repo.
+  requests ONLY `openid email profile`. Sheets/Drive are *sensitive* scopes
+  and this OAuth app is unverified/in Testing, so Google blocks every
+  account not on the Cloud Console OAuth test-user list with `403
+  access_denied` ("has not completed the verification process"). Requesting
+  them at sign-in (done in 8.10.0) locked licensed users out of the app
+  entirely; a "fallback button" shown after the popup closed (8.12.2) was
+  not enough because users stayed stuck on Google's error page inside the
+  popup. So sync is opt-in AFTER login: `gsheetsSignIn()` (Backup tab, or the
+  "Enable" toast shown after a fresh sign-in with no token) requests Sheets
+  scope and then `connectSyncSheet()` links the account's existing P&L sheet
+  from Drive (`findPLSheetInDrive`) or creates one, then starts auto-sync.
+  `checkCloudRestoreNeeded()` never opens a consent popup; it only tries a
+  no-UI `attemptGSheetsSilentReauth()`. Never request sensitive scopes from
+  the login flow. Supabase license status and Google's test-user list are
+  unrelated systems. Automatic sync for everyone requires Google OAuth
+  verification (or adding people as test users) — not doable from this repo.
 
 ## Recent work log
 
@@ -350,11 +351,12 @@ Keep this short — a few bullets per session, newest first. Full detail
 lives in `version.json`'s `release_notes` and PR descriptions; this is just
 enough for a future session to know where to look.
 
-- **2026-10-09**: A licensed user got Google `403 access_denied`
-  ("has not completed the verification process") at sign-in — a regression
-  from requesting Sheets/Drive scopes at login (see "Google sign-in must
-  never depend on sensitive scopes"). Added the basic-scope fallback button
-  and an `error_callback` so a closed popup can't hang the spinner (8.12.2).
+- **2026-10-10**: A licensed user still got Google `403 access_denied` at
+  sign-in (video showed the popup stuck on Google's error page, so the 8.12.2
+  fallback button never appeared). Root cause: sign-in requested Sheets/Drive
+  scopes (regression from 8.10.0). Sign-in is now basic-scope only; sync is
+  opt-in afterward (8.12.3). See "Google sign-in must never depend on
+  sensitive scopes".
 - **2026-10-03 (4)**: After merging 2026-10-03 (3)'s sync-reauth fix (PR
   #39), the user reported devices still showed different data — turned out
   to be a *second, separate* cause: the PWA's service worker
