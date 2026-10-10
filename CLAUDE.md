@@ -327,6 +327,22 @@ archive/                     Old versions (v5/v6/v7) — historical, not live.
   single test run; the bug only shows up as "whatever was last deployed
   before this device's cache last refreshed," which is exactly what the
   user reported as "3 devices, 3 different sets of data."
+- **Google sign-in must never depend on sensitive scopes.** `authSignIn()`
+  first tries a combined `openid email profile` + Sheets/Drive request (so
+  sync is automatic), but Sheets/Drive are *sensitive* scopes and this
+  OAuth app is unverified/in Testing, so Google blocks every account not on
+  the Cloud Console OAuth test-user list with `403 access_denied` — which
+  locked out licensed users after the combined request was introduced
+  (before that, sign-in was basic-scope only and worked for everyone). A
+  failed/closed combined attempt (`resp.error` or `error_callback`) now
+  calls `showSheetsFallback()`, revealing `#auth-basic-btn`, which runs
+  `authSignIn(true)` (basic scopes only, no `gsheetsToken`, and
+  `checkCloudRestoreNeeded` skips the silent Sheets re-request via
+  `_signInBasicOnly`). Don't make login require Sheets scope. Also note
+  Supabase license status and Google's OAuth test-user list are unrelated
+  systems — a licensed user can still be blocked by Google. Real fix for
+  automatic sync for everyone = Google OAuth verification (or adding test
+  users in Cloud Console), which can't be done from this repo.
 
 ## Recent work log
 
@@ -334,6 +350,11 @@ Keep this short — a few bullets per session, newest first. Full detail
 lives in `version.json`'s `release_notes` and PR descriptions; this is just
 enough for a future session to know where to look.
 
+- **2026-10-09**: A licensed user got Google `403 access_denied`
+  ("has not completed the verification process") at sign-in — a regression
+  from requesting Sheets/Drive scopes at login (see "Google sign-in must
+  never depend on sensitive scopes"). Added the basic-scope fallback button
+  and an `error_callback` so a closed popup can't hang the spinner (8.12.2).
 - **2026-10-03 (4)**: After merging 2026-10-03 (3)'s sync-reauth fix (PR
   #39), the user reported devices still showed different data — turned out
   to be a *second, separate* cause: the PWA's service worker
