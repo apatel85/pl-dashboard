@@ -1,16 +1,17 @@
 {
-  "latest_version": "8.12.2",
+  "latest_version": "8.12.3",
   "minimum_version": "1.0.0",
   "download_url": "https://apatel85.github.io/pl-dashboard/",
   "release_notes": [
     {
-      "version": "8.12.2",
-      "date": "2026-10-09",
-      "title": "Fix Google Sign-In Blocked for Licensed Users",
-      "summary": "Fixes licensed users being locked out with \"Access blocked... Error 403: access_denied\". Signing in began requesting Google Sheets/Drive access in the same step as login (to make sync automatic), and Google blocks those sensitive permissions for any account not approved on this unverified app — so login itself failed. Sign-in now falls back to a basic Google login that always works, and automatic sync becomes optional instead of a requirement to get in.",
+      "version": "8.12.3",
+      "date": "2026-10-10",
+      "title": "Sign-In No Longer Blocked by Google; Sync Is Now Opt-In After Login",
+      "summary": "Fixes licensed users hitting Google's \"Access blocked ... Error 403: access_denied\" page at sign-in. Login started asking for Google Sheets/Drive access in the same step, and Google blocks that for accounts this app isn't approved for. Sign-in now asks only for basic email/profile access, like before, so it works for everyone. Turning on cross-device sync is a separate step after you're in.",
       "changes": [
-        { "type": "fix", "text": "If Google blocks or you close the combined sign-in-plus-Sheets request, a \"Sign in without automatic sync\" button now appears and signs you in with basic Google permissions only (email/profile). Sync can still be enabled later from the Backup tab." },
-        { "type": "fix", "text": "Closing or blocking the Google popup no longer leaves the login screen spinning forever." }
+        { "type": "fix", "text": "Sign-in requests only basic Google permissions (email/profile), so licensed users are no longer blocked by Google's \"has not completed the verification process\" screen." },
+        { "type": "new", "text": "After signing in, a prompt offers to turn on cross-device sync (also available in the Backup tab). Enabling it links your existing P&L sheet from Google Drive if you have one, instead of creating a second sheet, then keeps your devices in step automatically." },
+        { "type": "fix", "text": "Closing the Google popup no longer leaves the login screen spinning forever." }
       ]
     },
     {
